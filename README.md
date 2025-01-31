@@ -1,4 +1,4 @@
-# Bee Dance Tracker - Final Year Project
+# Computer Vision Bee Tracking - Final Year Project
 Computer Vision Bee Tracking - Imperial College London Final Year Project. Detect and track honeybees performing their waggle dance for apiology researchers. 
 
 
