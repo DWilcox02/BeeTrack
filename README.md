@@ -5,6 +5,9 @@ Computer Vision Bee Tracking - Imperial College London Final Year Project. Detec
 ## Version Information
 Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
 
+### `bee_tracking` subdirectory
+Local implementation of [1]
+
 ## Referenced Work
 1. Bozek, K., Hebert, L., Portugal, Y. et al. Markerless tracking of an entire honey bee colony. Nat Commun 12, 1733 (2021). https://doi.org/10.1038/s41467-021-21769-1
     
