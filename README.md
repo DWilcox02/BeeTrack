@@ -1,12 +1,24 @@
 # Computer Vision Bee Tracking - Final Year Project
 Computer Vision Bee Tracking - Imperial College London Final Year Project. Detect and track honeybees performing their waggle dance for apiology researchers. 
 
-
 ## Version Information
 Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
 
-### `bee_tracking` subdirectory
-Local implementation of [1]
+## Initialization/Setup
+After ensuring the same python version, run:
+```
+git submodule add https://github.com/deepmind/tapnet
+cd tapnet
+pip install .
+cd ..
+pip install -r requirements.txt
+```
+
+## Running
+Move relevant videos into `/data/`. Run:
+```
+python src/tapir_bulk.py
+```
 
 ## Referenced Work
 1. Bozek, K., Hebert, L., Portugal, Y. et al. Markerless tracking of an entire honey bee colony. Nat Commun 12, 1733 (2021). https://doi.org/10.1038/s41467-021-21769-1

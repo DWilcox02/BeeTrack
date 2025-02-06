@@ -173,3 +173,8 @@ cython_debug/
 dense_object_annotation/static
 
 */package-lock.json
+
+
+# Data file (includes large videos)
+data
+data/*

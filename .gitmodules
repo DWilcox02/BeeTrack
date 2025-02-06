@@ -1,0 +1,3 @@
+[submodule "tapnet"]
+	path = tapnet
+	url = https://github.com/deepmind/tapnet
