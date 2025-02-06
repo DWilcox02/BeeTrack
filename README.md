@@ -15,6 +15,10 @@ pip install .
 cd ..
 pip install -r requirements.txt
 ```
+or, run 
+```
+sh init.sh
+```
 
 ## Running
 Move relevant videos into `/data/`. Run:
