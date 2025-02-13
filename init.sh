@@ -4,4 +4,4 @@ git submodule add https://github.com/deepmind/tapnet
 cd tapnet
 pip install .
 cd ..
-pip install -r requirements.txt
+pip install dm-haiku jax mediapy numpy matplotlib

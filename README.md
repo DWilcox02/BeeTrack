@@ -13,7 +13,7 @@ git submodule add https://github.com/deepmind/tapnet
 cd tapnet
 pip install .
 cd ..
-pip install -r requirements.txt
+pip install dm-haiku jax mediapy numpy matplotlib
 ```
 or, run 
 ```
@@ -25,6 +25,14 @@ Move relevant videos into `/data/`. Run:
 ```
 python src/tapir_bulk.py
 ```
+
+### DoC GPU Cluster Guide
+https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
+
+## Next Steps
+- Abstract use of GPUs. Currently running locally on laptop. Allow flexibility to run on a Google Cloud VM, DoC CSG GPU Cluster, etc..
+    - Project must be cloned and run as a whole locally on VM
+
 
 ## Referenced Work
 1. Bozek, K., Hebert, L., Portugal, Y. et al. Markerless tracking of an entire honey bee colony. Nat Commun 12, 1733 (2021). https://doi.org/10.1038/s41467-021-21769-1
