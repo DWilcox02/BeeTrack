@@ -68,7 +68,7 @@ frames = model_utils.preprocess_frames(frames[None])
 feature_grids = tapir.get_feature_grids(frames, is_training=False)
 chunk_size = 64
 
-
+print("Definintng chunk inference")
 def chunk_inference(query_points):
     query_points = query_points.astype(np.float32)[None]
 
@@ -89,15 +89,16 @@ def chunk_inference(query_points):
     visibles = model_utils.postprocess_occlusions(occlusions, expected_dist)
     return tracks[0], visibles[0]
 
-
+print("Here 1")
 chunk_inference = jax.jit(chunk_inference)
 
 
 query_points = sample_grid_points(query_frame, resize_height, resize_width, stride)
-
+print("Here 2")
 tracks = []
 visibles = []
 for i in range(0, query_points.shape[0], chunk_size):
+    print("Here point ", i)
     query_points_chunk = query_points[i : i + chunk_size]
     num_extra = chunk_size - query_points_chunk.shape[0]
     if num_extra > 0:
