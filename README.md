@@ -20,6 +20,8 @@ or, run
 sh init.sh
 ```
 
+TODO: Apply mkdir to the init video download
+
 ## Running
 Move relevant videos into `/data/`. Run:
 ```
