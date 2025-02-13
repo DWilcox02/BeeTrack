@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --gres=gpu:1
+#SBATCH --mem-per-cpu=5GB
 #SBATCH --mail-type=ALL # required to send email notifcations
 #SBATCH --mail-user=dgw22 # required to send email notifcations
 export PATH=/vol/bitbucket/dgw22/BeeTrack/venv/bin/:$PATH
