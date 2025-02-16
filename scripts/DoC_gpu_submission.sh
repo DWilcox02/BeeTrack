@@ -13,11 +13,24 @@ source /vol/cuda/12.0.0/setup.sh
 /usr/bin/nvidia-smi
 uptime
 
-# Add memory monitoring
+# Display initial memory state
+echo "Initial memory status:"
 free -h
-nvidia-smi --query-gpu=memory.used,memory.free --format=csv -l 5 &
-NVIDIA_PID=$!
 
+# Start memory monitoring in background (updates every 5 seconds)
+(while true; do
+    echo "$(date '+%H:%M:%S') - Memory Status:"
+    free -h | grep "Mem:"
+    sleep 15
+done) &
+MEMORY_PID=$!
+
+# Run your Python script
 python src/tapir_bulk.py
 
-kill $NVIDIA_PID  # Stop GPU monitoring
+# Kill the memory monitoring process
+kill $MEMORY_PID
+
+# Display final memory state
+echo "Final memory status:"
+free -h
