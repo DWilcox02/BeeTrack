@@ -6,6 +6,7 @@ import mediapy as media
 import numpy as np
 import gc
 from functools import partial
+import psutil
 from tapnet.models import tapir_model
 from tapnet.utils import model_utils
 from tapnet.utils import transforms
@@ -83,6 +84,7 @@ def load_checkpoint(checkpoint_path):
 
 # Process videos efficiently
 def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stride=8, chunk_size=64):
+
     start_time = time.time()
     file_path = f"{data_dir}{video_info['path']}{video_info['filename']}"
 
@@ -162,26 +164,34 @@ def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stri
     print("\n6. Processing tracking chunks...")
     n_chunks = (query_points.shape[0] + chunk_size - 1) // chunk_size
     
-    for i in tqdm(range(0, query_points.shape[0], chunk_size), 
-                 desc="Processing tracking chunks",
-                 total=n_chunks):
-        if i % (chunk_size * 10) == 0:
+
+    for i in tqdm(range(0, query_points.shape[0], chunk_size)):
+        # Clear memory more aggressively
+        if i % (chunk_size * 2) == 0:  # More frequent clearing
             clear_memory()
 
-        query_chunk = query_points[i : i + chunk_size]
-        num_extra = chunk_size - query_chunk.shape[0]
-
-        if num_extra > 0:
-            query_chunk = jnp.concatenate([query_chunk, jnp.zeros([num_extra, 3])], axis=0)
-
-        chunk_tracks, chunk_visibles = chunk_inference(query_chunk)
-
-        if num_extra > 0:
-            chunk_tracks = chunk_tracks[:-num_extra]
-            chunk_visibles = chunk_visibles[:-num_extra]
-
+        # Process smaller chunks
+        query_chunk = query_points[i : i + chunk_size].copy()  # Make explicit copy
+        
+        try:
+            process = psutil.Process()
+            print(f"Memory before chunk {i}: {process.memory_info().rss / (1024 * 1024 * 1024):.2f} GB")
+            # Free memory immediately after use
+            chunk_tracks, chunk_visibles = chunk_inference(query_chunk)
+            print(f"Memory after chunk {i}: {process.memory_info().rss / (1024 * 1024 * 1024):.2f} GB")
+            del query_chunk
+        except Exception as e:
+            print(f"Error processing chunk {i}: {e}")
+            raise
+        
         tracks.append(chunk_tracks)
         visibles.append(chunk_visibles)
+
+        # Clear intermediates
+        del chunk_tracks
+        del chunk_visibles
+    
+   
 
     print("\n7. Finalizing results...")
     tracks = jnp.concatenate(tracks, axis=0)
