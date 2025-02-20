@@ -122,10 +122,9 @@ def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stri
         chunk = frames[:, i : i + chunk_frames]
         chunk_grids = tapir.get_feature_grids(chunk, is_training=False)
         feature_grids.append(chunk_grids)
-        clear_memory()
 
     print("Concatenating feature grids...")
-    feature_grids = jax.tree_map(lambda *x: jnp.concatenate(x, axis=1), *feature_grids)
+    feature_grids = jax.tree.map(lambda *x: jnp.concatenate(x, axis=1), *feature_grids)
     clear_memory()
 
     # Process query points
