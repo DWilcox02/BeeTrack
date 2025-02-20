@@ -13,6 +13,8 @@ from tqdm import tqdm
 import time
 import torch
 import os
+import sys
+
 torch.cuda.empty_cache()
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.5"
@@ -130,6 +132,9 @@ def process_video(path):
 
 # Main execution
 if __name__ == "__main__":
+    vid_num = sys.argv[1]
+    video_number = int(vid_num)
+
     print("\n=== Starting Video Processing Pipeline ===")
     DATA_DIR = "data/"
     OUTPUT_DIR = "output/"
@@ -142,13 +147,6 @@ if __name__ == "__main__":
         {"path": "Dance_1_min/", "filename": "dance_7_point_5_secs_700x700_30fps.mp4", "fps": 30},
     ]
 
-    video_number = 0  # Process single video for now
-    print(f"\nProcessing video {video_number + 1} of {len(videos)}")
-    print(f"Video details: {videos[video_number]}")
-    path = DATA_DIR + videos[video_number]["path"]
-    process_video(path)
-
-    video_number += 1
     print(f"\nProcessing video {video_number + 1} of {len(videos)}")
     print(f"Video details: {videos[video_number]}")
     path = DATA_DIR + videos[video_number]["path"]
