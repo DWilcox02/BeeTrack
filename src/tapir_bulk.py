@@ -4,15 +4,18 @@ import jax
 import jax.numpy as jnp
 import mediapy as media
 import numpy as np
-import gc
 from functools import partial
-import psutil
 from tapnet.models import tapir_model
 from tapnet.utils import model_utils
 from tapnet.utils import transforms
 from tapnet.utils import viz_utils
 from tqdm import tqdm
 import time
+import torch
+import os
+torch.cuda.empty_cache()
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.5"
 
 print("Starting video processing pipeline...")
 
@@ -55,8 +58,8 @@ def process_video(path):
     height, width = orig_frames.shape[1:3]
     print(f"Video loaded: {len(orig_frames)} frames at {fps} FPS, resolution: {width}x{height}")
 
-    resize_height = 512  # @param {type: "integer"}
-    resize_width = 512  # @param {type: "integer"}
+    resize_height = 256  # @param {type: "integer"}
+    resize_width = 256  # @param {type: "integer"}
     stride = 8  # @param {type: "integer"}
     query_frame = 0  # @param {type: "integer"}
 
