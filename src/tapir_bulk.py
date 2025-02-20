@@ -14,19 +14,24 @@ from tapnet.utils import viz_utils
 from tqdm import tqdm
 import time
 
+print("Starting video processing pipeline...")
+
 MODEL_TYPE = "bootstapir"
 
 if MODEL_TYPE == "tapir":
     checkpoint_path = "checkpoints/tapir/tapir_checkpoint_panning.npy"
 else:
     checkpoint_path = "checkpoints/bootstapir/bootstapir_checkpoint_v2.npy"
+print(f"Loading checkpoint from: {checkpoint_path}")
 ckpt_state = np.load(checkpoint_path, allow_pickle=True).item()
 params, state = ckpt_state["params"], ckpt_state["state"]
 
 kwargs = dict(bilinear_interp_with_depthwise_conv=False, pyramid_level=0)
 if MODEL_TYPE == "bootstapir":
     kwargs.update(dict(pyramid_level=1, extra_convs=True, softmax_temperature=10.0))
+print("Initializing TAPIR model...")
 tapir = tapir_model.ParameterizedTAPIR(params, state, tapir_kwargs=kwargs)
+
 
 def sample_grid_points(frame_idx, height, width, stride=1):
     """Sample grid points with (time height, width) order."""
@@ -38,19 +43,27 @@ def sample_grid_points(frame_idx, height, width, stride=1):
     points = points.reshape(-1, 3)  # [out_height*out_width, 3]
     return points
 
+
 # Process videos efficiently
 def process_video(path):
+    print(f"\nProcessing video from: {path}")
+    start_time = time.time()
+
+    print("Reading video frames...")
     orig_frames = media.read_video(path + videos[video_number]["filename"])
     fps = videos[video_number]["fps"]
     height, width = orig_frames.shape[1:3]
-    
+    print(f"Video loaded: {len(orig_frames)} frames at {fps} FPS, resolution: {width}x{height}")
+
     resize_height = 512  # @param {type: "integer"}
     resize_width = 512  # @param {type: "integer"}
     stride = 8  # @param {type: "integer"}
     query_frame = 0  # @param {type: "integer"}
 
+    print("Preprocessing frames...")
     frames = media.resize_video(orig_frames, (resize_height, resize_width))
     frames = model_utils.preprocess_frames(frames[None])
+    print("Generating feature grids...")
     feature_grids = tapir.get_feature_grids(frames, is_training=False)
     chunk_size = 64
 
@@ -70,16 +83,19 @@ def process_video(path):
             outputs["expected_dist"],
         )
 
-        # Binarize occlusions
         visibles = model_utils.postprocess_occlusions(occlusions, expected_dist)
         return tracks[0], visibles[0]
 
+    print("JIT compiling inference function...")
     chunk_inference = jax.jit(chunk_inference)
 
+    print("Processing track points...")
     query_points = sample_grid_points(query_frame, resize_height, resize_width, stride)
+    total_chunks = (query_points.shape[0] + chunk_size - 1) // chunk_size
     tracks = []
     visibles = []
-    for i in range(0, query_points.shape[0], chunk_size):
+
+    for i in tqdm(range(0, query_points.shape[0], chunk_size), desc="Processing chunks"):
         query_points_chunk = query_points[i : i + chunk_size]
         num_extra = chunk_size - query_points_chunk.shape[0]
         if num_extra > 0:
@@ -90,22 +106,28 @@ def process_video(path):
             visibles2 = visibles2[:-num_extra]
         tracks.append(tracks2)
         visibles.append(visibles2)
+
+    print("Concatenating results...")
     tracks = jnp.concatenate(tracks, axis=0)
     visibles = jnp.concatenate(visibles, axis=0)
 
+    print("Converting coordinates and generating visualization...")
     tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
-
-    # We show the point tracks without rainbows so you can see the input.
     video = viz_utils.plot_tracks_v2(orig_frames, tracks, 1.0 - visibles)
-    media.show_video(video, fps=fps)
 
     output_path = OUTPUT_DIR + "SEMI_DENSE_" + videos[video_number]["filename"]
+    print(f"Saving output video to: {output_path}")
     media.write_video(output_path, video, fps=fps)
 
+    elapsed_time = time.time() - start_time
+    print(f"\nProcessing completed in {elapsed_time:.2f} seconds")
+
+    return video, fps
 
 
 # Main execution
 if __name__ == "__main__":
+    print("\n=== Starting Video Processing Pipeline ===")
     DATA_DIR = "data/"
     OUTPUT_DIR = "output/"
 
@@ -117,6 +139,8 @@ if __name__ == "__main__":
     ]
 
     video_number = 0  # Process single video for now
-    
+    print(f"\nProcessing video {video_number + 1} of {len(videos)}")
+    print(f"Video details: {videos[video_number]}")
+
     path = DATA_DIR + videos[video_number]["path"]
     process_video(path)
