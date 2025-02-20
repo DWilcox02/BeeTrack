@@ -7,8 +7,8 @@ Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
 ## Initialization/Setup
 After ensuring the same python version, run:
 ```
-wget -P checkpoints/bootstapir https://storage.googleapis.com/dm-tapnet/tapir_checkpoint_panning.npy
-wget -P checkpoints/tapir https://storage.googleapis.com/dm-tapnet/bootstap/bootstapir_checkpoint_v2.npy
+wget -P checkpoints/tapir https://storage.googleapis.com/dm-tapnet/tapir_checkpoint_panning.npy
+wget -P checkpoints/bootstapir https://storage.googleapis.com/dm-tapnet/bootstap/bootstapir_checkpoint_v2.npy
 git submodule add https://github.com/deepmind/tapnet
 cd tapnet
 pip install .
