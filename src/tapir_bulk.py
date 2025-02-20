@@ -142,9 +142,16 @@ if __name__ == "__main__":
         {"path": "Dance_1_min/", "filename": "dance_7_point_5_secs_700x700_30fps.mp4", "fps": 30},
     ]
 
-    video_number = 4  # Process single video for now
+    video_number = 0  # Process single video for now
     print(f"\nProcessing video {video_number + 1} of {len(videos)}")
     print(f"Video details: {videos[video_number]}")
-
     path = DATA_DIR + videos[video_number]["path"]
     process_video(path)
+
+    video_number += 1
+    print(f"\nProcessing video {video_number + 1} of {len(videos)}")
+    print(f"Video details: {videos[video_number]}")
+    path = DATA_DIR + videos[video_number]["path"]
+    process_video(path)
+    
+    print("\n=== Video Processing Pipeline Completed ===")
