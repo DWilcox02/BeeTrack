@@ -83,16 +83,14 @@ def load_checkpoint(checkpoint_path):
 
 
 # Process videos efficiently
-def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stride=8, chunk_size=64):
-
+def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stride=8, chunk_size=32):
     start_time = time.time()
     file_path = f"{data_dir}{video_info['path']}{video_info['filename']}"
 
-    # Load video with immediate resize to save memory
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Starting processing for: {video_info['filename']}")
-    print(f"{'='*50}")
-    
+    print(f"{'=' * 50}")
+
     print(f"\n1. Loading video from: {file_path}")
     video = media.read_video(file_path)
     height, width = video.shape[1:3]
@@ -102,7 +100,7 @@ def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stri
     print("\n2. Preprocessing frames...")
     print("- Storing original frames")
     orig_frames = video
-    del video  # Free original video memory
+    del video
     clear_memory()
 
     print(f"- Resizing frames to {resize_dims}")
@@ -110,34 +108,39 @@ def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stri
     frames = model_utils.preprocess_frames(frames[None])
     print("Preprocessing complete")
 
-    # Process feature grids in chunks
+    # Process feature grids in smaller chunks
     print("\n3. Generating feature grids...")
-    chunk_frames = 16  # Adjust this based on your GPU memory
+    chunk_frames = 8  # Reduced chunk size
     feature_grids = []
     n_chunks = (frames.shape[1] + chunk_frames - 1) // chunk_frames
 
-    for i in tqdm(range(0, frames.shape[1], chunk_frames), 
-                 desc="Processing feature grids", 
-                 total=n_chunks):
+    # Process and concatenate in smaller sub-chunks
+    for i in tqdm(range(0, frames.shape[1], chunk_frames), desc="Processing feature grids", total=n_chunks):
         chunk = frames[:, i : i + chunk_frames]
         chunk_grids = tapir.get_feature_grids(chunk, is_training=False)
-        feature_grids.append(chunk_grids)
 
-    print("Concatenating feature grids...")
-    feature_grids = jax.tree.map(lambda *x: jnp.concatenate(x, axis=1), *feature_grids)
-    clear_memory()
+        # If this is not the first chunk, concatenate with previous
+        if feature_grids:
+            feature_grids = jax.tree.map(
+                lambda prev, new: jnp.concatenate([prev, new], axis=1), feature_grids, chunk_grids
+            )
+        else:
+            feature_grids = chunk_grids
 
-    # Process query points
+        clear_memory()  # Clear memory after each chunk
+
     print("\n4. Processing query points...")
     query_points = sample_grid_points(0, resize_dims[0], resize_dims[1], stride)
     print(f"Generated {query_points.shape[0]} query points")
+
+    # Reduce chunk size for inference
+    chunk_size = 32  # Smaller chunk size for processing
 
     tracks = []
     visibles = []
 
     def chunk_inference(query_points):
         query_points = query_points.astype(np.float32)[None]
-
         outputs = tapir(
             video=frames,
             query_points=query_points,
@@ -150,8 +153,6 @@ def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stri
             outputs["occlusion"],
             outputs["expected_dist"],
         )
-
-        # Binarize occlusions
         visibles = model_utils.postprocess_occlusions(occlusions, expected_dist)
         return tracks[0], visibles[0]
 
@@ -159,59 +160,62 @@ def process_video(video_info, data_dir, output_dir, resize_dims=(512, 512), stri
     chunk_inference = jax.jit(chunk_inference)
     print("Compilation complete")
 
-    # Process in smaller chunks
     print("\n6. Processing tracking chunks...")
     n_chunks = (query_points.shape[0] + chunk_size - 1) // chunk_size
-    
 
     for i in tqdm(range(0, query_points.shape[0], chunk_size)):
-        # Clear memory more aggressively
-        if i % (chunk_size * 2) == 0:  # More frequent clearing
-            clear_memory()
+        clear_memory()  # Clear memory before each chunk
+        query_chunk = query_points[i : i + chunk_size].copy()
 
-        # Process smaller chunks
-        query_chunk = query_points[i : i + chunk_size].copy()  # Make explicit copy
-        
         try:
             process = psutil.Process()
             print(f"Memory before chunk {i}: {process.memory_info().rss / (1024 * 1024 * 1024):.2f} GB")
-            # Free memory immediately after use
             chunk_tracks, chunk_visibles = chunk_inference(query_chunk)
+            tracks.append(chunk_tracks)
+            visibles.append(chunk_visibles)
+            del chunk_tracks, chunk_visibles, query_chunk
             print(f"Memory after chunk {i}: {process.memory_info().rss / (1024 * 1024 * 1024):.2f} GB")
-            del query_chunk
         except Exception as e:
             print(f"Error processing chunk {i}: {e}")
             raise
-        
-        tracks.append(chunk_tracks)
-        visibles.append(chunk_visibles)
 
-        # Clear intermediates
-        del chunk_tracks
-        del chunk_visibles
-    
-   
+        clear_memory()  # Clear memory after each chunk
 
     print("\n7. Finalizing results...")
-    tracks = jnp.concatenate(tracks, axis=0)
-    visibles = jnp.concatenate(visibles, axis=0)
+    # Concatenate results in smaller batches
+    final_tracks = []
+    final_visibles = []
+    batch_size = 4  # Process concatenation in small batches
+
+    for i in range(0, len(tracks), batch_size):
+        batch_tracks = tracks[i : i + batch_size]
+        batch_visibles = visibles[i : i + batch_size]
+
+        if final_tracks:
+            final_tracks = jnp.concatenate([final_tracks, jnp.concatenate(batch_tracks, axis=0)], axis=0)
+            final_visibles = jnp.concatenate([final_visibles, jnp.concatenate(batch_visibles, axis=0)], axis=0)
+        else:
+            final_tracks = jnp.concatenate(batch_tracks, axis=0)
+            final_visibles = jnp.concatenate(batch_visibles, axis=0)
+
+        clear_memory()
 
     # Convert coordinates
     print("Converting coordinates...")
-    tracks = transforms.convert_grid_coordinates(tracks, (resize_dims[1], resize_dims[0]), (width, height))
+    final_tracks = transforms.convert_grid_coordinates(final_tracks, (resize_dims[1], resize_dims[0]), (width, height))
 
     # Generate output video
     print("\n8. Generating output video...")
-    video = viz_utils.plot_tracks_v2(orig_frames, tracks, 1.0 - visibles)
+    video = viz_utils.plot_tracks_v2(orig_frames, final_tracks, 1.0 - final_visibles)
     output_path = f"{output_dir}{video_info['path']}SEMI_DENSE_{video_info['filename']}"
     media.write_video(output_path, video, fps=video_info["fps"])
 
     total_time = time.time() - start_time
     print(f"\nProcessing complete!")
-    print(f"{'='*50}")
-    print(f"Total processing time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)")
+    print(f"{'=' * 50}")
+    print(f"Total processing time: {total_time:.2f} seconds ({total_time / 60:.2f} minutes)")
     print(f"Output saved to: {output_path}")
-    print(f"{'='*50}\n")
+    print(f"{'=' * 50}\n")
 
     clear_memory()
     return output_path
