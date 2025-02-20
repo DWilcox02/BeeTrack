@@ -19,7 +19,7 @@ os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.5"
 
 print("Starting video processing pipeline...")
 
-MODEL_TYPE = "bootstapir"
+MODEL_TYPE = "tapir"
 
 if MODEL_TYPE == "tapir":
     checkpoint_path = "checkpoints/tapir/tapir_checkpoint_panning.npy"
@@ -139,9 +139,10 @@ if __name__ == "__main__":
         {"path": "Full_Hive_43_mins/", "filename": "full_hive_23_secs_4k.mp4", "fps": 30},
         {"path": "Outside_Florea_6_mins/", "filename": "outside_botgard_5_secs_1080_50fps.mp4", "fps": 50},
         {"path": "Outside_Florea_6_mins/", "filename": "outside_botgard_5_secs_1080_15fps.mp4", "fps": 15},
+        {"path": "Dance_1_min/", "filename": "dance_7_point_5_secs_700x700_30fps.mp4", "fps": 30},
     ]
 
-    video_number = 0  # Process single video for now
+    video_number = 4  # Process single video for now
     print(f"\nProcessing video {video_number + 1} of {len(videos)}")
     print(f"Video details: {videos[video_number]}")
 
