@@ -1,5 +1,5 @@
-# Computer Vision Bee Tracking - Final Year Project
-Computer Vision Bee Tracking - Imperial College London Final Year Project. Detect and track honeybees performing their waggle dance for apiology researchers. 
+# Computer Vision Bee Tracking - Final Year Thesis / Project
+Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Project. Detect and track honeybees performing their waggle dance for apiology researchers. Leverages TAPIR (Track Any Point library) for point cloud establishment, Kalman filtering and RANSAC for future position prediction. 
 
 ## Version Information
 Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
