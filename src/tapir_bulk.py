@@ -14,6 +14,10 @@ import time
 import torch
 import os
 import sys
+import json
+
+DATA_DIR = "data/"
+OUTPUT_DIR = "output/"
 
 torch.cuda.empty_cache()
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
@@ -50,13 +54,12 @@ def sample_grid_points(frame_idx, height, width, stride=1):
 
 
 # Process videos efficiently
-def process_video(path):
+def process_video(path, filename, fps):
     print(f"\nProcessing video from: {path}")
     start_time = time.time()
 
     print("Reading video frames...")
-    orig_frames = media.read_video(path + videos[video_number]["filename"])
-    fps = videos[video_number]["fps"]
+    orig_frames = media.read_video(DATA_DIR + path + filename)
     height, width = orig_frames.shape[1:3]
     print(f"Video loaded: {len(orig_frames)} frames at {fps} FPS, resolution: {width}x{height}")
 
@@ -120,7 +123,7 @@ def process_video(path):
     tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
     video = viz_utils.plot_tracks_v2(orig_frames, tracks, 1.0 - visibles)
 
-    output_path = OUTPUT_DIR + "SEMI_DENSE_" + videos[video_number]["filename"]
+    output_path = OUTPUT_DIR + "SEMI_DENSE_" + filename
     print(f"Saving output video to: {output_path}")
     media.write_video(output_path, video, fps=fps)
 
@@ -130,26 +133,19 @@ def process_video(path):
     return video, fps
 
 
-# Main execution
-if __name__ == "__main__":
-    vid_num = sys.argv[1]
-    video_number = int(vid_num)
+# # Main execution
+# if __name__ == "__main__":
+#     vid_num = sys.argv[1]
+#     video_number = int(vid_num)
 
-    print("\n=== Starting Video Processing Pipeline ===")
-    DATA_DIR = "data/"
-    OUTPUT_DIR = "output/"
-
-    videos = [
-        {"path": "Dance_1_min/", "filename": "dance_15_secs_700x700_50fps.mp4", "fps": 50},
-        {"path": "Full_Hive_43_mins/", "filename": "full_hive_23_secs_4k.mp4", "fps": 30},
-        {"path": "Outside_Florea_6_mins/", "filename": "outside_botgard_5_secs_1080_50fps.mp4", "fps": 50},
-        {"path": "Outside_Florea_6_mins/", "filename": "outside_botgard_5_secs_1080_15fps.mp4", "fps": 15},
-        {"path": "Dance_1_min/", "filename": "dance_7_point_5_secs_700x700_30fps.mp4", "fps": 30},
-    ]
-
-    print(f"\nProcessing video {video_number + 1} of {len(videos)}")
-    print(f"Video details: {videos[video_number]}")
-    path = DATA_DIR + videos[video_number]["path"]
-    process_video(path)
     
-    print("\n=== Video Processing Pipeline Completed ===")
+#     with open("data/video_meta.json", "r") as f:
+#         videos = json.load(f)
+
+#     path = DATA_DIR + videos[video_number]["path"]
+#     print("\n=== Starting Video Processing Pipeline ===")
+#     print(f"\nProcessing video {video_number + 1} of {len(videos)}")
+#     print(f"Video details: {videos[video_number]}")
+#     process_video(path)
+    
+#     print("\n=== Video Processing Pipeline Completed ===")
