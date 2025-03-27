@@ -179,6 +179,10 @@ dense_object_annotation/static
 data
 data/*
 
+# Output
+output
+output/*
+
 # Checkpoints
 checkpoints/*
 checkpoints/bootstapir/*

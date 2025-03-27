@@ -1,5 +1,5 @@
 import matplotlib
-import haiku as hk
+matplotlib.use("Agg")  # Use non-interactive backendimport haiku as hk
 import jax
 import jax.numpy as jnp
 import mediapy as media

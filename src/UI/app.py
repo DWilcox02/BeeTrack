@@ -88,7 +88,6 @@ def serve_processed_video(filename):
     return send_from_directory(OUTPUT_FOLDER, filename)
 
 
-# API endpoint to run point cloud processing on a video
 @app.route("/api/process_video", methods=["POST"])
 def process_video():
     if not POINT_CLOUD_AVAILABLE:
@@ -111,11 +110,12 @@ def process_video():
 
             return jsonify(result)
         else:
+            app.logger.error(f"Processing error: {result.get('error', 'Unknown error')}")
             return jsonify({"error": result.get("error", "Unknown error during processing")}), 500
 
     except Exception as e:
+        app.logger.exception("Exception in video processing")
         return jsonify({"error": f"Error processing video: {str(e)}"}), 500
-
 
 if __name__ == "__main__":
     # Print the data directory path on startup for verification

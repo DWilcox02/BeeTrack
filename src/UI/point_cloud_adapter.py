@@ -33,6 +33,10 @@ def process_video_wrapper(video_name):
     """
     # Extract directory path and filename
     video = videos.get(video_name, None)
+
+    if not video:
+        return {"success": False, "error": f"Video '{video_name}' not found in video_meta.json"}
+
     path_parts = video["path"].split("/")
     filename = video["filename"]
     folder_path = "/".join(path_parts[:-1]) + "/" if len(path_parts) > 1 else ""
@@ -51,4 +55,8 @@ def process_video_wrapper(video_name):
 
         return {"success": True, "output_filename": output_filename, "output_path": output_rel_path, "fps": fps}
     except Exception as e:
+        import traceback
+
+        stack_trace = traceback.format_exc()
+        print(f"Error processing video: {str(e)}\n{stack_trace}")
         return {"success": False, "error": str(e)}
