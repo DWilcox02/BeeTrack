@@ -81,6 +81,10 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         height, width = orig_frames.shape[1:3]
         print(f"Video loaded: {len(orig_frames)} frames at {fps} FPS, resolution: {width}x{height}")
 
+        # Limit to first second of video
+        orig_frames = orig_frames[:fps]
+        print(f"Limited to first {len(orig_frames)} frames (1 second)")
+
         resize_height = 256  # @param {type: "integer"}
         resize_width = 256  # @param {type: "integer"}
         stride = 8  # @param {type: "integer"}
