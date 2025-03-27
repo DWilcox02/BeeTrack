@@ -14,8 +14,12 @@ from tqdm import tqdm
 import time
 import torch
 import os
-import sys
-import json
+import gc
+import tempfile
+
+
+NUM_SLICES = 3
+
 
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -72,19 +76,126 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         points = points.reshape(-1, 3)  # [out_height*out_width, 3]
         return points
 
-    def process_video(self, path: str, filename: str, fps: int):
+    def process_video(self, path: str, filename: str, fps: int, max_segments=None, save_intermediate=True):
+        """
+        Process a video file, splitting it into segments and optionally saving intermediate results.
+        
+        Args:
+            path: Directory path to the video
+            filename: Name of the video file
+            fps: Frames per second
+            max_segments: Maximum number of segments to process (None for all)
+            save_intermediate: Whether to save intermediate results to disk to save memory
+        
+        Returns:
+            Tuple of (processed video array, fps) or (None, fps) if no segments processed
+        """
         print(f"\nProcessing video from: {path}")
         start_time = time.time()
 
         print("Reading video frames...")
         orig_frames = media.read_video(DATA_DIR + path + filename)
         height, width = orig_frames.shape[1:3]
-        print(f"Video loaded: {len(orig_frames)} frames at {fps} FPS, resolution: {width}x{height}")
+        total_frames = len(orig_frames)
+        print(f"Video loaded: {total_frames} frames at {fps} FPS, resolution: {width}x{height}")
+        
+        # Calculate how many segments we need to process
+        total_segments = (total_frames + fps - 1) // fps  # Ceiling division
+        if max_segments is not None:
+            segments_to_process = min(total_segments, max_segments)
+        else:
+            segments_to_process = total_segments
+        segments_to_process = NUM_SLICES
+        
+        print(f"Video will be processed in {segments_to_process} segments")
+        
+        # Create temp directory for intermediate results if needed
+        temp_dir = None
+        segment_paths = []
+        
+        if save_intermediate:
+            temp_dir = tempfile.mkdtemp(prefix="video_segments_")
+            print(f"Using temporary directory for intermediate results: {temp_dir}")
+        else:
+            # If not saving intermediate results, store in memory
+            processed_segments = []
+        
+        # Process each segment
+        for i in range(segments_to_process):
+            start_frame = i * fps
+            end_frame = min((i + 1) * fps, total_frames)
+            
+            print(f"Processing segment {i+1}/{segments_to_process} (frames {start_frame} to {end_frame})...")
+            orig_frames_slice = orig_frames[start_frame:end_frame]
+            
+            # Process the slice
+            try:
+                video_segment = self.process_video_slice(orig_frames_slice, width, height)
+                
+                if save_intermediate:
+                    # Save segment to disk
+                    segment_path = os.path.join(temp_dir, f"segment_{i:04d}.npy")
+                    np.save(segment_path, video_segment)
+                    segment_paths.append(segment_path)
+                    # Free memory
+                    del video_segment
+                    gc.collect()
+                else:
+                    # Store in memory
+                    processed_segments.append(video_segment)
+                    
+                print(f"Successfully processed segment {i+1}")
+            except Exception as e:
+                print(f"Error processing segment {i+1}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        
+        # Prepare final video
+        final_output_path = OUTPUT_DIR + "SEMI_DENSE_" + filename
+        
+        if save_intermediate and segment_paths:
+            print("Combining segments and writing final video...")
+            
+            # Load all segments and concatenate
+            all_frames = []
+            for segment_path in segment_paths:
+                segment = np.load(segment_path)
+                all_frames.append(segment)
+                # Remove the file after loading
+                os.remove(segment_path)
+            
+            # Concatenate and write
+            full_video = np.concatenate(all_frames, axis=0)
+            media.write_video(final_output_path, full_video, fps=fps)
+            
+            # Clean up temp dir
+            os.rmdir(temp_dir)
+            
+            print(f"Saved output video to: {final_output_path}")
+            elapsed_time = time.time() - start_time
+            print(f"\nProcessing completed in {elapsed_time:.2f} seconds")
+            
+            return None, fps  # Return None since we wrote directly to disk
+        
+        elif not save_intermediate and processed_segments:
+            print("Concatenating all processed segments...")
+            full_video = np.concatenate(processed_segments, axis=0)
+            
+            print(f"Saving output video to: {final_output_path}")
+            media.write_video(final_output_path, full_video, fps=fps)
+            
+            elapsed_time = time.time() - start_time
+            print(f"\nProcessing completed in {elapsed_time:.2f} seconds")
+            
+            return full_video, fps
+        
+        else:
+            print("No video segments were processed")
+            if temp_dir and os.path.exists(temp_dir):
+                os.rmdir(temp_dir)
+            return None, fps
 
-        # Limit to first second of video
-        orig_frames = orig_frames[:fps]
-        print(f"Limited to first {len(orig_frames)} frames (1 second)")
-
+    def process_video_slice(self, orig_frames, width, height):
         resize_height = 256  # @param {type: "integer"}
         resize_width = 256  # @param {type: "integer"}
         stride = 8  # @param {type: "integer"}
@@ -145,11 +256,4 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
         video = viz_utils.plot_tracks_v2(orig_frames, tracks, 1.0 - visibles)
 
-        output_path = OUTPUT_DIR + "SEMI_DENSE_" + filename
-        print(f"Saving output video to: {output_path}")
-        media.write_video(output_path, video, fps=fps)
-
-        elapsed_time = time.time() - start_time
-        print(f"\nProcessing completed in {elapsed_time:.2f} seconds")
-
-        return video, fps
+        return video
