@@ -181,12 +181,12 @@
         <div class="controls">
             <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Video Library</a>
             
-            {% if tapir_available %}
+            {% if point_cloud_available %}
             <button id="processBtn" class="btn btn-action" onclick="processVideo()">
                 {% if processed_filename %}
                 Re-Process with TAPIR
                 {% else %}
-                Process with TAPIR
+                Process Point Cloud
                 {% endif %}
             </button>
             {% endif %}
@@ -208,7 +208,7 @@
     </div>
     
     <script>
-        {% if tapir_available %}
+        {% if point_cloud_available %}
         async function processVideo() {
             const videoPath = "{{ filename }}";
             const statusElement = document.getElementById('processingStatus');

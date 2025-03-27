@@ -9,14 +9,13 @@ SRC_DIR = os.path.dirname(CURRENT_DIR)  # Go up one level to src/
 PROJECT_ROOT = os.path.dirname(SRC_DIR)  # Go up another level to project root
 sys.path.append(SRC_DIR)  # Add src/ to Python path
 
-# Import our adapter for tapir_bulk
 try:
-    from tapir_adapter import process_video_wrapper
+    from point_cloud_adapter import process_video_wrapper
 
-    TAPIR_AVAILABLE = True
+    POINT_CLOUD_AVAILABLE = True
 except ImportError:
-    print("Warning: tapir_adapter module could not be imported")
-    TAPIR_AVAILABLE = False
+    print("Warning: point_cloud_adapter module could not be imported")
+    POINT_CLOUD_AVAILABLE = False
 
 app = Flask(__name__)
 
@@ -55,7 +54,7 @@ def index():
     # Get all video files from the data directory and its subdirectories
     processed_videos = get_processed_videos()
     return render_template(
-        "index.html", videos=videos, processed_videos=processed_videos, tapir_available=TAPIR_AVAILABLE
+        "index.html", videos=videos, processed_videos=processed_videos, point_cloud_available=POINT_CLOUD_AVAILABLE
     )
 
 
@@ -70,7 +69,7 @@ def play_video(filename):
         "player.html",
         filename=filename,
         processed_filename=processed_filename if processed_exists else None,
-        tapir_available=TAPIR_AVAILABLE,
+        point_cloud_available=POINT_CLOUD_AVAILABLE,
     )
 
 
@@ -89,11 +88,11 @@ def serve_processed_video(filename):
     return send_from_directory(OUTPUT_FOLDER, filename)
 
 
-# API endpoint to run TAPIR processing on a video
+# API endpoint to run point cloud processing on a video
 @app.route("/api/process_video", methods=["POST"])
 def process_video():
-    if not TAPIR_AVAILABLE:
-        return jsonify({"error": "TAPIR processing is not available"}), 500
+    if not POINT_CLOUD_AVAILABLE:
+        return jsonify({"error": "Point cloud processing is not available"}), 500
 
     data = request.json
     video_path = data.get("video_path")
@@ -122,5 +121,5 @@ if __name__ == "__main__":
     # Print the data directory path on startup for verification
     print(f"Using data directory: {DATA_FOLDER}")
     print(f"Using output directory: {OUTPUT_FOLDER}")
-    print(f"TAPIR processing available: {TAPIR_AVAILABLE}")
+    print(f"Point Cloud processing available: {POINT_CLOUD_AVAILABLE}")
     app.run(debug=True)
