@@ -91,6 +91,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
     def process_video(self, path: str, filename: str, fps: int, max_segments=None, save_intermediate=True):
         """
         Process a video file, splitting it into segments and optionally saving intermediate results.
+        The video will be processed at the minimum of the provided FPS or 15 FPS.
 
         Args:
             path: Directory path to the video
@@ -109,6 +110,19 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         orig_frames = media.read_video(DATA_DIR + path + filename)
         height, width = orig_frames.shape[1:3]
         total_frames = len(orig_frames)
+        
+        # Normalize FPS to a maximum of 15
+        normalized_fps = min(fps, 15)
+        if normalized_fps < fps:
+            self.log(f"Normalizing FPS from {fps} to {normalized_fps}")
+            # Calculate the frame sampling interval
+            sampling_interval = fps // normalized_fps
+            # Sample frames at the calculated interval
+            orig_frames = orig_frames[::sampling_interval]
+            total_frames = len(orig_frames)
+            # Update fps to the normalized value
+            fps = normalized_fps
+        
         self.log(f"Video loaded: {total_frames} frames at {fps} FPS, resolution: {width}x{height}")
 
         # Calculate how many segments we need to process
