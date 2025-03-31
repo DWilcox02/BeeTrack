@@ -46,4 +46,14 @@ https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
 2. Kongsilp, P., Taetragool, U. & Duangphakdee, O. Individual honey bee tracking in a beehive environment using deep learning and Kalman filter. Sci Rep 14, 1061 (2024). https://doi.org/10.1038/s41598-023-44718-y
 
 
-This project includes code licensed under GPL-3.0 from [Original Repository](https://github.com/username/repository).
+<!-- This project includes code licensed under GPL-3.0 from [Original Repository](https://github.com/username/repository). -->
+
+
+
+
+1. Prompt user to draw skeleton around bee
+2. Determine bounding box based on skeleton
+3. (Determine relationship between skeleton and points)
+4. (Apply point cloud based on bounding box)
+4. Run video for X time slice
+5. Calculate estimated skeleton position via RANSAC and Kalman Filtering
