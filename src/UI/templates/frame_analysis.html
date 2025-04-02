@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1, h2, h3 {
+            margin-bottom: 5px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .plotly-container {
+            margin: 20px 0;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background-color: #2196F3;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0d8aee;
+        }
+        .btn-secondary {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background-color: #e1e1e1;
+        }
+        .btn-action {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-action:hover {
+            background-color: #3d8b40;
+        }
+        .processing-status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status-processing {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .instructions {
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        .point-controls {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .point-button {
+            display: inline-block;
+            padding: 8px 12px;
+            margin-right: 5px;
+            border: 2px solid;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .point-button:hover {
+            opacity: 0.8;
+        }
+        .point-red {
+            border-color: red;
+            color: white;
+            background-color: red;
+        }
+        .point-green {
+            border-color: green;
+            color: white;
+            background-color: green;
+        }
+        .point-blue {
+            border-color: blue;
+            color: white;
+            background-color: blue;
+        }
+        .point-purple {
+            border-color: purple;
+            color: white;
+            background-color: purple;
+        }
+        .point-button.active {
+            box-shadow: 0 0 0 3px rgba(0,123,255,.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>First Frame Analysis</h1>
+        <h2>Video: {{ filename.split('/')[-1] }}</h2>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <p>1. Select a colored point from the buttons below.</p>
+            <p>2. Click on the image where you want to place the point.</p>
+            <p>3. Once all points are placed, click "Save Point Positions".</p>
+        </div>
+        
+        <div class="point-controls">
+            <h3>Select point to place:</h3>
+            <div id="pointRed" class="point-button point-red" onclick="selectPoint(0, 'red')">Red Point</div>
+            <div id="pointGreen" class="point-button point-green" onclick="selectPoint(1, 'green')">Green Point</div>
+            <div id="pointBlue" class="point-button point-blue" onclick="selectPoint(2, 'blue')">Blue Point</div>
+            <div id="pointPurple" class="point-button point-purple" onclick="selectPoint(3, 'purple')">Purple Point</div>
+        </div>
+        
+        <div class="plotly-container">
+            <!-- Plotly plot will be inserted here -->
+            {{ plot_html|safe }}
+        </div>
+
+        <div id="pointStatus" class="processing-status status-processing" style="display: none;">
+            Select a point and click on the image to place it.
+        </div>
+        
+        <div class="controls">
+            <a href="{{ url_for('play_video', filename=filename) }}" class="btn btn-primary">Back to Video Player</a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Video Library</a>
+            <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button>
+        </div>
+    </div>
+    
+    <script>
+        // Store the session ID
+        const sessionId = "{{ session_id }}";
+        let selectedPointIndex = null;
+        let selectedPointColor = null;
+        
+        // Function to select a point
+        function selectPoint(index, color) {
+            // Reset all buttons
+            document.querySelectorAll('.point-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Set the selected point
+            selectedPointIndex = index;
+            selectedPointColor = color;
+            
+            // Highlight the selected button
+            document.getElementById('point' + color.charAt(0).toUpperCase() + color.slice(1)).classList.add('active');
+            
+            // Show status
+            const pointStatus = document.getElementById('pointStatus');
+            pointStatus.textContent = `Selected ${color} point. Click on the image to place it.`;
+            pointStatus.style.display = 'block';
+            pointStatus.className = 'processing-status status-processing';
+        }
+        
+        // Function to handle image click
+        document.addEventListener('DOMContentLoaded', function() {
+            const plotlyElement = document.querySelector('.js-plotly-plot');
+            
+            if (!plotlyElement) {
+                console.error('Plotly element not found');
+                return;
+            }
+            
+            plotlyElement.addEventListener('click', function(event) {
+                if (selectedPointIndex === null) {
+                    return;
+                }
+                
+                // Get the click coordinates relative to the plot
+                const rect = plotlyElement.getBoundingClientRect();
+                const plotly = plotlyElement.querySelector('.main-svg');
+                const plotRect = plotly.getBoundingClientRect();
+                
+                // Calculate offsets from the plot area
+                const xOffset = plotRect.left - rect.left;
+                const yOffset = plotRect.top - rect.top;
+                
+                // Get click position relative to plot area
+                const x = event.clientX - plotRect.left;
+                const y = event.clientY - plotRect.top;
+                
+                // Get plot dimensions and margins
+                const plotArea = plotly.querySelector('.plot');
+                const plotAreaRect = plotArea.getBoundingClientRect();
+                
+                // Calculate actual data coordinates
+                // Here we need to convert from pixel coordinates to data coordinates
+                // This is a simplified approach - a more accurate one would use the plot's
+                // internal conversion functions
+                
+                // Get plot dimensions
+                const width = parseFloat(plotArea.getAttribute('width'));
+                const height = parseFloat(plotArea.getAttribute('height'));
+                
+                // Calculate relative position within plot area
+                const relX = (x - (plotAreaRect.left - plotRect.left)) / width;
+                const relY = (y - (plotAreaRect.top - plotRect.top)) / height;
+                
+                // Get layout data to determine actual data ranges
+                const layoutStr = plotlyElement.getAttribute('data-layout');
+                let layout;
+                try {
+                    layout = JSON.parse(layoutStr);
+                } catch (e) {
+                    console.error('Could not parse layout data', e);
+                    return;
+                }
+                
+                // Calculate data coordinates
+                const xRange = layout.xaxis.range;
+                const yRange = layout.yaxis.range;
+                
+                const dataX = xRange[0] + relX * (xRange[1] - xRange[0]);
+                const dataY = yRange[0] + (1 - relY) * (yRange[1] - yRange[0]);
+                
+                // Send the update to the server
+                updatePoint(selectedPointIndex, dataX, dataY);
+            });
+        });
+        
+        // Function to update a point's position
+        async function updatePoint(pointIndex, x, y) {
+            const pointStatus = document.getElementById('pointStatus');
+            
+            try {
+                const response = await fetch('/api/update_point', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        point_index: pointIndex,
+                        x: x,
+                        y: y
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show status
+                    pointStatus.textContent = `Moved ${selectedPointColor} point to (${x.toFixed(2)}, ${y.toFixed(2)})`;
+                    pointStatus.style.display = 'block';
+                    pointStatus.className = 'processing-status status-success';
+                    
+                    // Reload the page to show updated plot
+                    // This is a simple approach - for better UX, we could update just the plot
+                    window.location.reload();
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+                
+            } catch (error) {
+                console.error('Error updating point:', error);
+                pointStatus.textContent = `Error: ${error.message}`;
+                pointStatus.style.display = 'block';
+                pointStatus.className = 'processing-status status-error';
+            }
+        }
+        
+        // Function to save all points
+        async function savePoints() {
+            const pointStatus = document.getElementById('pointStatus');
+            
+            try {
+                const response = await fetch('/api/save_points', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    pointStatus.textContent = 'Points saved successfully!';
+                    pointStatus.style.display = 'block';
+                    pointStatus.className = 'processing-status status-success';
+                    
+                    // Log the points
+                    console.log('Points saved:');
+                    result.points.forEach(point => {
+                        console.log(`${point.color}: (${point.x.toFixed(2)}, ${point.y.toFixed(2)})`);
+                    });
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+                
+            } catch (error) {
+                console.error('Error saving points:', error);
+                pointStatus.textContent = `Error: ${error.message}`;
+                pointStatus.style.display = 'block';
+                pointStatus.className = 'processing-status status-error';
+            }
+        }
+    </script>
+</body>
+</html>

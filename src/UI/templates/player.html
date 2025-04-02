@@ -226,6 +226,14 @@
                 {% endif %}
             </button>
             {% endif %}
+
+            <button id="savePlotlyPointsBtn" class="btn btn-secondary" style="display: none;">
+                Save Point Positions
+            </button>
+
+            <a href="{{ url_for('frame_analysis', filename=filename) }}" class="btn btn-secondary">
+                Analyze First Frame
+            </a>
         </div>
         <div id="processingLogs" class="processing-logs" style="display: none;">
             <h3>Processing Logs</h3>
@@ -248,7 +256,7 @@
             </div>
         </div>
     </div>
-    
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script>
         {% if point_cloud_available %}
         async function processVideo() {
