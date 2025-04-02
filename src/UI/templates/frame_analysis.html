@@ -167,8 +167,8 @@
         </div>
         
         <div class="controls">
-            <a href="{{ url_for('play_video', filename=filename) }}" class="btn btn-primary">Back to Video Player</a>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Video Library</a>
+            <a href="{{ url_for('video.play_video', filename=filename) }}" class="btn btn-primary">Back to Video Player</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Back to Video Library</a>
             <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button>
         </div>
     </div>

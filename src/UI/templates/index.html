@@ -146,7 +146,7 @@
                             {% set current_folder = video_folder %}
                         {% endif %}
                         <div class="video-item">
-                            <a href="{{ url_for('play_video', filename=video) }}">
+                            <a href="{{ url_for('video.play_video', filename=video) }}">
                                 {{ video.split('/')[-1] }}
                                 <div class="video-path">{{ video }}</div>
                             </a>
@@ -166,7 +166,7 @@
                 {% if processed_videos %}
                     {% for video in processed_videos %}
                         <div class="video-item processed-item">
-                            <a href="{{ url_for('serve_processed_video', filename=video) }}" target="_blank">
+                            <a href="{{ url_for('video.serve_processed_video', filename=video) }}" target="_blank">
                                 {{ video }}
                                 <div class="video-path">output/{{ video }}</div>
                             </a>

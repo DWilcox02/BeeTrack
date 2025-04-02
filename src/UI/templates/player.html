@@ -194,7 +194,7 @@
             
             <div class="video-container">
                 <video controls autoplay>
-                    <source src="{{ url_for('serve_video', filename=filename) }}" type="video/mp4">
+                    <source src="{{ url_for('video.serve_video', filename=filename) }}" type="video/mp4">
                     Your browser does not support the video tag or this video format.
                 </video>
             </div>
@@ -207,7 +207,7 @@
             
             <div class="video-container">
                 <video controls>
-                    <source src="{{ url_for('serve_processed_video', filename=processed_filename) }}" type="video/mp4">
+                    <source src="{{ url_for('video.serve_processed_video', filename=processed_filename) }}" type="video/mp4">
                     Your browser does not support the video tag or this video format.
                 </video>
             </div>
@@ -215,7 +215,7 @@
         {% endif %}
         
         <div class="controls">
-            <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Video Library</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary">Back to Video Library</a>
             
             {% if point_cloud_available %}
             <button id="processBtn" class="btn btn-action" onclick="processVideo()">
@@ -231,7 +231,7 @@
                 Save Point Positions
             </button>
 
-            <a href="{{ url_for('frame_analysis', filename=filename) }}" class="btn btn-secondary">
+            <a href="{{ url_for('analysis.frame_analysis', filename=filename) }}" class="btn btn-secondary">
                 Analyze First Frame
             </a>
         </div>
@@ -382,17 +382,17 @@
                 const response = await fetch(`/api/job_status/${jobId}`);
                 const result = await response.json();
                 
-                if (response.ok && result.success) {
+                if (response.ok && result.result && result.result.success) {
                     statusElement.className = "processing-status status-success";
                     statusMessageElement.innerHTML = `<strong>Success!</strong> Video has been processed.`;
                     
                     // Update the processed video player
-                    processedSource.src = result.output_url;
+                    processedSource.src = result.result.output_url;
                     processedPlayer.load();
                     processedContainer.style.display = "block";
                     
                     // If we have tabs interface, create it now
-                    createTabsIfNeeded(result.output_filename);
+                    createTabsIfNeeded(result.result.output_filename);
                     
                     // Switch to the processed video tab
                     switchTab('processed');
@@ -407,6 +407,68 @@
             } finally {
                 processBtn.disabled = false;
             }
+        }
+        
+        function createTabsIfNeeded(output_filename) {
+            // If tab interface doesn't exist, create it
+            const videoTabs = document.querySelector('.video-tabs');
+            if (!videoTabs) {
+                const container = document.querySelector('.container');
+                const h1 = container.querySelector('h1');
+                
+                const tabsDiv = document.createElement('div');
+                tabsDiv.className = 'video-tabs';
+                tabsDiv.innerHTML = `
+                    <div class="tab" onclick="switchTab('original')">Original Video</div>
+                    <div class="tab active" onclick="switchTab('processed')">Processed Video</div>
+                `;
+                
+                container.insertBefore(tabsDiv, h1.nextSibling);
+                
+                // Create processed video section if it doesn't exist
+                if (!document.getElementById('processed-video')) {
+                    const processedDiv = document.createElement('div');
+                    processedDiv.id = 'processed-video';
+                    processedDiv.className = 'video-info';
+                    processedDiv.innerHTML = `
+                        <h2>Processed: ${output_filename}</h2>
+                        <div class="video-path">output/${output_filename}</div>
+                        
+                        <div class="video-container">
+                            <video controls autoplay>
+                                <source src="${processedSource.src}" type="video/mp4">
+                                Your browser does not support the video tag or this video format.
+                            </video>
+                        </div>
+                    `;
+                    
+                    // Insert after original video section
+                    const originalVideo = document.getElementById('original-video');
+                    originalVideo.after(processedDiv);
+                    originalVideo.style.display = 'none';
+                }
+            }
+        }
+        
+        function switchTab(tabName) {
+            // Hide all sections
+            document.getElementById('original-video').style.display = 'none';
+            const processedVideo = document.getElementById('processed-video');
+            if (processedVideo) {
+                processedVideo.style.display = 'none';
+            }
+            
+            // Show selected section
+            document.getElementById(tabName + '-video').style.display = 'block';
+            
+            // Update tab styling
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.textContent.trim().toLowerCase().includes(tabName)) {
+                    tab.classList.add('active');
+                }
+            });
         }
         {% endif %}
     </script>
