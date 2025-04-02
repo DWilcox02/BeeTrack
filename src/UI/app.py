@@ -42,4 +42,4 @@ if __name__ == "__main__":
     print(f"Using data directory: {DATA_FOLDER}")
     print(f"Using output directory: {OUTPUT_FOLDER}")
     print(f"Point Cloud processing available: {POINT_CLOUD_AVAILABLE}")
-    app.run(debug=True)
+    app.run(host="127.0.0.1", port=5001, debug=True)
