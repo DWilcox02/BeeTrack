@@ -72,10 +72,12 @@ def frame_analysis(filename):
         # Create a plotly figure
         fig = go.Figure()
 
-        # Add the image as a layout image
+        # Add the image as a layout image with correct positioning
         fig.add_layout_image(
             dict(
                 source=f"data:image/jpeg;base64,{frame_base64}",
+                xref="x",
+                yref="y",
                 x=0,
                 y=0,
                 sizex=width,
@@ -100,35 +102,43 @@ def frame_analysis(filename):
 
         # Configure the layout
         fig.update_layout(
-            xaxis=dict(range=[0, width], title="X", fixedrange=True),
+            xaxis=dict(
+                range=[0, width],
+                title="X",
+                fixedrange=True,
+                showgrid=False,  # Hide grid for cleaner appearance with image
+            ),
             yaxis=dict(
                 range=[height, 0],  # Invert y-axis for image coordinates
                 title="Y",
                 scaleanchor="x",
                 scaleratio=1,
                 fixedrange=True,
+                showgrid=False,  # Hide grid for cleaner appearance with image
             ),
             showlegend=True,
-            dragmode=False,
+            dragmode="pan",  # Allow panning but disable other interactions
             height=min(600, height + 100),
             width=min(800, width + 100),
             margin=dict(l=50, r=50, b=50, t=50),
             title="First Frame Analysis",
+            template="plotly_white",  # Use a cleaner template
         )
 
-        # Configure for no toolbar and no zoom/pan
-        fig.update_layout(
-            modebar=dict(remove=["zoom", "pan", "select", "lasso", "zoomIn", "zoomOut", "autoScale", "resetScale"])
-        )
+        # Configure modebar with necessary tools only
+        fig.update_layout(modebar=dict(remove=["select", "lasso", "autoScale", "resetScale"]))
 
-        # Convert the figure to HTML
+        # Convert the figure to HTML with proper config for image display
         plot_html = pio.to_html(
             fig,
             full_html=False,
             include_plotlyjs=True,
             config={
-                "displayModeBar": False,
-                "staticPlot": True,  # Make it completely static
+                "displayModeBar": True,  # Show the mode bar
+                "staticPlot": False,  # Allow basic interactivity - IMPORTANT for images
+                "scrollZoom": False,  # Disable scroll zooming
+                "displaylogo": False,  # Hide the Plotly logo
+                "modeBarButtonsToRemove": ["select2d", "lasso2d", "autoScale2d", "resetScale2d"],
             },
         )
 
@@ -192,7 +202,7 @@ def update_point():
             xaxis=dict(range=[0, width], title="X", fixedrange=True),
             yaxis=dict(range=[height, 0], title="Y", scaleanchor="x", scaleratio=1, fixedrange=True),
             showlegend=True,
-            dragmode=False,
+            dragmode="pan",
             height=min(600, height + 100),
             width=min(800, width + 100),
             margin=dict(l=50, r=50, b=50, t=50),
