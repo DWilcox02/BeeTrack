@@ -65,6 +65,13 @@ def frame_analysis(filename):
             {"x": width * 0.75, "y": height * 0.75, "color": "blue"},
             {"x": width * 0.25, "y": height * 0.75, "color": "purple"},
         ]
+        # TODO: Remove hardcodeed points below
+        points = [
+            {"x": 305.4, "y": 370.4, "color": "red"},
+            {"x": 340.6, "y": 256.6, "color": "green"},
+            {"x": 337.8, "y": 318.4, "color": "blue"},
+            {"x": 298.4, "y": 297.3, "color": "purple"}
+        ]
 
         # Store the points and image size for this session
         point_data_store[session_id] = {"points": points, "width": width, "height": height, "filename": filename}

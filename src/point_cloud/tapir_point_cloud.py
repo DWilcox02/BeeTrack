@@ -19,7 +19,7 @@ import gc
 import tempfile
 
 
-NUM_SLICES = 1
+NUM_SLICES = 6
 
 
 # Get paths
@@ -141,6 +141,93 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
 
         return query_points
 
+    def recalculate_query_points(self, point_cloud_slice, bee_skeleton, query_frame, height, width, resize_height, resize_width):
+        # Get midpoint and trajectory
+        midpoint = point_cloud_slice.get_final_mean()
+        trajectory = point_cloud_slice.get_trajectory()
+        
+        self.log(f"Midpoint: {midpoint}, Trajectory: {trajectory}")
+        
+        # Normalize trajectory vector
+        trajectory_norm = np.linalg.norm(trajectory)
+        if trajectory_norm > 0:
+            trajectory = trajectory / trajectory_norm
+        else:
+            # Default to the original head direction if no movement
+            trajectory = bee_skeleton.v_mid_head
+        
+        # Calculate the original head-butt axis (primary axis)
+        original_axis = (bee_skeleton.v_mid_head - bee_skeleton.v_mid_butt) / 2
+        original_axis = original_axis / np.linalg.norm(original_axis)
+        
+        # Calculate the angle between the original axis and the new trajectory
+        dot_product = np.dot(original_axis, trajectory)
+        # Clamp dot product to valid range for arccos
+        dot_product = max(min(dot_product, 1.0), -1.0)
+        angle = np.arccos(dot_product)
+        
+        # Determine if we need to rotate clockwise or counterclockwise
+        # Cross product z component determines rotation direction
+        cross_z = original_axis[0] * trajectory[1] - original_axis[1] * trajectory[0]
+        if cross_z < 0:
+            angle = -angle
+        
+        # Rotation matrix
+        cos_theta = np.cos(angle)
+        sin_theta = np.sin(angle)
+        rotation_matrix = np.array([
+            [cos_theta, -sin_theta],
+            [sin_theta, cos_theta]
+        ])
+        
+        # Rotate the original vectors
+        v_head_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_head)
+        v_butt_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_butt)
+        v_left_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_left)
+        v_right_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_right)
+        
+        # Calculate new positions using the rotated vectors and original distances
+        head_pos = {
+            'x': midpoint[0] + v_head_rotated[0] * bee_skeleton.d_mid_head,
+            'y': midpoint[1] + v_head_rotated[1] * bee_skeleton.d_mid_head,
+            'color': 'red'
+        }
+        
+        butt_pos = {
+            'x': midpoint[0] + v_butt_rotated[0] * bee_skeleton.d_mid_butt,
+            'y': midpoint[1] + v_butt_rotated[1] * bee_skeleton.d_mid_butt,
+            'color': 'green'
+        }
+        
+        left_pos = {
+            'x': midpoint[0] + v_left_rotated[0] * bee_skeleton.d_mid_left,
+            'y': midpoint[1] + v_left_rotated[1] * bee_skeleton.d_mid_left,
+            'color': 'blue'
+        }
+        
+        right_pos = {
+            'x': midpoint[0] + v_right_rotated[0] * bee_skeleton.d_mid_right,
+            'y': midpoint[1] + v_right_rotated[1] * bee_skeleton.d_mid_right,
+            'color': 'purple'
+        }
+        
+        # Combine into points list
+        points = [head_pos, butt_pos, left_pos, right_pos]
+        
+        self.log(f"Recalculated points: {points}")
+        
+        # Use existing function to convert to query points
+        height_ratio = resize_height / height
+        width_ratio = resize_width / width
+        query_points = self.convert_select_points_to_query_points(
+            query_frame=query_frame,
+            points=points,
+            height_ratio=height_ratio,
+            width_ratio=width_ratio
+        )
+        
+        return query_points
+
     def process_video(
         self,
         path: str,
@@ -205,8 +292,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             query_points = self.sample_grid_points(query_frame, resize_height, resize_width, stride)
         else:
             bee_skeleton = point_cloud_interface.BeeSkeleton(predefined_points)
-            bee_skeleton.pretty_print_skeleton()
-
             height_ratio = resize_height / height
             width_ratio = resize_width / width
             query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
@@ -223,7 +308,10 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             # Process the slice
             try:                
                 slice_result = self.process_video_slice(orig_frames_slice, width, height, query_points, resize_width=resize_width, resize_height=resize_height)
-                query_points = self.recalculate_query_points(slice_result, query_points, resize_width=resize_width, resize_height=resize_height)
+                if predefined_points is not None:
+                    query_points = self.recalculate_query_points(
+                        slice_result, bee_skeleton, query_frame, height, width, resize_height, resize_width
+                    )
                 video_segment = slice_result.get_video()
 
                 if save_intermediate:
