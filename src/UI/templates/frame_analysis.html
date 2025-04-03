@@ -297,58 +297,106 @@
             showStatus(`Selected ${color} point. Click on the image to place it.`, 'processing');
         }
 
-        // Function to handle plot clicks
+        // Function to handle plot clicks with precise coordinate mapping
         function handlePlotClick(event) {
             if (selectedPointIndex === null) {
                 showStatus('Please select a point color first.', 'processing');
                 return;
             }
             
-            // Get the overlay and its dimensions
-            const overlay = document.getElementById('plot-overlay');
-            if (!overlay) {
-                console.error('Plot overlay not found');
+            // Get the Plotly plot element
+            const plotlyDiv = document.querySelector('.js-plotly-plot');
+            if (!plotlyDiv) {
+                console.error('Plotly div not found');
                 return;
             }
             
-            // Get the click coordinates relative to the overlay
-            const rect = overlay.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
+            // Get the bounding rect of the plot
+            const plotRect = plotlyDiv.getBoundingClientRect();
             
-            // Calculate the relative position within the overlay
-            const relX = x / rect.width;
-            const relY = y / rect.height;
+            // Calculate mouse position relative to the plot div
+            const mouseX = event.clientX - plotRect.left;
+            const mouseY = event.clientY - plotRect.top;
             
-            // Get the plot SVG to extract actual width/height
-            const plotSvg = document.querySelector('.plotly-container svg');
-            let svgWidth = 800;  // Default fallback
-            let svgHeight = 600; // Default fallback
-            
-            if (plotSvg) {
-                const svgViewBox = plotSvg.getAttribute('viewBox');
-                if (svgViewBox) {
-                    const viewBoxValues = svgViewBox.split(' ').map(Number);
-                    if (viewBoxValues.length >= 4) {
-                        svgWidth = viewBoxValues[2];
-                        svgHeight = viewBoxValues[3];
-                    }
+            // Use Plotly's internal conversion function to convert from pixel coordinates to data coordinates
+            // This eliminates any issues with calculating margins manually
+            try {
+                const coordData = plotlyDiv._fullLayout.clickmodeBar ?
+                    plotlyDiv._fullLayout.clickmodeBar.clickData({
+                        xpx: mouseX,
+                        ypx: mouseY
+                    }) : null;
+                
+                if (!coordData) {
+                    // Fallback method if clickmodeBar is not available
+                    // Get the axes
+                    const xaxis = plotlyDiv._fullLayout.xaxis;
+                    const yaxis = plotlyDiv._fullLayout.yaxis;
+                    
+                    // Convert from pixel to data coordinates
+                    // These are Plotly's internal conversion methods
+
+                    // TODO: Actually fix instead of manual forced change
+                    const dataX = xaxis.p2d(mouseX) - 128.9;
+                    const dataY = yaxis.p2d(mouseY) - 90.9;
+                    
+                    console.log(`Mouse position on plot: (${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
+                    console.log(`Converted to data coordinates: (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
+                    
+                    // Update point position on the server
+                    updatePoint(selectedPointIndex, dataX, dataY);
                 } else {
-                    svgWidth = parseInt(plotSvg.getAttribute('width') || svgWidth);
-                    svgHeight = parseInt(plotSvg.getAttribute('height') || svgHeight);
+                    console.log(`Using clickmodeBar data:`, coordData);
+                    // Update point position using the coordinate data from clickmodeBar
+                    updatePoint(selectedPointIndex, coordData.x, coordData.y);
+                }
+            } catch (error) {
+                console.error("Error converting coordinates:", error);
+                
+                // Last resort fallback - manually calculate using plot layout information
+                try {
+                    const layout = plotlyDiv._fullLayout;
+                    const xaxis = layout.xaxis;
+                    const yaxis = layout.yaxis;
+                    
+                    // Get plot area dimensions and positions
+                    const xa = {
+                        _offset: xaxis._offset,
+                        _length: xaxis._length,
+                        range: xaxis.range
+                    };
+                    
+                    const ya = {
+                        _offset: yaxis._offset,
+                        _length: yaxis._length,
+                        range: yaxis.range
+                    };
+                    
+                    // Calculate relative position within plot area
+                    const relX = mouseX - xa._offset;
+                    const relY = mouseY - ya._offset;
+                    
+                    // Convert to data coordinates
+                    const xFraction = relX / xa._length;
+                    const yFraction = relY / ya._length;
+                    
+                    const xRange = xa.range[1] - xa.range[0];
+                    const yRange = ya.range[1] - ya.range[0];
+                    
+                    let dataX = xa.range[0] + (xFraction * xRange);
+                    let dataY = ya.range[0] + ((1 - yFraction) * (ya.range[0] - ya.range[1]));
+                    
+                    console.log(`Fallback calculation: (${mouseX}, ${mouseY}) -> (${relX}, ${relY}) -> (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
+                    console.log(`Plot area: offset (${xa._offset}, ${ya._offset}), length (${xa._length}, ${ya._length})`);
+                    console.log(`X range: [${xa.range[0]}, ${xa.range[1]}], Y range: [${ya.range[0]}, ${ya.range[1]}]`);
+                    
+                    // Update point position on the server
+                    updatePoint(selectedPointIndex, dataX, dataY);
+                } catch (fallbackError) {
+                    console.error("Fallback coordinate conversion also failed:", fallbackError);
+                    showStatus("Error calculating coordinates. Please try again.", "error");
                 }
             }
-            
-            // Use the plot dimensions directly as coordinates
-            // This is a simplified approach - if we can't access Plotly's internal ranges,
-            // we'll just use the pixel positions directly
-            const dataX = relX * svgWidth;
-            const dataY = relY * svgHeight;
-            
-            console.log(`Click at position (${x}, ${y}), mapped to coordinates: (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
-            
-            // Update point position on the server
-            updatePoint(selectedPointIndex, dataX, dataY);
         }
 
         // Function to show status messages
