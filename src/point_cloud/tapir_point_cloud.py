@@ -97,38 +97,51 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         Returns:
         query_points: [num_points, 3], in [t, y, x]
         """
-        points = np.array([(point["x"], point["y"]) for point in points], dtype=np.float32)
-
-        # Ensure we have a closed loop by appending the first point at the end
-        if not np.array_equal(points[0], points[-1]):
-            points = np.vstack([points, points[0]])
-
-        # Generate interpolated points along each edge
-        interpolated_points = []
-        total_points = len(points)
-
-        # Calculate number of points to add between each pair of original points
-        # We want approximately 20 points total
-        points_per_segment = max(1, int((20 - total_points) / (total_points - 1)))
-
-        for i in range(total_points - 1):
-            # Add the current point
-            interpolated_points.append(points[i])
-
-            # Interpolate between current point and next point
-            for j in range(1, points_per_segment + 1):
-                t = j / (points_per_segment + 1)
-                interp_point = points[i] * (1 - t) + points[i + 1] * t
-                interpolated_points.append(interp_point)
-
-        # Convert to numpy array
-        interpolated_points = np.array(interpolated_points, dtype=np.float32)
-
+        points_array = np.array([(point['x'], point['y']) for point in points], dtype=np.float32)
+    
+        # For quadrilateral interpolation, we need the 4 corners in a specific order
+        # Assuming points form a quadrilateral with 4 points
+        if len(points_array) != 4:
+            raise ValueError("Expected exactly 4 points for area interpolation")
+        
+        # Define the corners - this assumes the points are a quadrilateral
+        # We need a consistent ordering for the bilinear interpolation
+        # Sort points by their position (e.g., top-left, top-right, bottom-right, bottom-left)
+        # This is a simple approach - for complex shapes, more sophisticated ordering might be needed
+        center = np.mean(points_array, axis=0)
+        angles = np.arctan2(points_array[:, 1] - center[1], points_array[:, 0] - center[0])
+        sorted_indices = np.argsort(angles)
+        quad_points = points_array[sorted_indices]
+        
+        # Number of subdivisions along each dimension
+        n_subdivs = 5  # This will create approximately 25 points across the area
+        
+        # Generate a grid of points across the entire area
+        area_points = []
+        
+        for i in range(n_subdivs):
+            for j in range(n_subdivs):
+                # Parameters for bilinear interpolation
+                u = i / (n_subdivs - 1)
+                v = j / (n_subdivs - 1)
+                
+                # Bilinear interpolation formula
+                # P(u,v) = (1-u)(1-v)P00 + u(1-v)P10 + (1-u)vP01 + uvP11
+                point = (1 - u) * (1 - v) * quad_points[0] + \
+                        u * (1 - v) * quad_points[1] + \
+                        u * v * quad_points[2] + \
+                        (1 - u) * v * quad_points[3]
+                        
+                area_points.append(point)
+        
+        # Convert interpolated points to numpy array
+        area_points = np.array(area_points, dtype=np.float32)
+        
         # Create the query points
-        query_points = np.zeros(shape=(interpolated_points.shape[0], 3), dtype=np.float32)
+        query_points = np.zeros(shape=(len(area_points), 3), dtype=np.float32)
         query_points[:, 0] = query_frame
-        query_points[:, 1] = interpolated_points[:, 1] * height_ratio  # y
-        query_points[:, 2] = interpolated_points[:, 0] * width_ratio   # x
+        query_points[:, 1] = area_points[:, 1] * height_ratio  # y
+        query_points[:, 2] = area_points[:, 0] * width_ratio   # x
 
         return query_points
 
