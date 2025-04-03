@@ -1,17 +1,16 @@
 import matplotlib
 
 matplotlib.use("Agg")  # Use non-interactive backend
-import haiku as hk
+import haiku as hk  # noqa: F401
 import jax
 import jax.numpy as jnp
 import mediapy as media
 import numpy as np
-from functools import partial
+from functools import partial  # noqa: F401
 import importlib.util
 from tapnet.models import tapir_model
 from tapnet.utils import model_utils
 from tapnet.utils import transforms
-from tapnet.utils import viz_utils
 from tqdm import tqdm
 import time
 import torch
@@ -196,6 +195,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             segments_to_process = min(total_segments, max_segments)
         else:
             segments_to_process = total_segments
+        # TODO: Remove
         segments_to_process = NUM_SLICES
 
         self.log(f"Video will be processed in {segments_to_process} segments")
@@ -221,6 +221,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
 
             # Process the slice
             try:
+                # Define query points for slice
                 resize_height = 256
                 resize_width = 256
                 query_frame = 0
@@ -232,8 +233,10 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
                     height_ratio = resize_height / height
                     width_ratio = resize_width / width
                     query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
-                print(query_points)
-                video_segment = self.process_video_slice(orig_frames_slice, width, height, query_points, resize_width=resize_width, resize_height=resize_height)
+
+                # Process the video slice
+                slice_result = self.process_video_slice(orig_frames_slice, width, height, query_points, resize_width=resize_width, resize_height=resize_height)
+                video_segment = slice_result.get_video()
 
                 if save_intermediate:
                     # Save segment to disk
@@ -343,7 +346,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         chunk_inference = jax.jit(chunk_inference)
 
         self.log("Processing track points...")
-        total_chunks = (query_points.shape[0] + chunk_size - 1) // chunk_size
+        total_chunks = (query_points.shape[0] + chunk_size - 1) // chunk_size  # noqa: F841
         tracks = []
         visibles = []
 
@@ -393,6 +396,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
 
         self.log("Converting coordinates and generating visualization...")
         tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
-        video = viz_utils.plot_tracks_v2(orig_frames, tracks, 1.0 - visibles)
+        slice_result = point_cloud_interface.PointCloudSlice(orig_frames, tracks, visibles)
 
-        return video
+        return slice_result

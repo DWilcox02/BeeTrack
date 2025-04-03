@@ -106,7 +106,6 @@ def process_video_wrapper_with_points(video_name, points, job_id=None):
     Returns:
         Dictionary with processing results
     """
-    print("HERE!!!")
     # Create a logging function that either uses the global log_message or falls back to print
     def log(message):
         if job_id and log_message:
