@@ -4,9 +4,9 @@ import threading
 import time
 import queue
 from flask import Blueprint, request, jsonify, url_for, Response, current_app
-from ..utils.logging_utils import log_message, init_job_logging, cleanup_job, processing_logs, processing_locks
+from ..utils.logging_utils import log_message, init_job_logging, cleanup_job, processing_logs, processing_locks, point_data_store
 from ..config import POINT_CLOUD_AVAILABLE
-from ..point_cloud_adapter import process_video_wrapper, set_log_message_function
+from ..point_cloud_adapter import process_video_wrapper, process_video_wrapper_with_points, set_log_message_function
 
 processing_bp = Blueprint("processing", __name__)
 set_log_message_function(log_message)
@@ -100,6 +100,71 @@ def process_video():
         try:
             # Process the video
             result = process_video_wrapper(video_path, job_id)
+
+            if result.get("success", False):
+                # Create URL for the processed video
+                output_url = url_for("video.serve_processed_video", filename=result["output_filename"])
+                result["output_url"] = output_url
+
+                # Signal completion
+                log_message(job_id, f"DONE: Processing completed successfully.")
+
+                # Store result for later retrieval
+                log_message(job_id, f"RESULT:{json.dumps(result)}")
+            else:
+                error_msg = result.get("error", "Unknown error during processing")
+                log_message(job_id, f"ERROR: {error_msg}")
+
+        except Exception as e:
+            import traceback
+
+            stack_trace = traceback.format_exc()
+            error_msg = f"Error processing video: {str(e)}"
+            current_app.logger.error(f"{error_msg}\n{stack_trace}")
+            log_message(job_id, f"ERROR: {error_msg}")
+
+        # Clean up eventually
+        cleanup_thread = threading.Thread(target=cleanup_job, args=(job_id,))
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
+
+    # Start processing in a background thread
+    processing_thread = threading.Thread(target=run_processing)
+    processing_thread.daemon = True
+    processing_thread.start()
+
+    # Return immediately with the job ID
+    return jsonify({"job_id": job_id})
+
+@processing_bp.route("/api/process_video_with_points", methods=["POST"])
+def process_video_with_points():
+    """API endpoint to run point cloud processing on a video."""
+    if not POINT_CLOUD_AVAILABLE:
+        return jsonify({"error": "Point cloud processing is not available"}), 500
+
+    data = request.json
+    video_path = data.get("video_path")
+    session_id = data.get("session_id")
+
+    if not video_path:
+        return jsonify({"error": "No video path provided"}), 400
+    if not session_id:
+        return jsonify({"error": "No session id provided"}), 400
+
+    session_data = point_data_store[session_id]
+    points = session_data["points"]
+
+    # Create a unique job ID
+    job_id = str(uuid.uuid4())
+
+    # Initialize logging for this job
+    init_job_logging(job_id)
+
+    # Function to run the processing in a background thread
+    def run_processing():
+        try:
+            # Process the video
+            result = process_video_wrapper_with_points(video_path, points, job_id)
 
             if result.get("success", False):
                 # Create URL for the processed video

@@ -2,7 +2,15 @@ from abc import ABC, abstractmethod
 
 class PointCloudInterface(ABC):
     @abstractmethod
-    def process_video(self, path: str, filename: str, fps: int):
+    def process_video(
+        self, 
+        path: str, 
+        filename: str, 
+        fps: int,
+        max_segments=None,
+        save_intermediate=True,
+        predefined_points=None
+    ):
         """
         Process a video file to generate a point cloud.
 

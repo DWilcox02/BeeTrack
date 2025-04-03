@@ -20,7 +20,7 @@ import gc
 import tempfile
 
 
-NUM_SLICES = 3
+NUM_SLICES = 1
 
 
 # Get paths
@@ -88,7 +88,59 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         points = points.reshape(-1, 3)  # [out_height*out_width, 3]
         return points
 
-    def process_video(self, path: str, filename: str, fps: int, max_segments=None, save_intermediate=True):
+    def convert_select_points_to_query_points(self, query_frame, points, height_ratio, width_ratio):
+        """Convert select points to query points with linear interpolation.
+
+        Args:
+        points (json): [{'x': _, 'y': _}, ...]
+
+        Returns:
+        query_points: [num_points, 3], in [t, y, x]
+        """
+        points = np.array([(point["x"], point["y"]) for point in points], dtype=np.float32)
+
+        # Ensure we have a closed loop by appending the first point at the end
+        if not np.array_equal(points[0], points[-1]):
+            points = np.vstack([points, points[0]])
+
+        # Generate interpolated points along each edge
+        interpolated_points = []
+        total_points = len(points)
+
+        # Calculate number of points to add between each pair of original points
+        # We want approximately 20 points total
+        points_per_segment = max(1, int((20 - total_points) / (total_points - 1)))
+
+        for i in range(total_points - 1):
+            # Add the current point
+            interpolated_points.append(points[i])
+
+            # Interpolate between current point and next point
+            for j in range(1, points_per_segment + 1):
+                t = j / (points_per_segment + 1)
+                interp_point = points[i] * (1 - t) + points[i + 1] * t
+                interpolated_points.append(interp_point)
+
+        # Convert to numpy array
+        interpolated_points = np.array(interpolated_points, dtype=np.float32)
+
+        # Create the query points
+        query_points = np.zeros(shape=(interpolated_points.shape[0], 3), dtype=np.float32)
+        query_points[:, 0] = query_frame
+        query_points[:, 1] = interpolated_points[:, 1] * height_ratio  # y
+        query_points[:, 2] = interpolated_points[:, 0] * width_ratio   # x
+
+        return query_points
+
+    def process_video(
+        self,
+        path: str,
+        filename: str,
+        fps: int,
+        max_segments=None,
+        save_intermediate=True,
+        predefined_points=None,
+    ):
         """
         Process a video file, splitting it into segments and optionally saving intermediate results.
         The video will be processed at the minimum of the provided FPS or 15 FPS.
@@ -156,7 +208,19 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
 
             # Process the slice
             try:
-                video_segment = self.process_video_slice(orig_frames_slice, width, height)
+                resize_height = 256
+                resize_width = 256
+                query_frame = 0
+                stride = 8
+                # predefined_points = None # TODO: Remove
+                if predefined_points is None:
+                    query_points = self.sample_grid_points(query_frame, resize_height, resize_width, stride)
+                else:
+                    height_ratio = resize_height / height
+                    width_ratio = resize_width / width
+                    query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
+                print(query_points)
+                video_segment = self.process_video_slice(orig_frames_slice, width, height, query_points, resize_width=resize_width, resize_height=resize_height)
 
                 if save_intermediate:
                     # Save segment to disk
@@ -225,12 +289,16 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
                 os.rmdir(temp_dir)
             return None, fps
 
-    def process_video_slice(self, orig_frames, width, height):
+    def process_video_slice(
+        self,
+        orig_frames,
+        width,
+        height,
+        query_points,
+        resize_width = 256,
+        resize_height = 256,
+    ):
         """Process a slice of video frames and return the processed segment."""
-        resize_height = 256  # @param {type: "integer"}
-        resize_width = 256  # @param {type: "integer"}
-        stride = 8  # @param {type: "integer"}
-        query_frame = 0  # @param {type: "integer"}
 
         self.log("Preprocessing frames...")
         frames = media.resize_video(orig_frames, (resize_height, resize_width))
@@ -262,7 +330,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         chunk_inference = jax.jit(chunk_inference)
 
         self.log("Processing track points...")
-        query_points = self.sample_grid_points(query_frame, resize_height, resize_width, stride)
         total_chunks = (query_points.shape[0] + chunk_size - 1) // chunk_size
         tracks = []
         visibles = []
