@@ -70,15 +70,12 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         self.log_fn = print  # Default to standard print
 
     def set_logger(self, log_fn):
-        """Set a custom logging function."""
         self.log_fn = log_fn
 
     def log(self, message):
-        """Log a message using the configured logging function."""
         self.log_fn(message)
 
     def sample_grid_points(self, frame_idx, height, width, stride=1):
-        """Sample grid points with (time height, width) order."""
         points = np.mgrid[stride // 2 : height : stride, stride // 2 : width : stride]
         points = points.transpose(1, 2, 0)
         out_height, out_width = points.shape[0:2]
@@ -153,20 +150,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         save_intermediate=True,
         predefined_points=None,
     ):
-        """
-        Process a video file, splitting it into segments and optionally saving intermediate results.
-        The video will be processed at the minimum of the provided FPS or 15 FPS.
-
-        Args:
-            path: Directory path to the video
-            filename: Name of the video file
-            fps: Frames per second
-            max_segments: Maximum number of segments to process (None for all)
-            save_intermediate: Whether to save intermediate results to disk to save memory
-
-        Returns:
-            Tuple of (processed video array, fps) or (None, fps) if no segments processed
-        """
         self.log(f"\nProcessing video from: {path}")
         start_time = time.time()
 
@@ -211,6 +194,24 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             # If not saving intermediate results, store in memory
             processed_segments = []
 
+        
+        # Define query points for slice
+        resize_height = 256
+        resize_width = 256
+        query_frame = 0
+        stride = 8
+        # predefined_points = None # TODO: Remove
+        if predefined_points is None:
+            query_points = self.sample_grid_points(query_frame, resize_height, resize_width, stride)
+        else:
+            bee_skeleton = point_cloud_interface.BeeSkeleton(predefined_points)
+            bee_skeleton.pretty_print_skeleton()
+
+            height_ratio = resize_height / height
+            width_ratio = resize_width / width
+            query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
+            
+
         # Process each segment
         for i in range(segments_to_process):
             start_frame = i * fps
@@ -220,22 +221,9 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             orig_frames_slice = orig_frames[start_frame:end_frame]
 
             # Process the slice
-            try:
-                # Define query points for slice
-                resize_height = 256
-                resize_width = 256
-                query_frame = 0
-                stride = 8
-                # predefined_points = None # TODO: Remove
-                if predefined_points is None:
-                    query_points = self.sample_grid_points(query_frame, resize_height, resize_width, stride)
-                else:
-                    height_ratio = resize_height / height
-                    width_ratio = resize_width / width
-                    query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
-
-                # Process the video slice
+            try:                
                 slice_result = self.process_video_slice(orig_frames_slice, width, height, query_points, resize_width=resize_width, resize_height=resize_height)
+                query_points = self.recalculate_query_points(slice_result, query_points, resize_width=resize_width, resize_height=resize_height)
                 video_segment = slice_result.get_video()
 
                 if save_intermediate:
@@ -397,5 +385,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         self.log("Converting coordinates and generating visualization...")
         tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
         slice_result = point_cloud_interface.PointCloudSlice(orig_frames, tracks, visibles)
+        
 
         return slice_result
