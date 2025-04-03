@@ -156,16 +156,16 @@ def frame_analysis(filename):
         current_app.logger.error(f"Error in frame analysis: {str(e)}")
         return f"Error: {str(e)}", 500
 
-
 @analysis_bp.route("/api/update_point", methods=["POST"])
 def update_point():
-    """Update a point's position."""
+    """Update a point's position and return updated plot data."""
     try:
         data = request.json
         session_id = data.get("session_id")
         point_index = data.get("point_index")
         x = data.get("x")
         y = data.get("y")
+        print(f"UPDATING POINT {point_index} TO ({x}, {y})")
 
         if session_id not in point_data_store:
             return jsonify({"error": "Session not found"}), 404
@@ -179,11 +179,60 @@ def update_point():
         session_data["points"][point_index]["x"] = x
         session_data["points"][point_index]["y"] = y
 
-        # Generate updated plot
+        # Generate updated plot data
         width = session_data["width"]
         height = session_data["height"]
+        filename = session_data["filename"]
 
+        # Fetch the frame image again (or retrieve from cache if implemented)
+        video = analysis_bp.videos.get(filename)
+        if not video:
+            return jsonify({"error": "Video not found"}), 404
+
+        directory = os.path.join(DATA_FOLDER, video["path"])
+        video_path = os.path.join(directory, video["filename"])
+
+        # Extract first frame using OpenCV
+        cap = cv2.VideoCapture(video_path)
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret:
+            return jsonify({"error": "Failed to extract frame from video"}), 500
+
+        # Convert BGR to RGB for proper display
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Resize if the image is too large
+        max_dim = 1024
+        h, w = frame_rgb.shape[:2]
+        if h > max_dim or w > max_dim:
+            scale = max_dim / max(h, w)
+            new_h, new_w = int(h * scale), int(w * scale)
+            frame_rgb = cv2.resize(frame_rgb, (new_w, new_h))
+
+        # Convert to base64 for embedding in plotly
+        _, buffer = cv2.imencode(".jpg", frame_rgb)
+        frame_base64 = base64.b64encode(buffer).decode("utf-8")
+
+        # Create a new plotly figure
         fig = go.Figure()
+
+        # Add the image as a layout image with correct positioning
+        fig.add_layout_image(
+            dict(
+                source=f"data:image/jpeg;base64,{frame_base64}",
+                xref="x",
+                yref="y",
+                x=0,
+                y=0,
+                sizex=width,
+                sizey=height,
+                sizing="stretch",
+                opacity=1,
+                layer="below",
+            )
+        )
 
         # Add each point as a scatter trace
         for i, point in enumerate(session_data["points"]):
@@ -199,24 +248,43 @@ def update_point():
 
         # Configure the layout
         fig.update_layout(
-            xaxis=dict(range=[0, width], title="X", fixedrange=True),
-            yaxis=dict(range=[height, 0], title="Y", scaleanchor="x", scaleratio=1, fixedrange=True),
+            xaxis=dict(
+                range=[0, width],
+                title="X",
+                fixedrange=True,
+                showgrid=False,  # Hide grid for cleaner appearance with image
+            ),
+            yaxis=dict(
+                range=[height, 0],  # Invert y-axis for image coordinates
+                title="Y",
+                scaleanchor="x",
+                scaleratio=1,
+                fixedrange=True,
+                showgrid=False,  # Hide grid for cleaner appearance with image
+            ),
             showlegend=True,
-            dragmode="pan",
+            dragmode="pan",  # Allow panning but disable other interactions
             height=min(600, height + 100),
             width=min(800, width + 100),
             margin=dict(l=50, r=50, b=50, t=50),
+            title="First Frame Analysis",
+            template="plotly_white",  # Use a cleaner template
         )
 
-        # Convert to JSON for update
+        # Configure modebar with necessary tools only
+        fig.update_layout(modebar=dict(remove=["select", "lasso", "autoScale", "resetScale"]))
+
+        # Convert to JSON for the frontend
         plot_json = fig.to_json()
 
         return jsonify({"success": True, "plot_data": plot_json, "point": session_data["points"][point_index]})
 
     except Exception as e:
         current_app.logger.error(f"Error updating point: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        import traceback
 
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 
 @analysis_bp.route("/api/save_points", methods=["POST"])
 def save_points():

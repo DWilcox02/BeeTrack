@@ -29,6 +29,7 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            position: relative;
         }
         .controls {
             margin-top: 20px;
@@ -102,7 +103,7 @@
         .point-button {
             display: inline-block;
             padding: 8px 12px;
-            margin-right: 5px;
+            margin-right: 10px;
             border: 2px solid;
             border-radius: 4px;
             cursor: pointer;
@@ -135,6 +136,15 @@
         .point-button.active {
             box-shadow: 0 0 0 3px rgba(0,123,255,.5);
         }
+        #plot-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            cursor: crosshair;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
@@ -151,15 +161,16 @@
         
         <div class="point-controls">
             <h3>Select point to place:</h3>
-            <div id="pointRed" class="point-button point-red" onclick="selectPoint(0, 'red')">Red Point</div>
-            <div id="pointGreen" class="point-button point-green" onclick="selectPoint(1, 'green')">Green Point</div>
-            <div id="pointBlue" class="point-button point-blue" onclick="selectPoint(2, 'blue')">Blue Point</div>
-            <div id="pointPurple" class="point-button point-purple" onclick="selectPoint(3, 'purple')">Purple Point</div>
+            <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Red Point</div>
+            <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Green Point</div>
+            <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Blue Point</div>
+            <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Purple Point</div>
         </div>
         
-        <div class="plotly-container">
+        <div class="plotly-container" id="plotly-container">
             <!-- Plotly plot will be inserted here -->
             {{ plot_html|safe }}
+            <div id="plot-overlay"></div>
         </div>
 
         <div id="pointStatus" class="processing-status status-processing" style="display: none;">
@@ -174,11 +185,100 @@
     </div>
     
     <script>
-        // Store the session ID
+        // Store the session ID and data
         const sessionId = "{{ session_id }}";
         let selectedPointIndex = null;
         let selectedPointColor = null;
-        
+        let plotlyPlot = null;
+        let pointPositions = {}; // Keep track of current point positions
+
+        // Initialize once page is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up the point selection buttons
+            document.querySelectorAll('.point-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    selectPoint(this.dataset.index, this.dataset.color);
+                });
+            });
+            
+            // Initialize overlay and handlers
+            initializePlotHandlers();
+            
+            // Show initial status
+            showStatus('Select a point and click on the image to place it.', 'processing');
+        });
+
+        // Initialize plot handlers
+        function initializePlotHandlers() {
+            // Find the plotly container
+            const plotlyContainer = document.getElementById('plotly-container');
+            if (!plotlyContainer) {
+                console.error('Plotly container not found');
+                return;
+            }
+            
+            // Find any Plotly plot inside
+            plotlyPlot = document.querySelector('.js-plotly-plot');
+            if (!plotlyPlot) {
+                // If not found, it might be loading - retry after delay
+                console.log('Waiting for Plotly to initialize...');
+                setTimeout(initializePlotHandlers, 300);
+                return;
+            }
+            
+            console.log('Found Plotly element:', plotlyPlot);
+            
+            // Add click handler to the overlay
+            const overlay = document.getElementById('plot-overlay');
+            if (overlay) {
+                // Set the overlay to match the plot dimensions
+                resizeOverlay();
+                
+                // Add event listeners
+                window.addEventListener('resize', resizeOverlay);
+                overlay.addEventListener('click', handlePlotClick);
+                
+                console.log('Plot overlay initialized with click handler');
+            } else {
+                console.error('Plot overlay element not found');
+            }
+        }
+
+        // Resize the overlay to match the plot
+        function resizeOverlay() {
+            const plotContainer = document.querySelector('.plotly-container');
+            if (!plotContainer) return;
+            
+            const overlay = document.getElementById('plot-overlay');
+            if (!overlay) return;
+            
+            // Get the dimensions of the plot area (any SVG inside)
+            const plotSvg = plotContainer.querySelector('svg');
+            if (plotSvg) {
+                const rect = plotSvg.getBoundingClientRect();
+                
+                // Position the overlay to match the SVG
+                overlay.style.width = rect.width + 'px';
+                overlay.style.height = rect.height + 'px';
+                
+                // For positioning, use CSS
+                overlay.style.position = 'absolute';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                
+                console.log(`Overlay resized to match plot: ${rect.width}x${rect.height}`);
+            } else {
+                // As fallback, match container size
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
+                overlay.style.position = 'absolute';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                
+                console.log('Overlay sized to 100% of container (fallback)');
+            }
+        }
+
         // Function to select a point
         function selectPoint(index, color) {
             // Reset all buttons
@@ -187,90 +287,96 @@
             });
             
             // Set the selected point
-            selectedPointIndex = index;
+            selectedPointIndex = parseInt(index);
             selectedPointColor = color;
             
             // Highlight the selected button
             document.getElementById('point' + color.charAt(0).toUpperCase() + color.slice(1)).classList.add('active');
             
             // Show status
-            const pointStatus = document.getElementById('pointStatus');
-            pointStatus.textContent = `Selected ${color} point. Click on the image to place it.`;
-            pointStatus.style.display = 'block';
-            pointStatus.className = 'processing-status status-processing';
+            showStatus(`Selected ${color} point. Click on the image to place it.`, 'processing');
         }
-        
-        // Function to handle image click
-        document.addEventListener('DOMContentLoaded', function() {
-            const plotlyElement = document.querySelector('.js-plotly-plot');
-            
-            if (!plotlyElement) {
-                console.error('Plotly element not found');
+
+        // Function to handle plot clicks
+        function handlePlotClick(event) {
+            if (selectedPointIndex === null) {
+                showStatus('Please select a point color first.', 'processing');
                 return;
             }
             
-            plotlyElement.addEventListener('click', function(event) {
-                if (selectedPointIndex === null) {
-                    return;
+            // Get the overlay and its dimensions
+            const overlay = document.getElementById('plot-overlay');
+            if (!overlay) {
+                console.error('Plot overlay not found');
+                return;
+            }
+            
+            // Get the click coordinates relative to the overlay
+            const rect = overlay.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Calculate the relative position within the overlay
+            const relX = x / rect.width;
+            const relY = y / rect.height;
+            
+            // Get the plot SVG to extract actual width/height
+            const plotSvg = document.querySelector('.plotly-container svg');
+            let svgWidth = 800;  // Default fallback
+            let svgHeight = 600; // Default fallback
+            
+            if (plotSvg) {
+                const svgViewBox = plotSvg.getAttribute('viewBox');
+                if (svgViewBox) {
+                    const viewBoxValues = svgViewBox.split(' ').map(Number);
+                    if (viewBoxValues.length >= 4) {
+                        svgWidth = viewBoxValues[2];
+                        svgHeight = viewBoxValues[3];
+                    }
+                } else {
+                    svgWidth = parseInt(plotSvg.getAttribute('width') || svgWidth);
+                    svgHeight = parseInt(plotSvg.getAttribute('height') || svgHeight);
                 }
-                
-                // Get the click coordinates relative to the plot
-                const rect = plotlyElement.getBoundingClientRect();
-                const plotly = plotlyElement.querySelector('.main-svg');
-                const plotRect = plotly.getBoundingClientRect();
-                
-                // Calculate offsets from the plot area
-                const xOffset = plotRect.left - rect.left;
-                const yOffset = plotRect.top - rect.top;
-                
-                // Get click position relative to plot area
-                const x = event.clientX - plotRect.left;
-                const y = event.clientY - plotRect.top;
-                
-                // Get plot dimensions and margins
-                const plotArea = plotly.querySelector('.plot');
-                const plotAreaRect = plotArea.getBoundingClientRect();
-                
-                // Calculate actual data coordinates
-                // Here we need to convert from pixel coordinates to data coordinates
-                // This is a simplified approach - a more accurate one would use the plot's
-                // internal conversion functions
-                
-                // Get plot dimensions
-                const width = parseFloat(plotArea.getAttribute('width'));
-                const height = parseFloat(plotArea.getAttribute('height'));
-                
-                // Calculate relative position within plot area
-                const relX = (x - (plotAreaRect.left - plotRect.left)) / width;
-                const relY = (y - (plotAreaRect.top - plotRect.top)) / height;
-                
-                // Get layout data to determine actual data ranges
-                const layoutStr = plotlyElement.getAttribute('data-layout');
-                let layout;
-                try {
-                    layout = JSON.parse(layoutStr);
-                } catch (e) {
-                    console.error('Could not parse layout data', e);
-                    return;
-                }
-                
-                // Calculate data coordinates
-                const xRange = layout.xaxis.range;
-                const yRange = layout.yaxis.range;
-                
-                const dataX = xRange[0] + relX * (xRange[1] - xRange[0]);
-                const dataY = yRange[0] + (1 - relY) * (yRange[1] - yRange[0]);
-                
-                // Send the update to the server
-                updatePoint(selectedPointIndex, dataX, dataY);
-            });
-        });
-        
+            }
+            
+            // Use the plot dimensions directly as coordinates
+            // This is a simplified approach - if we can't access Plotly's internal ranges,
+            // we'll just use the pixel positions directly
+            const dataX = relX * svgWidth;
+            const dataY = relY * svgHeight;
+            
+            console.log(`Click at position (${x}, ${y}), mapped to coordinates: (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
+            
+            // Update point position on the server
+            updatePoint(selectedPointIndex, dataX, dataY);
+        }
+
+        // Function to show status messages
+        function showStatus(message, type) {
+            const pointStatus = document.getElementById('pointStatus');
+            if (!pointStatus) return;
+            
+            pointStatus.textContent = message;
+            pointStatus.style.display = 'block';
+            
+            // Set the appropriate status type
+            pointStatus.className = 'processing-status';
+            if (type === 'success') {
+                pointStatus.classList.add('status-success');
+            } else if (type === 'error') {
+                pointStatus.classList.add('status-error');
+            } else {
+                pointStatus.classList.add('status-processing');
+            }
+        }
+
         // Function to update a point's position
         async function updatePoint(pointIndex, x, y) {
-            const pointStatus = document.getElementById('pointStatus');
+            showStatus(`Updating ${selectedPointColor} point position...`, 'processing');
             
             try {
+                console.log(`Sending API request for point ${pointIndex} at coordinates (${x}, ${y})`);
+                
                 const response = await fetch('/api/update_point', {
                     method: 'POST',
                     headers: {
@@ -285,35 +391,81 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Error: ${response.status}`);
+                    throw new Error(`Server error: ${response.status}`);
                 }
                 
                 const result = await response.json();
+                console.log('Server response:', result);
                 
                 if (result.success) {
-                    // Show status
-                    pointStatus.textContent = `Moved ${selectedPointColor} point to (${x.toFixed(2)}, ${y.toFixed(2)})`;
-                    pointStatus.style.display = 'block';
-                    pointStatus.className = 'processing-status status-success';
+                    // Store the updated position
+                    pointPositions[selectedPointColor] = { x: x, y: y };
                     
-                    // Reload the page to show updated plot
-                    // This is a simple approach - for better UX, we could update just the plot
-                    window.location.reload();
+                    // Update the plot using the returned plot data
+                    if (result.plot_data) {
+                        updatePlot(result.plot_data);
+                    }
+                    
+                    showStatus(`${selectedPointColor.charAt(0).toUpperCase() + selectedPointColor.slice(1)} point placed at (${x.toFixed(1)}, ${y.toFixed(1)})`, 'success');
                 } else {
-                    throw new Error(result.error || 'Unknown error');
+                    throw new Error(result.error || 'Failed to update point');
                 }
                 
             } catch (error) {
                 console.error('Error updating point:', error);
-                pointStatus.textContent = `Error: ${error.message}`;
-                pointStatus.style.display = 'block';
-                pointStatus.className = 'processing-status status-error';
+                showStatus(`Error: ${error.message}`, 'error');
             }
         }
-        
+
+        // Function to update the plot with new data
+        function updatePlot(plotData) {
+            try {
+                // If plotData is a string (JSON), parse it
+                if (typeof plotData === 'string') {
+                    plotData = JSON.parse(plotData);
+                }
+                
+                // Find the Plotly element if not already found
+                if (!plotlyPlot) {
+                    plotlyPlot = document.querySelector('.js-plotly-plot');
+                    if (!plotlyPlot) {
+                        console.error('Plotly element not found for updating');
+                        return;
+                    }
+                }
+                
+                // Use Plotly's react method to update the plot
+                if (window.Plotly) {
+                    Plotly.react(
+                        plotlyPlot,
+                        plotData.data,
+                        plotData.layout,
+                        {
+                            displayModeBar: true,
+                            staticPlot: false,
+                            scrollZoom: false,
+                            displaylogo: false,
+                            modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d', 'resetScale2d']
+                        }
+                    );
+                    
+                    console.log('Plot updated with new data');
+                } else {
+                    console.error('Plotly not available for updating plot');
+                }
+                
+                // Resize the overlay to match the updated plot
+                setTimeout(resizeOverlay, 100);
+                
+            } catch (error) {
+                console.error('Error updating plot:', error);
+                showStatus('Error updating the plot visualization', 'error');
+            }
+        }
+
         // Function to save all points
         async function savePoints() {
-            const pointStatus = document.getElementById('pointStatus');
+            showStatus('Saving point positions...', 'processing');
             
             try {
                 const response = await fetch('/api/save_points', {
@@ -333,24 +485,20 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    pointStatus.textContent = 'Points saved successfully!';
-                    pointStatus.style.display = 'block';
-                    pointStatus.className = 'processing-status status-success';
-                    
-                    // Log the points
-                    console.log('Points saved:');
+                    let pointsMessage = 'Points saved:\n';
                     result.points.forEach(point => {
-                        console.log(`${point.color}: (${point.x.toFixed(2)}, ${point.y.toFixed(2)})`);
+                        pointsMessage += `${point.color}: (${point.x.toFixed(1)}, ${point.y.toFixed(1)})\n`;
                     });
+                    
+                    showStatus('Point positions saved successfully!', 'success');
+                    console.log(pointsMessage);
                 } else {
                     throw new Error(result.error || 'Unknown error');
                 }
                 
             } catch (error) {
                 console.error('Error saving points:', error);
-                pointStatus.textContent = `Error: ${error.message}`;
-                pointStatus.style.display = 'block';
-                pointStatus.className = 'processing-status status-error';
+                showStatus(`Error: ${error.message}`, 'error');
             }
         }
     </script>
