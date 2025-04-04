@@ -40,16 +40,16 @@ def frame_analysis(filename):
         # Convert BGR to RGB for proper display
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Resize if the image is too large
-        max_dim = 1024
+        # # Resize if the image is too large
+        # max_dim = 1024
         h, w = frame_rgb.shape[:2]
-        if h > max_dim or w > max_dim:
-            scale = max_dim / max(h, w)
-            new_h, new_w = int(h * scale), int(w * scale)
-            frame_rgb = cv2.resize(frame_rgb, (new_w, new_h))
-            height, width = new_h, new_w
-        else:
-            height, width = h, w
+        # if h > max_dim or w > max_dim:
+        #     scale = max_dim / max(h, w)
+        #     new_h, new_w = int(h * scale), int(w * scale)
+        #     frame_rgb = cv2.resize(frame_rgb, (new_w, new_h))
+        #     height, width = new_h, new_w
+        # else:
+        height, width = h, w
 
         # Convert to base64 for embedding in plotly
         _, buffer = cv2.imencode(".jpg", frame_rgb)
@@ -102,7 +102,7 @@ def frame_analysis(filename):
                     x=[point["x"]],
                     y=[point["y"]],
                     mode="markers",
-                    marker=dict(size=15, color=point["color"]),
+                    marker=dict(size=5, color=point["color"]),
                     name=f"Point ({point['color']})",
                 )
             )
@@ -210,13 +210,13 @@ def update_point():
         # Convert BGR to RGB for proper display
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Resize if the image is too large
-        max_dim = 1024
-        h, w = frame_rgb.shape[:2]
-        if h > max_dim or w > max_dim:
-            scale = max_dim / max(h, w)
-            new_h, new_w = int(h * scale), int(w * scale)
-            frame_rgb = cv2.resize(frame_rgb, (new_w, new_h))
+        # # Resize if the image is too large
+        # max_dim = 1024
+        # h, w = frame_rgb.shape[:2]
+        # if h > max_dim or w > max_dim:
+        #     scale = max_dim / max(h, w)
+        #     new_h, new_w = int(h * scale), int(w * scale)
+        #     frame_rgb = cv2.resize(frame_rgb, (new_w, new_h))
 
         # Convert to base64 for embedding in plotly
         _, buffer = cv2.imencode(".jpg", frame_rgb)
@@ -248,7 +248,7 @@ def update_point():
                     x=[point["x"]],
                     y=[point["y"]],
                     mode="markers",
-                    marker=dict(size=15 if i != point_index else 20, color=point["color"]),
+                    marker=dict(size=5, color=point["color"]),
                     name=f"Point ({point['color']})",
                 )
             )
