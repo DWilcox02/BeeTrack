@@ -19,7 +19,7 @@ import gc
 import tempfile
 
 
-NUM_SLICES = 6
+NUM_SLICES = 3
 
 
 # Get paths
@@ -141,73 +141,56 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
 
         return query_points
 
-    def recalculate_query_points(self, point_cloud_slice, bee_skeleton, query_frame, height, width, resize_height, resize_width):
+    def recalculate_query_points(
+        self, 
+        point_cloud_slice, 
+        bee_skeleton, 
+        query_frame, 
+        height, 
+        width, 
+        resize_height, 
+        resize_width,
+        previous_trajectory
+    ):
         # Get midpoint and trajectory
         midpoint = point_cloud_slice.get_final_mean()
-        trajectory = point_cloud_slice.get_trajectory()
+        trajectory = point_cloud_slice.get_trajectory(previous_trajectory)
         
         self.log(f"Midpoint: {midpoint}, Trajectory: {trajectory}")
         
-        # Normalize trajectory vector
-        trajectory_norm = np.linalg.norm(trajectory)
-        if trajectory_norm > 0:
-            trajectory = trajectory / trajectory_norm
-        else:
-            # Default to the original head direction if no movement
-            trajectory = bee_skeleton.v_mid_head
+        # Calculate the angle of the new trajectory vector
+        theta = np.arctan2(trajectory[1], trajectory[0])
         
-        # Calculate the original head-butt axis (primary axis)
-        original_axis = (bee_skeleton.v_mid_head - bee_skeleton.v_mid_butt) / 2
-        original_axis = original_axis / np.linalg.norm(original_axis)
+        # Calculate new positions based on stored angles and distances
         
-        # Calculate the angle between the original axis and the new trajectory
-        dot_product = np.dot(original_axis, trajectory)
-        # Clamp dot product to valid range for arccos
-        dot_product = max(min(dot_product, 1.0), -1.0)
-        angle = np.arccos(dot_product)
-        
-        # Determine if we need to rotate clockwise or counterclockwise
-        # Cross product z component determines rotation direction
-        cross_z = original_axis[0] * trajectory[1] - original_axis[1] * trajectory[0]
-        if cross_z < 0:
-            angle = -angle
-        
-        # Rotation matrix
-        cos_theta = np.cos(angle)
-        sin_theta = np.sin(angle)
-        rotation_matrix = np.array([
-            [cos_theta, -sin_theta],
-            [sin_theta, cos_theta]
-        ])
-        
-        # Rotate the original vectors
-        v_head_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_head)
-        v_butt_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_butt)
-        v_left_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_left)
-        v_right_rotated = np.dot(rotation_matrix, bee_skeleton.v_mid_right)
-        
-        # Calculate new positions using the rotated vectors and original distances
+        # Head is in direction of trajectory
         head_pos = {
-            'x': midpoint[0] + v_head_rotated[0] * bee_skeleton.d_mid_head,
-            'y': midpoint[1] + v_head_rotated[1] * bee_skeleton.d_mid_head,
+            'x': midpoint[0] + bee_skeleton.d_mid_head * trajectory[0],
+            'y': midpoint[1] + bee_skeleton.d_mid_head * trajectory[1],
             'color': 'red'
         }
         
+        # Butt is opposite to head (offset by beta)
+        butt_angle = theta + np.pi - bee_skeleton.beta
         butt_pos = {
-            'x': midpoint[0] + v_butt_rotated[0] * bee_skeleton.d_mid_butt,
-            'y': midpoint[1] + v_butt_rotated[1] * bee_skeleton.d_mid_butt,
+            'x': midpoint[0] + bee_skeleton.d_mid_butt * np.cos(butt_angle),
+            'y': midpoint[1] + bee_skeleton.d_mid_butt * np.sin(butt_angle),
             'color': 'green'
         }
         
+        # Left point (offset by alpha)
+        left_angle = theta + bee_skeleton.alpha
         left_pos = {
-            'x': midpoint[0] + v_left_rotated[0] * bee_skeleton.d_mid_left,
-            'y': midpoint[1] + v_left_rotated[1] * bee_skeleton.d_mid_left,
+            'x': midpoint[0] + bee_skeleton.d_mid_left * np.cos(left_angle),
+            'y': midpoint[1] + bee_skeleton.d_mid_left * np.sin(left_angle),
             'color': 'blue'
         }
         
+        # Right point (offset by gamma)
+        right_angle = theta + bee_skeleton.gamma
         right_pos = {
-            'x': midpoint[0] + v_right_rotated[0] * bee_skeleton.d_mid_right,
-            'y': midpoint[1] + v_right_rotated[1] * bee_skeleton.d_mid_right,
+            'x': midpoint[0] + bee_skeleton.d_mid_right * np.cos(right_angle),
+            'y': midpoint[1] + bee_skeleton.d_mid_right * np.sin(right_angle),
             'color': 'purple'
         }
         
@@ -226,7 +209,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             width_ratio=width_ratio
         )
         
-        return query_points
+        return query_points, trajectory
 
     def process_video(
         self,
@@ -295,7 +278,8 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             height_ratio = resize_height / height
             width_ratio = resize_width / width
             query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
-            
+            current_trajectory = bee_skeleton.v_mid_head
+        # print(query_points)
 
         # Process each segment
         for i in range(segments_to_process):
@@ -309,8 +293,15 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             try:                
                 slice_result = self.process_video_slice(orig_frames_slice, width, height, query_points, resize_width=resize_width, resize_height=resize_height)
                 if predefined_points is not None:
-                    query_points = self.recalculate_query_points(
-                        slice_result, bee_skeleton, query_frame, height, width, resize_height, resize_width
+                    query_points, current_trajectory = self.recalculate_query_points(
+                        slice_result, 
+                        bee_skeleton, 
+                        query_frame, 
+                        height, 
+                        width, 
+                        resize_height, 
+                        resize_width, 
+                        current_trajectory
                     )
                 video_segment = slice_result.get_video()
 

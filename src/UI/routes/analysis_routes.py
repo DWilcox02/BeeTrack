@@ -67,10 +67,10 @@ def frame_analysis(filename):
         ]
         # TODO: Remove hardcodeed points below
         points = [
-            {"x": 305.4, "y": 370.4, "color": "red"},
-            {"x": 340.6, "y": 256.6, "color": "green"},
-            {"x": 337.8, "y": 318.4, "color": "blue"},
-            {"x": 298.4, "y": 297.3, "color": "purple"}
+            {"x": 1017.8, "y": 638.1, "color": "red"},
+            {"x": 1077.8, "y": 688.1, "color": "green"},
+            {"x": 1044.4, "y": 674.8, "color": "blue"},
+            {"x": 1057.8, "y": 659.8, "color": "purple"}
         ]
 
         # Store the points and image size for this session
