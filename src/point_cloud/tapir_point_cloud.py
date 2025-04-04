@@ -142,74 +142,45 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         return query_points
 
     def recalculate_query_points(
-        self, 
-        point_cloud_slice, 
-        bee_skeleton, 
-        query_frame, 
-        height, 
-        width, 
-        resize_height, 
+        self,
+        point_cloud_slice,
+        bee_skeleton,
+        query_frame,
+        height,
+        width,
+        resize_height,
         resize_width,
-        previous_trajectory
+        previous_trajectory,
     ):
-        # Get midpoint and trajectory
+        # Get new midpoint and trajectory
         midpoint = point_cloud_slice.get_final_mean()
         trajectory = point_cloud_slice.get_trajectory(previous_trajectory)
-        
+        trajectory = trajectory / np.linalg.norm(trajectory)
+
         self.log(f"Midpoint: {midpoint}, Trajectory: {trajectory}")
-        
-        # Calculate the angle of the new trajectory vector
-        theta = np.arctan2(trajectory[1], trajectory[0])
-        
-        # Calculate new positions based on stored angles and distances
-        
-        # Head is in direction of trajectory
-        head_pos = {
-            'x': midpoint[0] + bee_skeleton.d_mid_head * trajectory[0],
-            'y': midpoint[1] + bee_skeleton.d_mid_head * trajectory[1],
-            'color': 'red'
-        }
-        
-        # Butt is opposite to head (offset by beta)
-        butt_angle = theta + np.pi - bee_skeleton.beta
-        butt_pos = {
-            'x': midpoint[0] + bee_skeleton.d_mid_butt * np.cos(butt_angle),
-            'y': midpoint[1] + bee_skeleton.d_mid_butt * np.sin(butt_angle),
-            'color': 'green'
-        }
-        
-        # Left point (offset by alpha)
-        left_angle = theta + bee_skeleton.alpha
-        left_pos = {
-            'x': midpoint[0] + bee_skeleton.d_mid_left * np.cos(left_angle),
-            'y': midpoint[1] + bee_skeleton.d_mid_left * np.sin(left_angle),
-            'color': 'blue'
-        }
-        
-        # Right point (offset by gamma)
-        right_angle = theta + bee_skeleton.gamma
-        right_pos = {
-            'x': midpoint[0] + bee_skeleton.d_mid_right * np.cos(right_angle),
-            'y': midpoint[1] + bee_skeleton.d_mid_right * np.sin(right_angle),
-            'color': 'purple'
-        }
-        
-        # Combine into points list
-        points = [head_pos, butt_pos, left_pos, right_pos]
-        
+
+        # Use BeeSkeleton to calculate new positions based on midpoint and trajectory
+        new_positions = bee_skeleton.calculate_new_positions(midpoint, trajectory)
+
+        # Format points for conversion
+        points = [
+            {"x": new_positions["head"]["x"], "y": new_positions["head"]["y"], "color": "red"},
+            {"x": new_positions["butt"]["x"], "y": new_positions["butt"]["y"], "color": "green"},
+            {"x": new_positions["left"]["x"], "y": new_positions["left"]["y"], "color": "blue"},
+            {"x": new_positions["right"]["x"], "y": new_positions["right"]["y"], "color": "purple"},
+        ]
+
         self.log(f"Recalculated points: {points}")
-        
-        # Use existing function to convert to query points
+
+        # Convert to query points
         height_ratio = resize_height / height
         width_ratio = resize_width / width
         query_points = self.convert_select_points_to_query_points(
-            query_frame=query_frame,
-            points=points,
-            height_ratio=height_ratio,
-            width_ratio=width_ratio
+            query_frame=query_frame, points=points, height_ratio=height_ratio, width_ratio=width_ratio
         )
-        
+
         return query_points, trajectory
+
 
     def process_video(
         self,
@@ -278,7 +249,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             height_ratio = resize_height / height
             width_ratio = resize_width / width
             query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
-            current_trajectory = bee_skeleton.v_mid_head
+            current_trajectory = bee_skeleton.initial_trajectory
         # print(query_points)
 
         # Process each segment

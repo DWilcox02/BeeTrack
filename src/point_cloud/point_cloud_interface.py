@@ -49,105 +49,54 @@ class PointCloudSlice(ABC):
         return normalized_trajectory
 
 
-class BeeSkeleton():
+class BeeSkeleton:
     def __init__(self, predefined_points):
-        """
-        Initialize the BeeSkeleton with predefined points.
-
-        :param predefined_points: List of dictionaries with predefined points and their colors.
-        """
         color_map = {"head": "red", "butt": "green", "left": "blue", "right": "purple"}
-        points = {key: next((p for p in predefined_points if p["color"] == color), None) for key, color in color_map.items()}
+        points = {
+            key: next((p for p in predefined_points if p["color"] == color), None) for key, color in color_map.items()
+        }
         head, butt, left, right = points["head"], points["butt"], points["left"], points["right"]
 
-        midpoint = np.mean(
-            [[point["x"], point["y"]] for point in [head, butt, left, right]], axis=0
-        )
+        # Calculate midpoint of all points
+        self.initial_midpoint = np.mean([[point["x"], point["y"]] for point in [head, butt, left, right]], axis=0)
 
-        # Calculate the normalized vectors from the midpoint to head and left
-        v_mid_head = np.array([head["x"] - midpoint[0], head["y"] - midpoint[1]])
-        v_mid_head /= np.linalg.norm(v_mid_head)
-        self.v_mid_head = v_mid_head
+        # Store points in local space (relative to midpoint as origin)
+        self.local_points = {
+            "head": np.array([head["x"] - self.initial_midpoint[0], head["y"] - self.initial_midpoint[1]]),
+            "butt": np.array([butt["x"] - self.initial_midpoint[0], butt["y"] - self.initial_midpoint[1]]),
+            "left": np.array([left["x"] - self.initial_midpoint[0], left["y"] - self.initial_midpoint[1]]),
+            "right": np.array([right["x"] - self.initial_midpoint[0], right["y"] - self.initial_midpoint[1]]),
+        }
 
-        # Calculate the normalized vector from the midpoint to left
-        v_mid_left = np.array([left["x"] - midpoint[0], left["y"] - midpoint[1]])
-        v_mid_left /= np.linalg.norm(v_mid_left)
-
-        # Calculate the angle alpha between the normalized vectors
-        dot_product = np.dot(v_mid_head, v_mid_left)
-        alpha = np.arccos(np.clip(dot_product, -1.0, 1.0))  # Clip to handle numerical precision issues
-
-        self.alpha = alpha
-
-        # Calculate the normalized vector from the midpoint to butt
-        v_mid_butt = np.array([butt["x"] - midpoint[0], butt["y"] - midpoint[1]])
-        v_mid_butt /= np.linalg.norm(v_mid_butt)
-
-        # Calculate the angle beta between the normalized vectors v_mid_head and v_mid_butt
-        dot_product_head_butt = np.dot(v_mid_head, v_mid_butt)
-        beta = np.arccos(np.clip(dot_product_head_butt, -1.0, 1.0))  # Clip to handle numerical precision issues
-
-        self.beta = beta
-
-        # Calculate the normalized vector from the midpoint to right
-        v_mid_right = np.array([right["x"] - midpoint[0], right["y"] - midpoint[1]])
-        v_mid_right /= np.linalg.norm(v_mid_right)
-
-        # Calculate the angle gamma between the normalized vectors v_mid_head and v_mid_right
-        dot_product_head_right = np.dot(v_mid_head, v_mid_right)
-        gamma = np.arccos(np.clip(dot_product_head_right, -1.0, 1.0))  # Clip to handle numerical precision issues
-
-        # Determine the direction of the angle (counter-clockwise)
-        cross_product = np.cross(np.append(v_mid_head, 0), np.append(v_mid_right, 0))
-        if cross_product[2] < 0:  # If the z-component of the cross product is negative
-            gamma = 2 * np.pi - gamma
-
-        self.gamma = gamma
-
-        # Calculate unnormalized distances from the midpoint to each point
-        self.d_mid_head = np.linalg.norm([head["x"] - midpoint[0], head["y"] - midpoint[1]])
-        self.d_mid_butt = np.linalg.norm([butt["x"] - midpoint[0], butt["y"] - midpoint[1]])
-        self.d_mid_left = np.linalg.norm([left["x"] - midpoint[0], left["y"] - midpoint[1]])
-        self.d_mid_right = np.linalg.norm([right["x"] - midpoint[0], right["y"] - midpoint[1]])
+        # Store the initial trajectory (unit vector from midpoint to head)
+        self.initial_trajectory = self.local_points["head"] / np.linalg.norm(self.local_points["head"])
 
     def calculate_new_positions(self, new_midpoint, new_trajectory):
         # Normalize the new trajectory
         new_trajectory = new_trajectory / np.linalg.norm(new_trajectory)
-        
-        # The head is in the direction of the trajectory at the stored distance
-        new_head = {
-            "x": new_midpoint[0] + new_trajectory[0] * self.d_mid_head,
-            "y": new_midpoint[1] + new_trajectory[1] * self.d_mid_head
-        }
-        
-        # Calculate the rotation matrix based on the new trajectory
-        # Assuming original trajectory was [1,0] (x-axis)
-        theta = np.arctan2(new_trajectory[1], new_trajectory[0])
-        
-        # For butt (opposite to head, offset by beta)
-        butt_angle = theta + np.pi - self.beta
-        new_butt = {
-            "x": new_midpoint[0] + self.d_mid_butt * np.cos(butt_angle),
-            "y": new_midpoint[1] + self.d_mid_butt * np.sin(butt_angle)
-        }
-        
-        # For left (offset by alpha)
-        left_angle = theta + self.alpha
-        new_left = {
-            "x": new_midpoint[0] + self.d_mid_left * np.cos(left_angle),
-            "y": new_midpoint[1] + self.d_mid_left * np.sin(left_angle)
-        }
-        
-        # For right (offset by gamma)
-        right_angle = theta + self.gamma
-        new_right = {
-            "x": new_midpoint[0] + self.d_mid_right * np.cos(right_angle),
-            "y": new_midpoint[1] + self.d_mid_right * np.sin(right_angle)
-        }
-        
-        return {
-            "head": new_head,
-            "butt": new_butt,
-            "left": new_left,
-            "right": new_right
-        }
+
+        # Compute rotation angle between initial trajectory and new trajectory
+        dot = np.dot(self.initial_trajectory, new_trajectory)
+        det = self.initial_trajectory[0] * new_trajectory[1] - self.initial_trajectory[1] * new_trajectory[0]
+        rotation_angle = np.arctan2(det, dot)
+
+        # Build 2D rotation matrix
+        R = np.array(
+            [[np.cos(rotation_angle), -np.sin(rotation_angle)], [np.sin(rotation_angle), np.cos(rotation_angle)]]
+        )
+
+        new_points = {}
+
+        # Step 1: Rotate local points
+        # Step 2: Translate to new world space
+        for key, local_point in self.local_points.items():
+            # Rotate the point in local space
+            rotated_local_point = R @ local_point
+
+            # Translate to world space
+            new_points[key] = {
+                "x": new_midpoint[0] + rotated_local_point[0],
+                "y": new_midpoint[1] + rotated_local_point[1],
+            }
+
+        return new_points
