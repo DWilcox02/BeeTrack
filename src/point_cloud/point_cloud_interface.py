@@ -39,8 +39,9 @@ class PointCloudSlice(ABC):
         return np.mean(final_positions, axis=0)  # Calculate the mean of the final positions
 
     def get_trajectory(self, prev_trajectory=None):
-        start_positions = self.tracks[:, 0, :]  # Extract the starting (x, y) positions
-        end_positions = self.tracks[:, -1, :]  # Extract the ending (x, y) positions
+        point_filter = np.logical_and(self.visibles[:, 0], self.visibles[:, -1])
+        start_positions = self.tracks[:, 0, :][point_filter]  # Extract the starting (x, y) positions
+        end_positions = self.tracks[:, -1, :][point_filter]  # Extract the ending (x, y) positions
         trajectories = end_positions - start_positions  # Calculate the trajectories for each point
         mean_trajectory = np.mean(trajectories, axis=0)  # Average the trajectories
         if np.linalg.norm(mean_trajectory) < TRAJECTORY_EPSILON and prev_trajectory is not None:
