@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="/js/socket.js"></script>
+    <script src="/js/player.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Video Player</h1>
+        
+        <% if (processed_filename) { %>
+        <div class="video-tabs">
+            <div class="tab active" onclick="switchTab('original')">Original Video</div>
+            <div class="tab" onclick="switchTab('processed')">Processed Video</div>
+        </div>
+        <% } %>
+        
+        <div id="original-video" class="video-info">
+            <h2>Original: <%= filename.split('/').pop() %></h2>
+            <div class="video-path"><%= filename %></div>
+            
+            <div class="video-container">
+                <video controls autoplay>
+                    <source src="/api/video/<%= encodeURIComponent(filename) %>" type="video/mp4">
+                    Your browser does not support the video tag or this video format.
+                </video>
+            </div>
+        </div>
+        
+        <% if (processed_filename) { %>
+        <div id="processed-video" class="video-info" style="display: none;">
+            <h2>Processed: <%= processed_filename %></h2>
+            <div class="video-path">output/<%= processed_filename %></div>
+            
+            <div class="video-container">
+                <video controls>
+                    <source src="/api/processed/<%= encodeURIComponent(processed_filename) %>" type="video/mp4">
+                    Your browser does not support the video tag or this video format.
+                </video>
+            </div>
+        </div>
+        <% } %>
+        
+        <div class="controls">
+            <a href="/" class="btn btn-primary">Back to Video Library</a>
+            
+            <% if (point_cloud_available) { %>
+            <button id="processBtn" class="btn btn-action" onclick="processVideo()">
+                <% if (processed_filename) { %>
+                Re-Process with TAPIR
+                <% } else { %>
+                Process Point Cloud
+                <% } %>
+            </button>
+            <% } %>
+
+            <button id="savePlotlyPointsBtn" class="btn btn-secondary" style="display: none;">
+                Save Point Positions
+            </button>
+
+            <a href="/analysis/<%= encodeURIComponent(filename) %>" class="btn btn-secondary">
+                Analyze First Frame
+            </a>
+        </div>
+        <div id="processingLogs" class="processing-logs" style="display: none;">
+            <h3>Processing Logs</h3>
+            <div class="log-container">
+                <pre id="logContent" class="log-content"></pre>
+            </div>
+        </div>
+        
+        <div id="processingStatus" class="processing-status">
+            <span id="statusMessage"></span>
+        </div>
+        
+        <div id="processedVideoContainer" class="processed-video" style="display: none;">
+            <h3>Processed Video</h3>
+            <div class="video-container">
+                <video id="processedVideoPlayer" controls>
+                    <source id="processedVideoSource" src="" type="video/mp4">
+                    Your browser does not support the video tag or this video format.
+                </video>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

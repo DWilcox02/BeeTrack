@@ -24,11 +24,14 @@ NUM_SLICES = 3
 
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.dirname(CURRENT_DIR)
-POINT_CLOUD_DIR = os.path.join(SRC_DIR, "point_cloud/")
+BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+SRC_DIR = os.path.dirname(BACKEND_DIR)
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
+
+POINT_CLOUD_DIR = os.path.join(BACKEND_DIR, "point_cloud/")
 DATA_DIR = os.path.join(PROJECT_ROOT, "data/")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
+CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints/")
 
 # Create output directory if it doesn't exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -51,9 +54,10 @@ print("Starting video processing pipeline...")
 MODEL_TYPE = "tapir"
 
 if MODEL_TYPE == "tapir":
-    checkpoint_path = "checkpoints/tapir/tapir_checkpoint_panning.npy"
+    checkpoint_path = "tapir/tapir_checkpoint_panning.npy"
 else:
-    checkpoint_path = "checkpoints/bootstapir/bootstapir_checkpoint_v2.npy"
+    checkpoint_path = "bootstapir/bootstapir_checkpoint_v2.npy"
+checkpoint_path = os.path.join(CHECKPOINT_DIR, checkpoint_path)
 print(f"Loading checkpoint from: {checkpoint_path}")
 ckpt_state = np.load(checkpoint_path, allow_pickle=True).item()
 params, state = ckpt_state["params"], ckpt_state["state"]

@@ -6,9 +6,11 @@ import traceback
 
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.dirname(CURRENT_DIR)
-POINT_CLOUD_DIR = os.path.join(SRC_DIR, "point_cloud/")
+BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+SRC_DIR = os.path.dirname(BACKEND_DIR)
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
+
+POINT_CLOUD_DIR = os.path.join(BACKEND_DIR, "point_cloud/")
 DATA_DIR = os.path.join(PROJECT_ROOT, "data/")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 

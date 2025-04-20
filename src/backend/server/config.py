@@ -3,7 +3,8 @@ import sys
 
 # Paths configuration
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.dirname(CURRENT_DIR)  # Go up one level to src/
+BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+SRC_DIR = os.path.dirname(BACKEND_DIR)  # Go up one level to src/
 PROJECT_ROOT = os.path.dirname(SRC_DIR)  # Go up another level to project root
 
 # Add src directory to python path to enable imports

@@ -2,11 +2,11 @@ import os
 import json
 from flask import Flask
 
-from .config import DATA_FOLDER, OUTPUT_FOLDER, POINT_CLOUD_AVAILABLE
-from .routes.main_routes import main_bp
-from .routes.video_routes import video_bp
-from .routes.processing_routes import processing_bp
-from .routes.analysis_routes import analysis_bp
+from .server.config import DATA_FOLDER, OUTPUT_FOLDER, POINT_CLOUD_AVAILABLE
+from .server.routes.main_routes import main_bp
+from .server.routes.video_routes import video_bp
+from .server.routes.processing_routes import processing_bp
+from .server.routes.analysis_routes import analysis_bp
 
 
 def create_app():
