@@ -27,7 +27,7 @@
                 <% if (videos && videos.length > 0) { %>
                     <% let current_folder = ''; %>
                     <% for (let video of videos) { %>
-                        <% let video_folder = video.split('/').slice(0, -1).join('/'); %>
+                        <% let video_folder = video.path || ''; %>
                         <% if (video_folder !== current_folder) { %>
                             <div class="folder-indicator">
                                 <% if (video_folder) { %>
@@ -39,9 +39,9 @@
                             <% current_folder = video_folder; %>
                         <% } %>
                         <div class="video-item">
-                            <a href="/video/<%= encodeURIComponent(video) %>">
-                                <%= video.split('/').pop() %>
-                                <div class="video-path"><%= video %></div>
+                            <a href="/video/<%= encodeURIComponent(video.path + video.filename) %>">
+                                <%= video.filename %>
+                                <div class="video-path"><%= video.path + video.filename %></div>
                             </a>
                         </div>
                     <% } %>
@@ -59,7 +59,7 @@
                 <% if (processed_videos && processed_videos.length > 0) { %>
                     <% for (let video of processed_videos) { %>
                         <div class="video-item processed-item">
-                            <a href="/processed/<%= encodeURIComponent(video) %>" target="_blank">
+                            <a href="/output/<%= encodeURIComponent(video) %>" target="_blank">
                                 <%= video %>
                                 <div class="video-path">output/<%= video %></div>
                             </a>

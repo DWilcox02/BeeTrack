@@ -156,12 +156,14 @@ if POINT_CLOUD_AVAILABLE:
 @app.route("/api/videos")
 def get_videos():
     """Return the list of available videos."""
+    # Convert json to list
     return jsonify(videos)
 
 
 @app.route("/api/processed_videos")
 def get_processed_videos_api():
     """Return the list of processed videos."""
+    print(get_processed_videos())
     return jsonify(get_processed_videos())
 
 
@@ -185,8 +187,9 @@ def get_video_info(filename):
     )
 
 
-@app.route("/videos/<path:filename>")
+@app.route("/api/video/<path:filename>")
 def serve_video(filename):
+    print("CALLED HERE")
     """Serve the original video file from the data directory."""
     video = videos.get(filename)
     if not video:

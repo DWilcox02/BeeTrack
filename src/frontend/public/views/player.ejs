@@ -27,7 +27,7 @@
             
             <div class="video-container">
                 <video controls autoplay>
-                    <source src="/api/video/<%= encodeURIComponent(filename) %>" type="video/mp4">
+                    <source src="/data/<%= filename %>" type="video/mp4">
                     Your browser does not support the video tag or this video format.
                 </video>
             </div>
@@ -40,7 +40,7 @@
             
             <div class="video-container">
                 <video controls>
-                    <source src="/api/processed/<%= encodeURIComponent(processed_filename) %>" type="video/mp4">
+                    <source src="/output/<%= encodeURIComponent(processed_filename) %>" type="video/mp4">
                     Your browser does not support the video tag or this video format.
                 </video>
             </div>

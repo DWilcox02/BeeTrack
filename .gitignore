@@ -192,3 +192,6 @@ checkpoints/tapir/*
 # Node details
 **/node_modules
 **/package-lock.json
+
+# VSCode
+.vscode

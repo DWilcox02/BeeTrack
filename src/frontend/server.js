@@ -3,21 +3,37 @@ const path = require("path");
 const app = express();
 const port = process.env.PORT || 3000;
 
+const backend_url = "http://127.0.0.1:5001"
+
 // Set static folder
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/data", express.static(path.join(__dirname, "../../data")));
+app.use("/output", express.static(path.join(__dirname, "../../output")));
+
 
 // Set view engine
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "public/views"));
 
 // Routes
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
   // Mock data - in production this would come from the Flask backend
-  const data = {
-    videos: ["video1.mp4", "video2.mp4", "folder/video3.mp4"],
-    processed_videos: ["processed_video1.mp4", "processed_video2.mp4"],
-  };
-  res.render("index", data);
+  try {
+    const videos = 
+      await fetch(backend_url + "/api/videos")
+            .then((response) => response.json())
+    const processed_videos = 
+      await fetch(backend_url + "/api/processed_videos")
+      .then((response) => response.json());
+    const data = {
+      videos: videos,
+      processed_videos: processed_videos
+    }
+    res.render("index", data);
+  } catch (error) {
+    console.error("Error fetching videos from backend: ", error);
+    res.status(500).send("Error fetching videos from backend");
+  }
 });
 
 app.get("/video/:filename", (req, res) => {
@@ -27,6 +43,7 @@ app.get("/video/:filename", (req, res) => {
     processed_filename: null,
     point_cloud_available: true,
   };
+  console.log(data)
   res.render("player", data);
 });
 
