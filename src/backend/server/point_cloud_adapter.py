@@ -49,7 +49,12 @@ def process_video_wrapper(video_name, job_id=None):
         print(message)
 
     # Extract directory path and filename
-    video = videos.get(video_name, None)
+
+    [video_path, video_name] = video_name.split("/")
+    video = next(
+        (video for video in videos if video["filename"] == video_name), None
+    )
+
 
     if not video:
         log(f"Video '{video_name}' not found in video_meta.json")

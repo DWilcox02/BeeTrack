@@ -37,7 +37,6 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/video/:filename", (req, res) => {
-  // In production, data would be fetched from Flask
   const data = {
     filename: req.params.filename,
     processed_filename: null,
@@ -48,7 +47,6 @@ app.get("/video/:filename", (req, res) => {
 });
 
 app.get("/analysis/:filename", (req, res) => {
-  // In production, data would be fetched from Flask
   const data = {
     filename: req.params.filename,
     session_id: Math.random().toString(36).substring(2, 15),
