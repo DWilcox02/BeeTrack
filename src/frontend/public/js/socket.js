@@ -59,6 +59,28 @@ const api = {
     });
   },
 
+  startNewSession: (session_id, points, video_path, frame_width, frame_height) => {
+    return new Promise((resolve, reject) => {
+      socket.emit(
+        "start_new_session",
+        {
+          session_id: session_id,
+          points: points,
+          video_path: video_path,
+          frame_width: frame_width,
+          frame_height: frame_height,
+        },
+        (response) => {
+          if (response.success) {
+            resolve(response.session_id);
+          } else {
+            reject(new Error(response.error || "Failed to start new session"));
+          }
+        }
+      );
+    });
+  },
+
   // Update point
   updatePoint: (sessionId, pointIndex, x, y) => {
     return new Promise((resolve, reject) => {
@@ -118,6 +140,20 @@ const api = {
 socket.on("job_log", (data) => {
   if (typeof window.handleJobLog === "function") {
     window.handleJobLog(data.job_id, data.message);
+  }
+});
+
+// Socket event handlers for point updates
+socket.on('update_point_response', (result) => {
+  console.log("Socket response:", result);
+
+  if (result.success) {
+    // Update the plot using the returned plot data
+    if (result.points) {
+      updatePlot(result.points);
+    }
+
+    showStatus("success");
   }
 });
 

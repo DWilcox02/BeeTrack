@@ -32,7 +32,11 @@ ALLOWED_EXTENSIONS = {"mp4", "avi", "mov", "mkv", "webm", "flv", "wmv"}
 
 # Initialize Flask application
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app, resources={
+    r"/*": {
+        "origins": "*"
+    }
+})  # Enable CORS for all routes
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Try to import the point_cloud_adapter
@@ -262,6 +266,8 @@ def job_status(job_id):
     return jsonify({"job_id": job_id, "status": status, "result": result})
 
 
+
+
 # -------------------------------------------------------------------------
 # Socket.IO Events
 # -------------------------------------------------------------------------
@@ -408,6 +414,69 @@ def handle_process_video_with_points(data):
     # Return immediately with the job ID
     emit("process_started", {"job_id": job_id})
 
+def parsePoints(points: str):
+    """Parse points from a string to a list of dictionaries."""
+    try:
+        points = json.loads(points)
+        parsed_points = []
+        for point in points:
+            parsed_point = {
+                "x": float(point["x"]),
+                "y": float(point["y"]),
+                "color": point.get("color", "#FFFFFF"),
+            }
+            parsed_points.append(parsed_point)
+        return parsed_points
+    except Exception as e:
+        app.logger.error(f"Error parsing points: {str(e)}")
+        return []
+
+@socketio.on("start_new_session")
+def handle_start_new_session(data):
+    """Start a new session for point data."""
+    session_id = data.get("session_id")
+    parsed_points = parsePoints(data.get("points", []))
+    point_data_store[session_id] = {
+        "points": parsed_points,
+        "video_path": data.get("video_path"),
+        "frame_width": int(data.get("frame_width")),
+        "frame_height": int(data.get("frame_height")),
+    }
+    emit("session_started", {"session_id": session_id})
+
+@socketio.on('update_point')
+def handle_update_point(data):
+    """Update a point's position and emit updated plot data through socket."""
+    try:
+        session_id = data.get("session_id")
+        point_index = int(data.get("point_index"))
+        x = float(data.get("x"))
+        y = float(data.get("y"))
+
+        if session_id not in point_data_store:
+            print(f"Session ID {session_id} not found in point_data_store")
+            emit('update_point_error', {"error": "Session not found"})
+            return
+
+        session_data = point_data_store[session_id]
+
+        if point_index < 0 or point_index >= len(session_data["points"]):
+            print(f"Invalid point index {point_index} for session {session_id}")
+            emit('update_point_error', {"error": "Invalid point index"})
+            return
+
+        # Update the point position
+        session_data["points"][point_index]["x"] = x
+        session_data["points"][point_index]["y"] = y
+    
+        emit('update_point_response', {
+            "success": True, 
+            "points": session_data["points"]
+        })
+    except Exception as e:
+        app.logger.error(f"Error updating point: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        emit("update_point_error", {"error": str(e)})
 
 @socketio.on("save_points")
 def handle_save_points(data):

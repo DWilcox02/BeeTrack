@@ -8,9 +8,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="/js/socket.js"></script>
-    <!-- <script src="/js/frame_analysis.js" defer></script> -->
+    <script src="/js/frame_analysis.js" defer></script>
 </head>
 <body>
+    <div id="app-container" data-session-id="<%= session_id %>"></div>
     <div class="container">
         <h1>First Frame Analysis</h1>
         <h2>Video: <%= filename.split('/').pop() %></h2>
@@ -43,7 +44,7 @@
         <div class="controls">
             <a href="/video/<%= encodeURIComponent(filename) %>" class="btn btn-primary">Back to Video Player</a>
             <a href="/" class="btn btn-secondary">Back to Video Library</a>
-            <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button>
+            <!-- <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button> -->
             <button id="processPointCloud" class="btn btn-action" onclick="processVideoWithPoints()">Process Point Cloud</button>
         </div>
     </div>
@@ -64,12 +65,6 @@
         const SESSION_ID = "<%= session_id %>";
         const VIDEO_PATH = "<%= filename %>";
         const IMAGE_DATA = "<%= imageData %>";
-            // .replace(/&#34;/g, '"')
-            // .replace(/&quot;/g, '"')
-            // .replace(/&#39;/g, "'")
-            // .replace(/&lt;/g, '<')
-            // .replace(/&gt;/g, '>')
-            // .replace(/&amp;/g, '&');
         const IMAGE_WIDTH = parseInt("<%= width %>", 10);
         const IMAGE_HEIGHT = parseInt("<%= height %>", 10);
         const decoded_points = '<%= points %>'
@@ -85,11 +80,15 @@
         document.addEventListener('DOMContentLoaded', function() {
             createPlotlyChart();
         });
-        
-        console.log("Decoded points:", INITIAL_POINTS);
-        console.log("Image width:", IMAGE_WIDTH);
-        console.log("Image height:", IMAGE_HEIGHT);
 
+        socket.emit("start_new_session", {
+            session_id: SESSION_ID,
+            points: decoded_points,
+            video_path: VIDEO_PATH,
+            frame_width: IMAGE_WIDTH,
+            frame_height: IMAGE_HEIGHT,
+        });
+        
         function ensureDataUrlFormat(imageData) {
             // If the image data doesn't start with the data URL prefix, add it
             if (!imageData.startsWith('data:image')) {

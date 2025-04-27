@@ -1,10 +1,12 @@
 // Store the session ID and data
-const sessionId = "{{ session_id }}";
 let selectedPointIndex = null;
 let selectedPointColor = null;
 let plotlyPlot = null;
 let pointPositions = {}; // Keep track of current point positions
 
+const backend_url = "http://127.0.0.1:5001";
+
+const sessionId = document.getElementById("app-container").dataset.sessionId;
 // Initialize once page is loaded
 document.addEventListener("DOMContentLoaded", function () {
   // Set up the point selection buttons
@@ -49,7 +51,7 @@ function initializePlotHandlers() {
     window.addEventListener("resize", resizeOverlay);
     overlay.addEventListener("click", handlePlotClick);
 
-    console.log("Plot overlay initialized with click handler");
+    // console.log("Plot overlay initialized with click handler");
   } else {
     console.error("Plot overlay element not found");
   }
@@ -77,7 +79,7 @@ function resizeOverlay() {
     overlay.style.top = "0";
     overlay.style.left = "0";
 
-    console.log(`Overlay resized to match plot: ${rect.width}x${rect.height}`);
+    // console.log(`Overlay resized to match plot: ${rect.width}x${rect.height}`);
   } else {
     // As fallback, match container size
     overlay.style.width = "100%";
@@ -239,45 +241,23 @@ async function updatePoint(pointIndex, x, y) {
   showStatus(`Updating ${selectedPointColor} point position...`, "processing");
 
   try {
-    console.log(`Sending API request for point ${pointIndex} at coordinates (${x}, ${y})`);
+    showStatus(`Updating ${selectedPointColor} point position...`, "processing");
 
-    const response = await fetch("/api/update_point", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      console.log(`Sending socket request for point ${pointIndex} at coordinates (${x}, ${y})`);
+
+      // Emit the update_point event with the data
+      socket.emit("update_point", {
         session_id: sessionId,
         point_index: pointIndex,
         x: x,
         y: y,
-      }),
-    });
+      });
 
-    if (!response.ok) {
-      throw new Error(`Server error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log("Server response:", result);
-
-    if (result.success) {
-      // Store the updated position
-      pointPositions[selectedPointColor] = { x: x, y: y };
-
-      // Update the plot using the returned plot data
-      if (result.plot_data) {
-        updatePlot(result.plot_data);
-      }
-
-      showStatus(
-        `${selectedPointColor.charAt(0).toUpperCase() + selectedPointColor.slice(1)} point placed at (${x.toFixed(
-          1
-        )}, ${y.toFixed(1)})`,
-        "success"
-      );
-    } else {
-      throw new Error(result.error || "Failed to update point");
+      // The response will be handled by the socket.on('update_point_response') handler above
+    } catch (error) {
+      console.error("Error emitting socket event:", error);
+      showStatus(`Error: ${error.message}`, "error");
     }
   } catch (error) {
     console.error("Error updating point:", error);
@@ -286,11 +266,12 @@ async function updatePoint(pointIndex, x, y) {
 }
 
 // Function to update the plot with new data
-function updatePlot(plotData) {
+function updatePlot(newPoints) {
   try {
-    // If plotData is a string (JSON), parse it
-    if (typeof plotData === "string") {
-      plotData = JSON.parse(plotData);
+    // Validate input
+    if (!Array.isArray(newPoints) || newPoints.length !== 4) {
+      console.error("newPoints must be an array of 4 points");
+      return;
     }
 
     // Find the Plotly element if not already found
@@ -302,9 +283,28 @@ function updatePlot(plotData) {
       }
     }
 
-    // Use Plotly's react method to update the plot
+    // Create new data array with scatter traces for each point
+    const newData = newPoints.map((point) => ({
+      x: [point.x],
+      y: [point.y],
+      mode: "markers",
+      marker: {
+        size: 10,
+        color: point.color,
+      },
+      name: `Point (${point.color})`,
+    }));
+
+    // Update the global pointsData
+    window.pointsData = newPoints;
+
+    // Use Plotly's react method to update the plot with new data
+    // This replaces all existing traces with the new ones
     if (window.Plotly) {
-      Plotly.react(plotlyPlot, plotData.data, plotData.layout, {
+      // Get the current layout
+      const currentLayout = plotlyPlot.layout || plotData.layout;
+
+      Plotly.react(plotlyPlot, newData, currentLayout, {
         displayModeBar: true,
         staticPlot: false,
         scrollZoom: false,
@@ -312,7 +312,7 @@ function updatePlot(plotData) {
         modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "resetScale2d"],
       });
 
-      console.log("Plot updated with new data");
+      console.log("Plot updated with new points:", newPoints);
     } else {
       console.error("Plotly not available for updating plot");
     }
@@ -383,7 +383,7 @@ async function processVideoWithPoints() {
     '<div class="loading-spinner"></div> Processing video with TAPIR (this may take several minutes)...';
   logsContainer.style.display = "block";
 
-  console.log("Here (lowercase)");
+  // console.log("Here (lowercase)");
   try {
     // Start the processing job
     const response = await fetch("/api/process_video_with_points", {
