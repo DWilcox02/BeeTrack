@@ -72,8 +72,6 @@ app.get("/analysis/:filename", async (req, res) => {
     // Generate Plotly HTML using Plotly.js
     // Note: We'll create a client-side solution instead of server-side rendering
 
-  console.log(String(points));
-  console.log(JSON.stringify(points));
   const data = {
     filename: req.params.filename,
     session_id: session_id,

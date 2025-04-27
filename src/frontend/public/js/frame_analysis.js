@@ -39,8 +39,6 @@ function initializePlotHandlers() {
     return;
   }
 
-  console.log("Found Plotly element:", plotlyPlot);
-
   // Add click handler to the overlay
   const overlay = document.getElementById("plot-overlay");
   if (overlay) {

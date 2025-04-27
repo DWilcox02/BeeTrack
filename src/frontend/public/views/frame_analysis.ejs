@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="/js/socket.js"></script>
-    <script src="/js/frame-analysis.js" defer></script>
+    <!-- <script src="/js/frame_analysis.js" defer></script> -->
 </head>
 <body>
     <div class="container">
@@ -64,6 +64,12 @@
         const SESSION_ID = "<%= session_id %>";
         const VIDEO_PATH = "<%= filename %>";
         const IMAGE_DATA = "<%= imageData %>";
+            // .replace(/&#34;/g, '"')
+            // .replace(/&quot;/g, '"')
+            // .replace(/&#39;/g, "'")
+            // .replace(/&lt;/g, '<')
+            // .replace(/&gt;/g, '>')
+            // .replace(/&amp;/g, '&');
         const IMAGE_WIDTH = parseInt("<%= width %>", 10);
         const IMAGE_HEIGHT = parseInt("<%= height %>", 10);
         const decoded_points = '<%= points %>'
@@ -80,8 +86,28 @@
             createPlotlyChart();
         });
         
+        console.log("Decoded points:", INITIAL_POINTS);
+        console.log("Image width:", IMAGE_WIDTH);
+        console.log("Image height:", IMAGE_HEIGHT);
+
+        function ensureDataUrlFormat(imageData) {
+            // If the image data doesn't start with the data URL prefix, add it
+            if (!imageData.startsWith('data:image')) {
+                return `data:image/jpeg;base64,${imageData}`;
+            }
+            return imageData;
+        }
+
         function createPlotlyChart() {
             const plotlyDiv = document.getElementById('plotlyDiv');
+
+            // Set plot div size based on image aspect ratio
+            const aspectRatio = IMAGE_WIDTH / IMAGE_HEIGHT;
+            let width = 800; // pick a base width
+            let height = width / aspectRatio;
+
+            plotlyDiv.style.width = width + "px";
+            plotlyDiv.style.height = height + "px";
             
             // Create a figure with the image and points
             const figure = {
@@ -101,11 +127,6 @@
                         fixedrange: true,
                         showgrid: false
                     },
-                    showlegend: true,
-                    dragmode: 'pan',
-                    margin: {l: 50, r: 50, b: 50, t: 50},
-                    title: 'First Frame Analysis',
-                    template: 'plotly_white',
                     images: [{
                         source: IMAGE_DATA,
                         x: 0,
@@ -113,9 +134,18 @@
                         sizex: IMAGE_WIDTH,
                         sizey: IMAGE_HEIGHT,
                         sizing: 'stretch',
-                        opacity: 1,
-                        layer: 'below'
-                    }]
+                        layer: 'below',
+                        xref: 'x',
+                        yref: 'y',
+                    }],
+                    showlegend: true,
+                    dragmode: 'pan',
+                    margin: {l: 50, r: 50, b: 50, t: 50},
+                    title: 'First Frame Analysis',
+                    template: 'plotly_white',
+                    width: width,
+                    height: height,
+                    showlegend: true,
                 },
                 config: {
                     displayModeBar: true,
