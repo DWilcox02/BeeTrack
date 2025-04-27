@@ -1,7 +1,6 @@
 const express = require("express");
 const path = require("path");
-const fetch = require("node-fetch");
-const app = express();
+const fetch = (url, init) => import("node-fetch").then((module) => module.default(url, init));const app = express();
 const port = process.env.PORT || 3000;
 
 const backend_url = "http://127.0.0.1:5001";
@@ -73,15 +72,17 @@ app.get("/analysis/:filename", async (req, res) => {
     // Generate Plotly HTML using Plotly.js
     // Note: We'll create a client-side solution instead of server-side rendering
 
+  console.log(String(points));
+  console.log(JSON.stringify(points));
   const data = {
     filename: req.params.filename,
-      session_id: session_id,
-      imageData: frameData.image,
-      width: frameData.width,
-      height: frameData.height,
-      points: points,
-      plot_html: "", // We'll generate this on client-side
-    };
+    session_id: session_id,
+    imageData: frameData.image,
+    width: frameData.width,
+    height: frameData.height,
+    points: JSON.stringify(points),
+    plot_html: "", // We'll generate this on client-side
+  };
 
   res.render("frame_analysis", data);
   } catch (error) {

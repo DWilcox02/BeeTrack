@@ -191,7 +191,8 @@ def get_video_info(filename):
 def serve_video(filename):
     print("CALLED HERE")
     """Serve the original video file from the data directory."""
-    video = videos.get(filename)
+    # video = videos.get(filename)
+    video = filename
     if not video:
         return "Video not found", 404
 
@@ -210,16 +211,19 @@ def serve_processed_video(filename):
 def extract_first_frame_api(filename):
     """Extract the first frame from a video and return it as a base64-encoded image."""
     try:
+        # print(filename)  # Dance_1_min/dance_15_secs_700x700_50fps.mp4
         # Get the video path
-        video = videos.get(filename)
+        # video = videos.get(filename)
+        video = filename
         if not video:
             return jsonify({"error": f"Video '{filename}' not found in video_meta.json"}), 404
 
-        directory = os.path.join(DATA_FOLDER, video["path"])
-        video_path = os.path.join(directory, video["filename"])
+        video_path = os.path.join(DATA_FOLDER, video)
+        # video_path = os.path.join(directory, video)
 
         # Extract the first frame
         frame_base64, error, width, height = extract_first_frame(video_path)
+        # print(frame_base64)
 
         if error:
             return jsonify({"error": error}), 500

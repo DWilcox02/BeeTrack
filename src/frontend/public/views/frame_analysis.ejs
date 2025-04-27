@@ -64,9 +64,16 @@
         const SESSION_ID = "<%= session_id %>";
         const VIDEO_PATH = "<%= filename %>";
         const IMAGE_DATA = "<%= imageData %>";
-        const IMAGE_WIDTH = "<%= width %>";
-        const IMAGE_HEIGHT = "<%= height %>";
-        const INITIAL_POINTS = "<%= JSON.stringify(points) %>";
+        const IMAGE_WIDTH = parseInt("<%= width %>", 10);
+        const IMAGE_HEIGHT = parseInt("<%= height %>", 10);
+        const decoded_points = '<%= points %>'
+            .replace(/&#34;/g, '"')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        const INITIAL_POINTS = JSON.parse(decoded_points) || [];
         
         // Create the Plotly chart when the page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -120,18 +127,22 @@
             };
             
             // Add each point as a scatter trace
-            INITIAL_POINTS.forEach(point => {
-                figure.data.push({
-                    x: [point.x],
-                    y: [point.y],
-                    mode: 'markers',
-                    marker: {
-                        size: 10,
-                        color: point.color
-                    },
-                    name: `Point (${point.color})`
+            if (Array.isArray(INITIAL_POINTS)) {
+                INITIAL_POINTS.forEach(point => {
+                    figure.data.push({
+                        x: [point.x],
+                        y: [point.y],
+                        mode: 'markers',
+                        marker: {
+                            size: 10,
+                            color: point.color
+                        },
+                        name: `Point (${point.color})`
+                    });
                 });
-            });
+            } else {
+                console.error("INITIAL_POINTS is not an array:", INITIAL_POINTS);
+            }
             
             // Create the plot
             Plotly.newPlot(plotlyDiv, figure.data, figure.layout, figure.config);
