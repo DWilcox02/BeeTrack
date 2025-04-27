@@ -31,8 +31,8 @@
         </div>
         
         <div class="plotly-container" id="plotly-container">
-            <!-- Plotly plot will be inserted here -->
-            <%- plot_html|safe %>
+            <!-- Plotly plot will be generated here by JavaScript -->
+            <div id="plotlyDiv" style="width: <%= Math.min(800, width + 100) %>px; height: <%= Math.min(600, height + 100) %>px;"></div>
             <div id="plot-overlay"></div>
         </div>
 
@@ -63,6 +63,82 @@
     <script>
         const SESSION_ID = "<%= session_id %>";
         const VIDEO_PATH = "<%= filename %>";
+        const IMAGE_DATA = "<%= imageData %>";
+        const IMAGE_WIDTH = "<%= width %>";
+        const IMAGE_HEIGHT = "<%= height %>";
+        const INITIAL_POINTS = "<%= JSON.stringify(points) %>";
+        
+        // Create the Plotly chart when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            createPlotlyChart();
+        });
+        
+        function createPlotlyChart() {
+            const plotlyDiv = document.getElementById('plotlyDiv');
+            
+            // Create a figure with the image and points
+            const figure = {
+                data: [],
+                layout: {
+                    xaxis: {
+                        range: [0, IMAGE_WIDTH],
+                        title: 'X',
+                        fixedrange: true,
+                        showgrid: false
+                    },
+                    yaxis: {
+                        range: [IMAGE_HEIGHT, 0], // Invert y-axis for image coordinates
+                        title: 'Y',
+                        scaleanchor: 'x',
+                        scaleratio: 1,
+                        fixedrange: true,
+                        showgrid: false
+                    },
+                    showlegend: true,
+                    dragmode: 'pan',
+                    margin: {l: 50, r: 50, b: 50, t: 50},
+                    title: 'First Frame Analysis',
+                    template: 'plotly_white',
+                    images: [{
+                        source: IMAGE_DATA,
+                        x: 0,
+                        y: 0,
+                        sizex: IMAGE_WIDTH,
+                        sizey: IMAGE_HEIGHT,
+                        sizing: 'stretch',
+                        opacity: 1,
+                        layer: 'below'
+                    }]
+                },
+                config: {
+                    displayModeBar: true,
+                    staticPlot: false,
+                    scrollZoom: false,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d', 'resetScale2d']
+                }
+            };
+            
+            // Add each point as a scatter trace
+            INITIAL_POINTS.forEach(point => {
+                figure.data.push({
+                    x: [point.x],
+                    y: [point.y],
+                    mode: 'markers',
+                    marker: {
+                        size: 10,
+                        color: point.color
+                    },
+                    name: `Point (${point.color})`
+                });
+            });
+            
+            // Create the plot
+            Plotly.newPlot(plotlyDiv, figure.data, figure.layout, figure.config);
+            
+            // Store points globally for use in the rest of the app
+            window.pointsData = INITIAL_POINTS;
+        }
     </script>
 </body>
 </html>
