@@ -163,6 +163,8 @@ socket.on('update_point_response', (result) => {
 
 socket.on("update_points_with_frame", (result) => {
   console.log("Updating points after interval");
+  console.log("New points: " + result.points);
+  console.log("New frame index: " + result.frameData.frame_idx);
 
   if (result.success) {
     // Update the plot using the returned plot data
@@ -173,6 +175,18 @@ socket.on("update_points_with_frame", (result) => {
     showStatus("success");
   }
 })
+
+socket.on("validation_request", (data, callback) => {
+  console.log("Validation requested by server:", data);
+
+  // Store the request ID
+  window.pendingValidationRequestId = data.request_id;
+
+  // Show the validation button
+  document.getElementById("validationContinue").style.display = "block";
+});
+
+
 
 // Export the API for use in other scripts
 window.api = api;

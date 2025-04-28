@@ -451,3 +451,27 @@ async function processVideoWithPoints() {
     logContent.appendChild(logLine);
   }
 }
+
+async function sendValidationContinue() {
+  console.log("User validated the request");
+
+  // Hide the validation button
+  document.getElementById("validationContinue").style.display = "none";
+
+  // Get the request ID
+  const requestId = window.pendingValidationRequestId;
+
+  if (requestId) {
+    // Send the response back as a new event
+    socket.emit("validation_response", {
+      request_id: requestId,
+      validated: true,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Clear the stored request ID
+    window.pendingValidationRequestId = null;
+  } else {
+    console.warn("No pending validation request ID found");
+  }
+}

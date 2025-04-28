@@ -51,6 +51,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 processing_logs = {}
 processing_locks = {}
 point_data_store = {}
+validation_events = {}
 
 # Load video metadata
 try:
@@ -308,12 +309,6 @@ def handle_process_video_with_points(data):
 
     session_data = point_data_store[session_id]
     video_path = session_data.get("video_path")
-    points = session_data.get("points")
-    
-
-    if not points or not isinstance(points, list) or len(points) < 4:
-        emit("process_error", {"error": "Invalid points data"})
-        return
 
     # Create a unique job ID
     job_id = str(uuid.uuid4())
@@ -327,7 +322,14 @@ def handle_process_video_with_points(data):
     def run_processing():
         try:
             # Process the video
-            result = process_video_wrapper_with_points(video, points, job_id, socketio)
+            result = process_video_wrapper_with_points(
+                video, 
+                session_id, 
+                point_data_store, 
+                job_id, 
+                socketio,
+                validation_events
+            )
 
             if result.get("success", False):
                 # Create URL for the processed video
@@ -424,10 +426,14 @@ def handle_update_point(data):
         # Update the point position
         session_data["points"][point_index]["x"] = x
         session_data["points"][point_index]["y"] = y
+
+        session_points = session_data["points"]
     
+        print(f"Updating, session data points: {session_points}")
+
         emit('update_point_response', {
             "success": True, 
-            "points": session_data["points"]
+            "points": session_points
         })
     except Exception as e:
         app.logger.error(f"Error updating point: {str(e)}")
@@ -473,6 +479,16 @@ def handle_subscribe_to_job(data):
             emit(f"log_message_{job_id}", {"message": msg})
 
     emit("subscription_success", {"job_id": job_id})
+
+
+@socketio.on("validation_response")
+def handle_validation_response(data):
+    request_id = data.get("request_id")
+
+    if request_id and request_id in validation_events:
+        # Store the response and set the event
+        validation_events[request_id]["response"] = data
+        validation_events[request_id]["event"].set()
 
 
 # Run the application
