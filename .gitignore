@@ -187,3 +187,11 @@ output/*
 checkpoints/*
 checkpoints/bootstapir/*
 checkpoints/tapir/*
+
+
+# Node details
+**/node_modules
+**/package-lock.json
+
+# VSCode
+.vscode

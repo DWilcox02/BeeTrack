@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Analysis</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="/js/socket.js"></script>
+    <script src="/js/frame_analysis.js" defer></script>
+</head>
+<body>
+    <div id="app-container" data-session-id="<%= session_id %>"></div>
+    <div class="container">
+        <h1>First Frame Analysis</h1>
+        <h2>Video: <%= filename.split('/').pop() %></h2>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <p>1. Select a colored point from the buttons below.</p>
+            <p>2. Click on the image where you want to place the point.</p>
+            <p>3. Once all points are placed, click "Save Point Positions".</p>
+        </div>
+        
+        <div class="point-controls">
+            <h3>Select point to place:</h3>
+            <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Head</div>
+            <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Butt</div>
+            <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Left Side</div>
+            <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Right Side</div>
+        </div>
+        
+        <div class="plotly-container" id="plotly-container">
+            <!-- Plotly plot will be generated here by JavaScript -->
+            <div id="plotlyDiv" style="width: <%= Math.min(800, width + 100) %>px; height: <%= Math.min(600, height + 100) %>px;"></div>
+            <div id="plot-overlay"></div>
+        </div>
+
+        <div id="pointStatus" class="processing-status status-processing" style="display: none;">
+            Select a point and click on the image to place it.
+        </div>
+        
+        <div class="controls">
+            <a href="/video/<%= encodeURIComponent(filename) %>" class="btn btn-primary">Back to Video Player</a>
+            <a href="/" class="btn btn-secondary">Back to Video Library</a>
+            <!-- <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button> -->
+            <button id="processPointCloud" class="btn btn-action" onclick="processVideoWithPoints()">Process Point Cloud</button>
+        </div>
+    </div>
+
+    <div id="processingLogs" class="processing-logs" style="display: none;">
+        <h3>Processing Logs</h3>
+        <div class="log-container">
+            <pre id="logContent" class="log-content"></pre>
+        </div>
+    </div>
+    
+    <div id="processingStatus" class="processing-status">
+        <span id="statusMessage"></span>
+    </div>    
+
+    <!-- Session data for JavaScript -->
+    <script>
+        const SESSION_ID = "<%= session_id %>";
+        const VIDEO_PATH = "<%= filename %>";
+        const IMAGE_DATA = "<%= imageData %>";
+        const IMAGE_WIDTH = parseInt("<%= width %>", 10);
+        const IMAGE_HEIGHT = parseInt("<%= height %>", 10);
+        const decoded_points = '<%= points %>'
+            .replace(/&#34;/g, '"')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        const INITIAL_POINTS = JSON.parse(decoded_points) || [];
+        
+        // Create the Plotly chart when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            createPlotlyChart();
+        });
+
+        socket.emit("start_new_session", {
+            session_id: SESSION_ID,
+            points: decoded_points,
+            video_path: VIDEO_PATH,
+            frame_width: IMAGE_WIDTH,
+            frame_height: IMAGE_HEIGHT,
+        });
+        
+        function ensureDataUrlFormat(imageData) {
+            // If the image data doesn't start with the data URL prefix, add it
+            if (!imageData.startsWith('data:image')) {
+                return `data:image/jpeg;base64,${imageData}`;
+            }
+            return imageData;
+        }
+
+        function createPlotlyChart() {
+            const plotlyDiv = document.getElementById('plotlyDiv');
+
+            // Set plot div size based on image aspect ratio
+            const aspectRatio = IMAGE_WIDTH / IMAGE_HEIGHT;
+            let width = 800; // pick a base width
+            let height = width / aspectRatio;
+
+            plotlyDiv.style.width = width + "px";
+            plotlyDiv.style.height = height + "px";
+            
+            // Create a figure with the image and points
+            const figure = {
+                data: [],
+                layout: {
+                    xaxis: {
+                        range: [0, IMAGE_WIDTH],
+                        title: 'X',
+                        fixedrange: true,
+                        showgrid: false
+                    },
+                    yaxis: {
+                        range: [IMAGE_HEIGHT, 0], // Invert y-axis for image coordinates
+                        title: 'Y',
+                        scaleanchor: 'x',
+                        scaleratio: 1,
+                        fixedrange: true,
+                        showgrid: false
+                    },
+                    images: [{
+                        source: IMAGE_DATA,
+                        x: 0,
+                        y: 0,
+                        sizex: IMAGE_WIDTH,
+                        sizey: IMAGE_HEIGHT,
+                        sizing: 'stretch',
+                        layer: 'below',
+                        xref: 'x',
+                        yref: 'y',
+                    }],
+                    showlegend: true,
+                    dragmode: 'pan',
+                    margin: {l: 50, r: 50, b: 50, t: 50},
+                    title: 'First Frame Analysis',
+                    template: 'plotly_white',
+                    width: width,
+                    height: height,
+                    showlegend: true,
+                },
+                config: {
+                    displayModeBar: true,
+                    staticPlot: false,
+                    scrollZoom: false,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d', 'resetScale2d']
+                }
+            };
+            
+            // Add each point as a scatter trace
+            if (Array.isArray(INITIAL_POINTS)) {
+                INITIAL_POINTS.forEach(point => {
+                    figure.data.push({
+                        x: [point.x],
+                        y: [point.y],
+                        mode: 'markers',
+                        marker: {
+                            size: 10,
+                            color: point.color
+                        },
+                        name: `Point (${point.color})`
+                    });
+                });
+            } else {
+                console.error("INITIAL_POINTS is not an array:", INITIAL_POINTS);
+            }
+            
+            // Create the plot
+            Plotly.newPlot(plotlyDiv, figure.data, figure.layout, figure.config);
+            
+            // Store points globally for use in the rest of the app
+            window.pointsData = INITIAL_POINTS;
+        }
+    </script>
+</body>
+</html>
