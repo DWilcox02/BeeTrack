@@ -429,7 +429,7 @@ def handle_update_point(data):
 
         session_points = session_data["points"]
     
-        print(f"Updating, session data points: {session_points}")
+        # print(f"Updating, session data points: {session_points}")
 
         emit('update_point_response', {
             "success": True, 

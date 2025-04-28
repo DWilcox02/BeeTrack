@@ -154,10 +154,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         Returns:
         query_points: [num_points, 3], in [t, y, x]
         """
-        print("Using [")
-        for p in points:
-            print(f"  {p}")
-        print("] for points")
         points_array = np.array([(point['x'], point['y']) for point in points], dtype=np.float32)
     
         # For quadrilateral interpolation, we need the 4 corners in a specific order
@@ -238,7 +234,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         ]
         self.set_points(session_points)
 
-        self.log(f"Recalculated points: {points}")
+        # self.log(f"Recalculated points: {points}")
 
         # Convert to query points
         query_points = self.convert_select_points_to_query_points(
