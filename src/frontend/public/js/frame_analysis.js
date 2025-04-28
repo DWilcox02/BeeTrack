@@ -385,81 +385,9 @@ async function processVideoWithPoints() {
 
   // console.log("Here (lowercase)");
   try {
-    // Start the processing job
-    const response = await fetch("/api/process_video_with_points", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        video_path: videoPath,
-        session_id: sessionId,
-      }),
+    socket.emit("process_video_with_points", {
+      session_id: sessionId,
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to start processing: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    const jobId = result.job_id;
-
-    if (!jobId) {
-      throw new Error("No job ID returned from server");
-    }
-
-    // Set up event source for log messages
-    const eventSource = new EventSource(`/api/logs/${jobId}`);
-
-    // Handle log messages
-    eventSource.onmessage = function (event) {
-      const message = event.data;
-
-      if (message.trim() === "") return; // Skip empty messages
-
-      let formattedMessage = message;
-      let messageClass = "";
-
-      // Format message based on type
-      if (message.startsWith("ERROR:")) {
-        formattedMessage = message.substring(6);
-        messageClass = "log-error";
-      } else if (message.startsWith("DONE:")) {
-        formattedMessage = message.substring(5);
-        messageClass = "log-success";
-      } else if (message.startsWith("Processing ") || message.startsWith("Starting ")) {
-        messageClass = "log-info";
-      }
-
-      // Add the message to the log
-      const logLine = document.createElement("div");
-      logLine.textContent = formattedMessage;
-      if (messageClass) {
-        logLine.className = messageClass;
-      }
-      logContent.appendChild(logLine);
-
-      // Scroll to bottom
-      logContent.scrollTop = logContent.scrollHeight;
-
-      // Check for completion or error
-      if (message.startsWith("DONE:") || message.startsWith("ERROR:")) {
-        // Close the event source
-        eventSource.close();
-
-        // Check the job status to get the results
-        checkJobStatus(jobId);
-      }
-    };
-
-    // Handle errors
-    eventSource.onerror = function (error) {
-      console.error("EventSource error:", error);
-      eventSource.close();
-
-      statusElement.className = "processing-status status-error";
-      statusMessageElement.textContent = "Error: Connection to server lost";
-    };
   } catch (error) {
     statusElement.className = "processing-status status-error";
     statusMessageElement.textContent = "Error: " + error.message;

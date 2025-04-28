@@ -300,7 +300,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
                 self.log(traceback.format_exc())
 
         # Prepare final video
-        final_output_path = OUTPUT_DIR + "SEMI_DENSE_" + filename
+        final_output_path = OUTPUT_DIR + "POINT_CLOUD_" + filename
 
         if save_intermediate and segment_paths:
             self.log("Combining segments and writing final video...")

@@ -30,7 +30,7 @@ videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 log_message = None
 
 
-def process_video_wrapper(video_name, job_id=None):
+def process_video_wrapper(video, job_id=None):
     """
     Adapter function to call tapir_point_cloud.process_video with the right parameters
 
@@ -49,16 +49,6 @@ def process_video_wrapper(video_name, job_id=None):
         print(message)
 
     # Extract directory path and filename
-
-    [video_path, video_name] = video_name.split("/")
-    video = next(
-        (video for video in videos if video["filename"] == video_name), None
-    )
-
-
-    if not video:
-        log(f"Video '{video_name}' not found in video_meta.json")
-        return {"success": False, "error": f"Video '{video_name}' not found in video_meta.json"}
 
     path_parts = video["path"].split("/")
     filename = video["filename"]
@@ -102,7 +92,7 @@ def process_video_wrapper(video_name, job_id=None):
         return {"success": False, "error": error_message}
 
 
-def process_video_wrapper_with_points(video_name, points, job_id=None):
+def process_video_wrapper_with_points(video, points, job_id=None):
     """
     Adapter function to call tapir_point_cloud.process_video with the right parameters and predefined points
 
@@ -121,18 +111,9 @@ def process_video_wrapper_with_points(video_name, points, job_id=None):
             log_message(job_id, message)
         print(message)
 
-    # Extract directory path and filename
-    video = videos.get(video_name, None)
-
-    if not video:
-        log(f"Video '{video_name}' not found in video_meta.json")
-        return {"success": False, "error": f"Video '{video_name}' not found in video_meta.json"}
-
-    path_parts = video["path"].split("/")
-    filename = video["filename"]
-    folder_path = "/".join(path_parts[:-1]) + "/" if len(path_parts) > 1 else ""
-
     # Determine FPS from our lookup, default to 30 if not found
+    filename = video["filename"]
+    folder_path = video["path"]
     fps = video.get("fps", 30)
 
     log(f"Processing video: {filename} at {fps} FPS with predefined points {points}")
