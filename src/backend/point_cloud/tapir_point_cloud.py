@@ -266,16 +266,16 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         total_frames = len(orig_frames)
         
         # Normalize FPS to a maximum of 15
-        normalized_fps = min(fps, 15)
-        if normalized_fps < fps:
-            self.log(f"Normalizing FPS from {fps} to {normalized_fps}")
-            # Calculate the frame sampling interval
-            sampling_interval = fps // normalized_fps
-            # Sample frames at the calculated interval
-            orig_frames = orig_frames[::sampling_interval]
-            total_frames = len(orig_frames)
-            # Update fps to the normalized value
-            fps = normalized_fps
+        # normalized_fps = min(fps, 15)
+        # if normalized_fps < fps:
+        #     self.log(f"Normalizing FPS from {fps} to {normalized_fps}")
+        #     # Calculate the frame sampling interval
+        #     sampling_interval = fps // normalized_fps
+        #     # Sample frames at the calculated interval
+        #     orig_frames = orig_frames[::sampling_interval]
+        #     total_frames = len(orig_frames)
+        #     # Update fps to the normalized value
+        #     fps = normalized_fps
         
         self.log(f"Video loaded: {total_frames} frames at {fps} FPS, resolution: {width}x{height}")
 
