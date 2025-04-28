@@ -11,7 +11,7 @@ socket.on("disconnect", () => {
   console.log("Disconnected from Flask backend");
 });
 
-// API wrapper functions
+// Socket API wrapper functions
 const api = {
   // Get all videos
   getVideos: () => {
@@ -136,6 +136,10 @@ const api = {
   },
 };
 
+// -------------------------------------------------------------------------
+// Socket.IO Events
+// -------------------------------------------------------------------------
+
 // Listen for job updates
 socket.on("job_log", (data) => {
   if (typeof window.handleJobLog === "function") {
@@ -156,6 +160,19 @@ socket.on('update_point_response', (result) => {
     showStatus("success");
   }
 });
+
+socket.on("update_points_with_frame", (result) => {
+  console.log("Updating points after interval");
+
+  if (result.success) {
+    // Update the plot using the returned plot data
+    if (result.points) {
+      updatePlot(result.points, result.frameData);
+    }
+
+    showStatus("success");
+  }
+})
 
 // Export the API for use in other scripts
 window.api = api;

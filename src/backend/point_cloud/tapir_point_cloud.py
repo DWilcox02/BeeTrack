@@ -17,6 +17,8 @@ import torch
 import os
 import gc
 import tempfile
+from flask_socketio import emit
+from flask import Flask, request, jsonify
 
 
 NUM_SLICES = 3
@@ -36,11 +38,19 @@ CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints/")
 # Create output directory if it doesn't exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Import point cloud interface
 spec = importlib.util.spec_from_file_location(
     "point_cloud_interface", os.path.join(POINT_CLOUD_DIR, "point_cloud_interface.py")
 )
 point_cloud_interface = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(point_cloud_interface)
+
+# Import video_utils
+spec = importlib.util.spec_from_file_location(
+    "video_utils", os.path.join(BACKEND_DIR, "server/utils/video_utils.py")
+)
+video_utils = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(video_utils)
 
 DATA_DIR = "data/"
 OUTPUT_DIR = "output/"
@@ -70,8 +80,9 @@ tapir = tapir_model.ParameterizedTAPIR(params, state, tapir_kwargs=kwargs)
 
 
 class TapirPointCloud(point_cloud_interface.PointCloudInterface):
-    def __init__(self):
+    def __init__(self, socketio):
         self.log_fn = print  # Default to standard print
+        self.socketio = socketio
 
     def set_logger(self, log_fn):
         self.log_fn = log_fn
@@ -173,6 +184,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             {"x": new_positions["left"]["x"], "y": new_positions["left"]["y"], "color": "blue"},
             {"x": new_positions["right"]["x"], "y": new_positions["right"]["y"], "color": "purple"},
         ]
+        self.current_points = points
 
         self.log(f"Recalculated points: {points}")
 
@@ -278,6 +290,37 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
                         resize_width, 
                         current_trajectory
                     )
+                
+                # Send update to frontend graph
+                frame_base64, error, width, height = video_utils.extract_frame(DATA_DIR + path + filename, end_frame - 1)
+                frameData = {
+                    "frame": frame_base64,
+                    "width": width,
+                    "height": height,
+                }
+                # Points format:
+                # [
+                #   {'x': Array(1014.8928, dtype=float32), 'y': Array(642.25415, dtype=float32), 'color': 'red'}, 
+                #   {'x': Array(1074.8928, dtype=float32), 'y': Array(692.25415, dtype=float32), 'color': 'green'}, 
+                #   {'x': Array(1041.4928, dtype=float32), 'y': Array(678.9541, dtype=float32), 'color': 'blue'}, 
+                #   {'x': Array(1054.8928, dtype=float32), 'y': Array(663.9541, dtype=float32), 'color': 'purple'}
+                # ]
+                if self.socketio:
+                    # Serialize points to JSON
+                    points_json = []
+                    for point in self.current_points:
+                        points_json.append({
+                            "x": point["x"].tolist(),
+                            "y": point["y"].tolist(),
+                            "color": point["color"]
+                        })
+                    print(f"Points JSON: {points_json}")
+                    
+                    self.socketio.emit(
+                        "update_points_with_frame",
+                        {"success": True, "points": points_json, "frameData": frameData},
+                    )
+
                 video_segment = slice_result.get_video()
 
                 if save_intermediate:
