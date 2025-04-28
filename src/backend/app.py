@@ -148,9 +148,20 @@ def extract_first_frame(video_path):
         return None, str(e), None, None
 
 
+def get_video_info(filename):
+    [path, video_name] = filename.split("/")
+    path = path + "/"
+    video = next((
+        video for video in videos 
+        if video["filename"] == video_name and
+           video["path"] == path
+    ), None)
+    return video
+
 # Set log message function for point cloud adapter if available
 if POINT_CLOUD_AVAILABLE:
-    set_log_message_function(log_message)
+    set_log_message_function(log_message)    
+
 
 # -------------------------------------------------------------------------
 # Routes
@@ -169,26 +180,6 @@ def get_processed_videos_api():
     """Return the list of processed videos."""
     print(get_processed_videos())
     return jsonify(get_processed_videos())
-
-
-@app.route("/api/video_info/<path:filename>")
-def get_video_info(filename):
-    """Get information about a video."""
-    if filename not in videos:
-        return jsonify({"error": "Video not found"}), 404
-
-    video = videos[filename]
-    processed_filename = "SEMI_DENSE_" + os.path.basename(filename)
-    processed_exists = os.path.exists(os.path.join(OUTPUT_FOLDER, processed_filename))
-
-    return jsonify(
-        {
-            "filename": filename,
-            "processed_filename": processed_filename if processed_exists else None,
-            "video_info": video,
-            "point_cloud_available": POINT_CLOUD_AVAILABLE,
-        }
-    )
 
 
 @app.route("/api/video/<path:filename>")
@@ -267,7 +258,6 @@ def job_status(job_id):
 
 
 
-
 # -------------------------------------------------------------------------
 # Socket.IO Events
 # -------------------------------------------------------------------------
@@ -301,11 +291,13 @@ def handle_process_video(data):
     # Initialize logging for this job
     init_job_logging(job_id)
 
+    video = get_video_info(video_path)
+
     # Function to run the processing in a background thread
     def run_processing():
         try:
             # Process the video
-            result = process_video_wrapper(video_path, job_id)
+            result = process_video_wrapper(video, job_id)
 
             if result.get("success", False):
                 # Create URL for the processed video
@@ -353,12 +345,17 @@ def handle_process_video_with_points(data):
         emit("process_error", {"error": "Point cloud processing is not available"})
         return
 
-    video_path = data.get("video_path")
-    points = data.get("points")
+    session_id = data.get("session_id")
 
-    if not video_path:
-        emit("process_error", {"error": "No video path provided"})
-        return
+    if session_id not in point_data_store:
+            print(f"Session ID {session_id} not found in point_data_store")
+            emit('update_point_error', {"error": "Session not found"})
+            return
+
+    session_data = point_data_store[session_id]
+    video_path = session_data.get("video_path")
+    points = session_data.get("points")
+    
 
     if not points or not isinstance(points, list) or len(points) < 4:
         emit("process_error", {"error": "Invalid points data"})
@@ -370,11 +367,13 @@ def handle_process_video_with_points(data):
     # Initialize logging for this job
     init_job_logging(job_id)
 
+    video = get_video_info(video_path)
+
     # Function to run the processing in a background thread
     def run_processing():
         try:
             # Process the video
-            result = process_video_wrapper_with_points(video_path, points, job_id)
+            result = process_video_wrapper_with_points(video, points, job_id)
 
             if result.get("success", False):
                 # Create URL for the processed video
@@ -414,6 +413,7 @@ def handle_process_video_with_points(data):
     # Return immediately with the job ID
     emit("process_started", {"job_id": job_id})
 
+
 def parsePoints(points: str):
     """Parse points from a string to a list of dictionaries."""
     try:
@@ -431,6 +431,7 @@ def parsePoints(points: str):
         app.logger.error(f"Error parsing points: {str(e)}")
         return []
 
+
 @socketio.on("start_new_session")
 def handle_start_new_session(data):
     """Start a new session for point data."""
@@ -443,6 +444,7 @@ def handle_start_new_session(data):
         "frame_height": int(data.get("frame_height")),
     }
     emit("session_started", {"session_id": session_id})
+
 
 @socketio.on('update_point')
 def handle_update_point(data):
@@ -477,6 +479,7 @@ def handle_update_point(data):
         app.logger.error(f"Error updating point: {str(e)}")
         app.logger.error(traceback.format_exc())
         emit("update_point_error", {"error": str(e)})
+
 
 @socketio.on("save_points")
 def handle_save_points(data):
