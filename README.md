@@ -1,8 +1,17 @@
-# Computer Vision Bee Tracking - Final Year Thesis / Project
+# Computer Vision Bee Tracking - Final Year Thesis / Project :bee:
+![GPL3]({https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge})
+
 Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Project. Detect and track honeybees performing their waggle dance for apiology researchers. Leverages TAPIR (Track Any Point library) for point cloud establishment, Kalman filtering and RANSAC for future position prediction. 
+
+![Python]({https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue})
+![Tensorflow]({https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=TensorFlow&logoColor=white})
+![Javascript]({https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E})
+![Plotly]({https://img.shields.io/badge/Plotly-239120?style=for-the-badge&logo=plotly&logoColor=white})
 
 ## Version Information
 Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
+
+Note: This was all run on macOS (Sequoia 15.3).
 
 ## Initialization/Setup
 After ensuring the same python version (e.g. after setting up an appropriate python virtual environment), either run `scripts/init.sh` for initialization, or run the 
@@ -50,7 +59,7 @@ python -m src.backend.app
 ```
 to start the backend flask server, at `http://127.0.0.1:5001`
 
-### Setup frontend JS server
+### Setup frontend JS/HTML server
 From `src/frontend`, run:
 ```
 npm run dev
@@ -60,12 +69,22 @@ to start the frontend server, at `http://localhost:3000`
 
 ## Misc.
 
+### Progress Outline
+1. TAPIR wrapper for running locally + video compression
+2. Flask server for user interface
+3. Plotly graph for point selection
+4. Point interpolation across bee
+5. Basic re-adjustment process, using "segment" midpoint and trajectory to recalculate points after each segment
+6. Server split into JS/HTML (frontend) + Python (backend) with socket for bidirectional communication
+7. User validation, allowing point updates after each "segment"
+
 ### Next Steps
 - Establish "uncertainty predicate" to measure how uncertain the point cloud estimate is of the bee in any given frame.
 - Replace primitive "midpoint + trajectory"-based recalculation with Kalman Filtering and RANSAC
     - Necessary to outline where and how precisely these techniques will be used
 - Normalize video FPS to 15. Any higher results in unnecessarly heavy computation
     - Potential for dynamic framerate in cases of uncertainty?
+- Ensure linux compatibility
 
 ### DoC GPU Cluster Guide
 https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
