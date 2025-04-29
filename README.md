@@ -1,12 +1,12 @@
 # Computer Vision Bee Tracking - Final Year Thesis / Project :bee:
-![GPL3]({https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge})
+<img src="https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge" alt="GPL3">
 
 Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Project. Detect and track honeybees performing their waggle dance for apiology researchers. Leverages TAPIR (Track Any Point library) for point cloud establishment, Kalman filtering and RANSAC for future position prediction. 
 
-![Python]({https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue})
-![Tensorflow]({https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=TensorFlow&logoColor=white})
-![Javascript]({https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E})
-![Plotly]({https://img.shields.io/badge/Plotly-239120?style=for-the-badge&logo=plotly&logoColor=white})
+<img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="python">
+<img src="https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E" alt="JavaScript">
+<img src="https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=TensorFlow&logoColor=white" alt="TensorFlow">
+<img src="https://img.shields.io/badge/Plotly-239120?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly">
 
 ## Version Information
 Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
