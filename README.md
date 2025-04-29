@@ -5,35 +5,70 @@ Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Proje
 Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
 
 ## Initialization/Setup
-After ensuring the same python version, run:
-```
-wget -P checkpoints/tapir https://storage.googleapis.com/dm-tapnet/tapir_checkpoint_panning.npy
-wget -P checkpoints/bootstapir https://storage.googleapis.com/dm-tapnet/bootstap/bootstapir_checkpoint_v2.npy
-git submodule add https://github.com/deepmind/tapnet
-cd tapnet
-pip install .
-cd ..
-pip install dm-haiku jax mediapy numpy matplotlib tqdm tensorflow
-```
-or, run 
-```
-sh init.sh
-```
+After ensuring the same python version (e.g. after setting up an appropriate python virtual environment), either run `scripts/init.sh` for initialization, or run the 
+following commands in each section:
 
-TODO: Apply mkdir to the init video download
+
+1. Install TAPIR checkpoints (in root folder)
+    ```
+    wget -P checkpoints/tapir https://storage.googleapis.com/dm-tapnet/tapir_checkpoint_panning.npy
+    wget -P checkpoints/bootstapir https://storage.googleapis.com/dm-tapnet/bootstap/bootstapir_checkpoint_v2.npy
+    ```
+
+3. Install my forked Tapnet and its dependencies
+    ```
+    git submodule add https://github.com/DWilcox02/tapnet_beetrack
+    cd tapnet
+    pip install .
+    cd ..
+    ```
+
+4. Install node modules
+    ```
+    cd src/frontend
+    npm install
+    cd ../..
+    ```
+
+5. Install backend dependencies
+    ```
+    pip install dm-haiku jax mediapy numpy matplotlib tqdm tensorflow
+    ```
+    (Note: this may be incomplete and you'll have to install further python packages)
+
+###   (Optional) Download sample videos 
+If you don't have any videos for testing, download honeybee videos with
+```
+`scripts/download_videos.sh`
+```
 
 ## Running
-Move relevant videos into `/data/`. Run:
+### Setup backend Flask server
+From root, run:
 ```
-python src/tapir_bulk.py
+python -m src.backend.app
 ```
+to start the backend flask server, at `http://127.0.0.1:5001`
+
+### Setup frontend JS server
+From `src/frontend`, run:
+```
+npm run dev
+```
+to start the frontend server, at `http://localhost:3000`
+
+
+## Misc.
+
+### Next Steps
+- Establish "uncertainty predicate" to measure how uncertain the point cloud estimate is of the bee in any given frame.
+- Replace primitive "midpoint + trajectory"-based recalculation with Kalman Filtering and RANSAC
+    - Necessary to outline where and how precisely these techniques will be used
+- Normalize video FPS to 15. Any higher results in unnecessarly heavy computation
+    - Potential for dynamic framerate in cases of uncertainty?
 
 ### DoC GPU Cluster Guide
 https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
-
-## Next Steps
-- Abstract use of GPUs. Currently running locally on laptop. Allow flexibility to run on a Google Cloud VM, DoC CSG GPU Cluster, etc..
-    - Project must be cloned and run as a whole locally on VM
 
 
 ## Referenced Work
@@ -50,10 +85,10 @@ https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
 
 
 
-
+<!-- 
 1. Prompt user to draw skeleton around bee
 2. Determine bounding box based on skeleton
 3. (Determine relationship between skeleton and points)
 4. (Apply point cloud based on bounding box)
 4. Run video for X time slice
-5. Calculate estimated skeleton position via RANSAC and Kalman Filtering
+5. Calculate estimated skeleton position via RANSAC and Kalman Filtering -->
