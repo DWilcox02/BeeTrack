@@ -265,8 +265,16 @@ async function updatePoint(pointIndex, x, y) {
   }
 }
 
+function ensureDataUrlFormat(imageData) {
+  // If the image data doesn't start with the data URL prefix, add it
+  if (!imageData.startsWith("data:image")) {
+    return `data:image/jpeg;base64,${imageData}`;
+  }
+  return imageData;
+}
+
 // Function to update the plot with new data
-function updatePlot(newPoints) {
+function updatePlot(newPoints, frameData=null) {
   try {
     // Validate input
     if (!Array.isArray(newPoints) || newPoints.length !== 4) {
@@ -299,10 +307,51 @@ function updatePlot(newPoints) {
     window.pointsData = newPoints;
 
     // Use Plotly's react method to update the plot with new data
-    // This replaces all existing traces with the new ones
     if (window.Plotly) {
       // Get the current layout
-      const currentLayout = plotlyPlot.layout || plotData.layout;
+      let currentLayout = plotlyPlot.layout || plotData.layout;
+      
+      // Update the image in the layout if frameData is provided
+      if (frameData && frameData.frame) {
+        imageData = ensureDataUrlFormat(frameData.frame);
+        
+        // If we have a new image, update it in the layout
+        if (!currentLayout.images) {
+          currentLayout.images = [];
+        }
+        
+        // If an image already exists, update it, otherwise add a new one
+        if (currentLayout.images.length > 0) {
+          console.log("Updating existing image in layout");
+          currentLayout.images[0] = {
+            source: imageData,
+            x: 0,
+            y: 0,
+            sizex: frameData.width,
+            sizey: frameData.height,
+            sizing: 'stretch',
+            layer: 'below',
+            xref: 'x',
+            yref: 'y',
+          };
+        } else {
+          console.log("Adding new image to layout");
+          currentLayout.images.push({
+            source: frameData.frame,
+            x: 0,
+            y: 0,
+            sizex: frameData.width,
+            sizey: frameData.height,
+            sizing: 'stretch',
+            layer: 'below',
+            xref: 'x',
+            yref: 'y',
+          });
+        }
+        
+        // Update title to show current frame
+        currentLayout.title = `Frame Analysis`;
+      }
 
       Plotly.react(plotlyPlot, newData, currentLayout, {
         displayModeBar: true,
@@ -313,6 +362,9 @@ function updatePlot(newPoints) {
       });
 
       console.log("Plot updated with new points:", newPoints);
+      if (frameData) {
+        console.log("Plot updated with new frame image");
+      }
     } else {
       console.error("Plotly not available for updating plot");
     }
@@ -397,5 +449,29 @@ async function processVideoWithPoints() {
     logLine.textContent = "Error: " + error.message;
     logLine.className = "log-error";
     logContent.appendChild(logLine);
+  }
+}
+
+async function sendValidationContinue() {
+  console.log("User validated the request");
+
+  // Hide the validation button
+  document.getElementById("validationContinue").style.display = "none";
+
+  // Get the request ID
+  const requestId = window.pendingValidationRequestId;
+
+  if (requestId) {
+    // Send the response back as a new event
+    socket.emit("validation_response", {
+      request_id: requestId,
+      validated: true,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Clear the stored request ID
+    window.pendingValidationRequestId = null;
+  } else {
+    console.warn("No pending validation request ID found");
   }
 }

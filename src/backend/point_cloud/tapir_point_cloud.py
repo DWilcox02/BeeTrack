@@ -1,5 +1,4 @@
 import matplotlib
-
 matplotlib.use("Agg")  # Use non-interactive backend
 import haiku as hk  # noqa: F401
 import jax
@@ -17,10 +16,12 @@ import torch
 import os
 import gc
 import tempfile
+import uuid
+from threading import Event
 
 
 NUM_SLICES = 3
-
+CONFIDENCE_THRESHOLD = 0.8
 
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -36,11 +37,19 @@ CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints/")
 # Create output directory if it doesn't exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Import point cloud interface
 spec = importlib.util.spec_from_file_location(
     "point_cloud_interface", os.path.join(POINT_CLOUD_DIR, "point_cloud_interface.py")
 )
 point_cloud_interface = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(point_cloud_interface)
+
+# Import video_utils
+spec = importlib.util.spec_from_file_location(
+    "video_utils", os.path.join(BACKEND_DIR, "server/utils/video_utils.py")
+)
+video_utils = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(video_utils)
 
 DATA_DIR = "data/"
 OUTPUT_DIR = "output/"
@@ -70,14 +79,61 @@ tapir = tapir_model.ParameterizedTAPIR(params, state, tapir_kwargs=kwargs)
 
 
 class TapirPointCloud(point_cloud_interface.PointCloudInterface):
-    def __init__(self):
+    def __init__(self, socketio, session_id, point_data_store, validation_events):
         self.log_fn = print  # Default to standard print
+        self.socketio = socketio
+        self.session_id = session_id
+        self.point_data_store = point_data_store
+        points = self.point_data_store[self.session_id]["points"]
+        assert(points and isinstance(points, list) and len(points) == 4)
+        self.validation_events = validation_events
+
+    def request_validation(self):
+        # Generate a unique ID for validation request
+        request_id = str(uuid.uuid4())
+        
+        # Create an event to wait on
+        validation_event = Event()
+        self.validation_events[request_id] = {
+            'event': validation_event,
+            'response': None
+        }
+        
+        # Emit the event with the request ID
+        self.socketio.emit("validation_request", {
+            'message': 'Please validate this data',
+            'request_id': request_id
+        })
+        
+        print(f"Requesting frontend validation (ID: {request_id})")
+        
+        # Wait for the validation to be completed (with timeout)
+        if validation_event.wait(timeout=300):
+            response = self.validation_events[request_id]['response']
+            # Clean up
+            del self.validation_events[request_id]
+            print("Validation received, recalc query points")
+            return response
+        else:
+            # Timeout occurred
+            del self.validation_events[request_id]
+            print("Validation request timed out")
+            return None
+
+    def get_points(self):
+        return self.point_data_store[self.session_id]["points"]
+
+    def set_points(self, new_points):
+        self.point_data_store[self.session_id]["points"] = new_points
+
 
     def set_logger(self, log_fn):
         self.log_fn = log_fn
 
+
     def log(self, message):
         self.log_fn(message)
+
 
     def sample_grid_points(self, frame_idx, height, width, stride=1):
         points = np.mgrid[stride // 2 : height : stride, stride // 2 : width : stride]
@@ -87,6 +143,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         points = np.concatenate((frame_idx, points), axis=-1).astype(np.int32)
         points = points.reshape(-1, 3)  # [out_height*out_width, 3]
         return points
+
 
     def convert_select_points_to_query_points(self, query_frame, points, height_ratio, width_ratio):
         """Convert select points to query points with linear interpolation.
@@ -145,15 +202,14 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
 
         return query_points
 
+
     def recalculate_query_points(
         self,
         point_cloud_slice,
         bee_skeleton,
         query_frame,
-        height,
-        width,
-        resize_height,
-        resize_width,
+        height_ratio,
+        width_ratio,
         previous_trajectory,
     ):
         # Get new midpoint and trajectory
@@ -173,12 +229,14 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             {"x": new_positions["left"]["x"], "y": new_positions["left"]["y"], "color": "blue"},
             {"x": new_positions["right"]["x"], "y": new_positions["right"]["y"], "color": "purple"},
         ]
+        session_points = [
+            {"x": float(point["x"]), "y": float(point["y"]), "color": point["color"]} for point in points
+        ]
+        self.set_points(session_points)
 
-        self.log(f"Recalculated points: {points}")
+        # self.log(f"Recalculated points: {points}")
 
         # Convert to query points
-        height_ratio = resize_height / height
-        width_ratio = resize_width / width
         query_points = self.convert_select_points_to_query_points(
             query_frame=query_frame, points=points, height_ratio=height_ratio, width_ratio=width_ratio
         )
@@ -193,7 +251,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         fps: int,
         max_segments=None,
         save_intermediate=True,
-        predefined_points=None,
+        predefined_points=False,
     ):
         self.log(f"\nProcessing video from: {path}")
         start_time = time.time()
@@ -204,16 +262,16 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         total_frames = len(orig_frames)
         
         # Normalize FPS to a maximum of 15
-        normalized_fps = min(fps, 15)
-        if normalized_fps < fps:
-            self.log(f"Normalizing FPS from {fps} to {normalized_fps}")
-            # Calculate the frame sampling interval
-            sampling_interval = fps // normalized_fps
-            # Sample frames at the calculated interval
-            orig_frames = orig_frames[::sampling_interval]
-            total_frames = len(orig_frames)
-            # Update fps to the normalized value
-            fps = normalized_fps
+        # normalized_fps = min(fps, 15)
+        # if normalized_fps < fps:
+        #     self.log(f"Normalizing FPS from {fps} to {normalized_fps}")
+        #     # Calculate the frame sampling interval
+        #     sampling_interval = fps // normalized_fps
+        #     # Sample frames at the calculated interval
+        #     orig_frames = orig_frames[::sampling_interval]
+        #     total_frames = len(orig_frames)
+        #     # Update fps to the normalized value
+        #     fps = normalized_fps
         
         self.log(f"Video loaded: {total_frames} frames at {fps} FPS, resolution: {width}x{height}")
 
@@ -245,14 +303,13 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         resize_width = 256
         query_frame = 0
         stride = 8
-        # predefined_points = None # TODO: Remove
-        if predefined_points is None:
+        if not predefined_points:
             query_points = self.sample_grid_points(query_frame, resize_height, resize_width, stride)
         else:
-            bee_skeleton = point_cloud_interface.BeeSkeleton(predefined_points)
             height_ratio = resize_height / height
             width_ratio = resize_width / width
-            query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=predefined_points, height_ratio=height_ratio, width_ratio=width_ratio)
+            bee_skeleton = point_cloud_interface.BeeSkeleton(self.get_points())
+            query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=self.get_points(), height_ratio=height_ratio, width_ratio=width_ratio)
             current_trajectory = bee_skeleton.initial_trajectory
         # print(query_points)
 
@@ -265,19 +322,71 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             orig_frames_slice = orig_frames[start_frame:end_frame]
 
             # Process the slice
-            try:                
+            try:              
+                # Use saved points  
                 slice_result = self.process_video_slice(orig_frames_slice, width, height, query_points, resize_width=resize_width, resize_height=resize_height)
-                if predefined_points is not None:
+                
+                # Calculate points for next slice
+                if predefined_points:
                     query_points, current_trajectory = self.recalculate_query_points(
                         slice_result, 
                         bee_skeleton, 
                         query_frame, 
-                        height, 
-                        width, 
-                        resize_height, 
-                        resize_width, 
+                        height_ratio,
+                        width_ratio,
                         current_trajectory
                     )
+                
+                
+                # Points format:
+                # [
+                #   {'x': Array(1014.8928, dtype=float32), 'y': Array(642.25415, dtype=float32), 'color': 'red'}, 
+                #   {'x': Array(1074.8928, dtype=float32), 'y': Array(692.25415, dtype=float32), 'color': 'green'}, 
+                #   {'x': Array(1041.4928, dtype=float32), 'y': Array(678.9541, dtype=float32), 'color': 'blue'}, 
+                #   {'x': Array(1054.8928, dtype=float32), 'y': Array(663.9541, dtype=float32), 'color': 'purple'}
+                # ]
+
+                if self.socketio:
+                    frame_base64, error, width, height = video_utils.extract_frame(DATA_DIR + path + filename, end_frame - 1)
+                    frameData = {
+                        "frame": frame_base64,
+                        "width": width,
+                        "height": height,
+                        "frame_idx": end_frame
+                    }
+                    # Serialize points to JSON
+                    points_json = []
+                    for point in self.get_points():
+                        points_json.append({
+                            "x": point["x"],
+                            "y": point["y"],
+                            "color": point["color"]
+                        })
+                    request_validation = slice_result.confidence < CONFIDENCE_THRESHOLD
+                        
+                    self.socketio.emit("update_points_with_frame", {
+                        "success": True, 
+                        "points": points_json, 
+                        "frameData": frameData,
+                        "confidence": slice_result.confidence,
+                        "request_validation": request_validation
+                    })
+
+                    if request_validation:
+                        response = self.request_validation()
+
+                        if response:
+                            # Validation received, re-calculate query points
+                            bee_skeleton = point_cloud_interface.BeeSkeleton(self.get_points())
+                            query_points = self.convert_select_points_to_query_points(
+                                query_frame=query_frame, points=self.get_points(), height_ratio=height_ratio, width_ratio=width_ratio
+                            )
+                            current_trajectory = bee_skeleton.initial_trajectory
+                        else:
+                            # Handle timeout or validation failure
+                            print("Validation failed or timed out, continuing with default behavior")
+
+
                 video_segment = slice_result.get_video()
 
                 if save_intermediate:
@@ -346,6 +455,7 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
             if temp_dir and os.path.exists(temp_dir):
                 os.rmdir(temp_dir)
             return None, fps
+
 
     def process_video_slice(
         self,
@@ -438,7 +548,10 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
 
         self.log("Converting coordinates and generating visualization...")
         tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
-        slice_result = point_cloud_interface.PointCloudSlice(orig_frames, tracks, visibles)
+        
+        # TODO: Actual confidence calculation
+        confidence = 0.0
+        slice_result = point_cloud_interface.PointCloudSlice(orig_frames, tracks, visibles, confidence)
         
 
         return slice_result

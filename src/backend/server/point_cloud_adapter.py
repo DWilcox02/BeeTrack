@@ -30,7 +30,7 @@ videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 log_message = None
 
 
-def process_video_wrapper(video, job_id=None):
+def process_video_wrapper(video, job_id=None, socketio=None):
     """
     Adapter function to call tapir_point_cloud.process_video with the right parameters
 
@@ -62,7 +62,7 @@ def process_video_wrapper(video, job_id=None):
 
     try:
         # Create an instance of TapirPointCloud
-        point_cloud = tapir_point_cloud.TapirPointCloud()
+        point_cloud = tapir_point_cloud.TapirPointCloud(socketio)
 
         # Set the logger if we have a job_id
         if job_id and log_message:
@@ -92,7 +92,14 @@ def process_video_wrapper(video, job_id=None):
         return {"success": False, "error": error_message}
 
 
-def process_video_wrapper_with_points(video, points, job_id=None):
+def process_video_wrapper_with_points(
+        video, 
+        session_id,
+        point_data_store, 
+        job_id=None, 
+        socketio=None,
+        validation_events=None
+    ):
     """
     Adapter function to call tapir_point_cloud.process_video with the right parameters and predefined points
 
@@ -116,12 +123,19 @@ def process_video_wrapper_with_points(video, points, job_id=None):
     folder_path = video["path"]
     fps = video.get("fps", 30)
 
+    assert(session_id in point_data_store)
+    points = point_data_store[session_id].get("points")
+
+    if not points or not isinstance(points, list) or len(points) < 4:
+        socketio.emit("process_error", {"error": "Invalid points data"})
+        return
+
     log(f"Processing video: {filename} at {fps} FPS with predefined points {points}")
     log(f"Path: {folder_path}")
 
     try:
         # Create an instance of TapirPointCloud
-        point_cloud = tapir_point_cloud.TapirPointCloud()
+        point_cloud = tapir_point_cloud.TapirPointCloud(socketio, session_id, point_data_store, validation_events)
 
         # Set the logger if we have a job_id
         if job_id and log_message:
@@ -133,7 +147,7 @@ def process_video_wrapper_with_points(video, points, job_id=None):
             point_cloud.set_logger(custom_logger)
 
         # Call the process_video method with appropriate parameters
-        result = point_cloud.process_video(folder_path, filename, fps, predefined_points=points)
+        result = point_cloud.process_video(folder_path, filename, fps, predefined_points=True)
 
         # Generate relative URL path to output file
         output_filename = "SEMI_DENSE_" + filename

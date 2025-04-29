@@ -26,10 +26,11 @@ class PointCloudInterface(ABC):
 
 
 class PointCloudSlice(ABC):
-    def __init__(self, orig_frames, tracks, visibles):
+    def __init__(self, orig_frames, tracks, visibles, confidence):
         self.orig_frames = orig_frames
         self.tracks = tracks  # shape (num_points, num_frame, 2), floats
         self.visibles = visibles # shape (num_points, num_frame), bool
+        self.confidence = confidence  # float
 
     def get_video(self):
         return viz_utils.plot_tracks_v2(self.orig_frames, self.tracks, 1.0 - self.visibles)

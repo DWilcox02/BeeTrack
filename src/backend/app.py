@@ -1,5 +1,6 @@
 import os
 import sys
+import importlib.util
 import uuid
 import json
 import queue
@@ -11,6 +12,13 @@ import traceback
 from flask import Flask, request, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
+from .server.utils.video_utils import extract_frame
+from .server.point_cloud_adapter import (
+    process_video_wrapper,
+    process_video_wrapper_with_points,
+    set_log_message_function,
+)
+POINT_CLOUD_AVAILABLE = True
 
 # Path configuration
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -39,36 +47,11 @@ CORS(app, resources={
 })  # Enable CORS for all routes
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Try to import the point_cloud_adapter
-try:
-    # First, try to import from current directory
-    try:
-        from server.point_cloud_adapter import (
-            process_video_wrapper,
-            process_video_wrapper_with_points,
-            set_log_message_function,
-        )
-
-        POINT_CLOUD_AVAILABLE = True
-    except ImportError:
-        # If not in current directory, try to import from original location
-        sys.path.append(CURRENT_DIR)
-        from server.point_cloud_adapter import (
-            process_video_wrapper,
-            process_video_wrapper_with_points,
-            set_log_message_function,
-        )
-
-        POINT_CLOUD_AVAILABLE = True
-except ImportError:
-    print(f"Warning: point_cloud_adapter module could not be imported")
-    print(f"Looked in: {CURRENT_DIR}")
-    POINT_CLOUD_AVAILABLE = False
-
 # Global dictionaries to store processing logs, locks, and point data
 processing_logs = {}
 processing_locks = {}
 point_data_store = {}
+validation_events = {}
 
 # Load video metadata
 try:
@@ -121,33 +104,6 @@ def get_processed_videos():
     return sorted(processed_videos)
 
 
-def extract_first_frame(video_path):
-    """Extract the first frame from a video and return it as a base64-encoded image."""
-    try:
-        # Extract first frame using OpenCV
-        cap = cv2.VideoCapture(video_path)
-        ret, frame = cap.read()
-        cap.release()
-
-        if not ret:
-            return None, "Failed to extract frame from video", None, None
-
-        # Convert BGR to RGB for proper display
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        # Get dimensions
-        h, w = frame_rgb.shape[:2]
-
-        # Convert to JPEG, then to base64
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-        _, buffer = cv2.imencode(".jpg", frame_rgb, encode_param)
-        frame_base64 = base64.b64encode(buffer).decode("utf-8")
-
-        return frame_base64, None, w, h
-    except Exception as e:
-        return None, str(e), None, None
-
-
 def get_video_info(filename):
     [path, video_name] = filename.split("/")
     path = path + "/"
@@ -161,7 +117,6 @@ def get_video_info(filename):
 # Set log message function for point cloud adapter if available
 if POINT_CLOUD_AVAILABLE:
     set_log_message_function(log_message)    
-
 
 # -------------------------------------------------------------------------
 # Routes
@@ -217,7 +172,7 @@ def extract_first_frame_api(filename):
         # video_path = os.path.join(directory, video)
 
         # Extract the first frame
-        frame_base64, error, width, height = extract_first_frame(video_path)
+        frame_base64, error, width, height = extract_frame(video_path)
         # print(frame_base64)
 
         if error:
@@ -297,7 +252,7 @@ def handle_process_video(data):
     def run_processing():
         try:
             # Process the video
-            result = process_video_wrapper(video, job_id)
+            result = process_video_wrapper(video, job_id, socketio)
 
             if result.get("success", False):
                 # Create URL for the processed video
@@ -354,12 +309,6 @@ def handle_process_video_with_points(data):
 
     session_data = point_data_store[session_id]
     video_path = session_data.get("video_path")
-    points = session_data.get("points")
-    
-
-    if not points or not isinstance(points, list) or len(points) < 4:
-        emit("process_error", {"error": "Invalid points data"})
-        return
 
     # Create a unique job ID
     job_id = str(uuid.uuid4())
@@ -373,7 +322,14 @@ def handle_process_video_with_points(data):
     def run_processing():
         try:
             # Process the video
-            result = process_video_wrapper_with_points(video, points, job_id)
+            result = process_video_wrapper_with_points(
+                video, 
+                session_id, 
+                point_data_store, 
+                job_id, 
+                socketio,
+                validation_events
+            )
 
             if result.get("success", False):
                 # Create URL for the processed video
@@ -470,10 +426,14 @@ def handle_update_point(data):
         # Update the point position
         session_data["points"][point_index]["x"] = x
         session_data["points"][point_index]["y"] = y
+
+        session_points = session_data["points"]
     
+        # print(f"Updating, session data points: {session_points}")
+
         emit('update_point_response', {
             "success": True, 
-            "points": session_data["points"]
+            "points": session_points
         })
     except Exception as e:
         app.logger.error(f"Error updating point: {str(e)}")
@@ -519,6 +479,16 @@ def handle_subscribe_to_job(data):
             emit(f"log_message_{job_id}", {"message": msg})
 
     emit("subscription_success", {"job_id": job_id})
+
+
+@socketio.on("validation_response")
+def handle_validation_response(data):
+    request_id = data.get("request_id")
+
+    if request_id and request_id in validation_events:
+        # Store the response and set the event
+        validation_events[request_id]["response"] = data
+        validation_events[request_id]["event"].set()
 
 
 # Run the application
