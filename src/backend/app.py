@@ -13,11 +13,8 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from .server.utils.video_utils import extract_frame
-from .server.point_cloud_adapter import (
-    process_video_wrapper,
-    process_video_wrapper_with_points,
-    set_log_message_function,
-)
+from .point_cloud.video_processor import VideoProcessor
+from .point_cloud.point_cloud_type import PointCloudType
 POINT_CLOUD_AVAILABLE = True
 
 # Path configuration
@@ -112,11 +109,7 @@ def get_video_info(filename):
         if video["filename"] == video_name and
            video["path"] == path
     ), None)
-    return video
-
-# Set log message function for point cloud adapter if available
-if POINT_CLOUD_AVAILABLE:
-    set_log_message_function(log_message)    
+    return video  
 
 # -------------------------------------------------------------------------
 # Routes
@@ -228,69 +221,69 @@ def handle_disconnect():
     print("Client disconnected")
 
 
-@socketio.on("process_video")
-def handle_process_video(data):
-    """Process video with TAPIR point cloud."""
-    if not POINT_CLOUD_AVAILABLE:
-        emit("process_error", {"error": "Point cloud processing is not available"})
-        return
+# @socketio.on("process_video")
+# def handle_process_video(data):
+#     """Process video with TAPIR point cloud."""
+#     if not POINT_CLOUD_AVAILABLE:
+#         emit("process_error", {"error": "Point cloud processing is not available"})
+#         return
 
-    video_path = data.get("video_path")
-    if not video_path:
-        emit("process_error", {"error": "No video path provided"})
-        return
+#     video_path = data.get("video_path")
+#     if not video_path:
+#         emit("process_error", {"error": "No video path provided"})
+#         return
 
-    # Create a unique job ID
-    job_id = str(uuid.uuid4())
+#     # Create a unique job ID
+#     job_id = str(uuid.uuid4())
 
-    # Initialize logging for this job
-    init_job_logging(job_id)
+#     # Initialize logging for this job
+#     init_job_logging(job_id)
 
-    video = get_video_info(video_path)
+#     video = get_video_info(video_path)
 
-    # Function to run the processing in a background thread
-    def run_processing():
-        try:
-            # Process the video
-            result = process_video_wrapper(video, job_id, socketio)
+#     # Function to run the processing in a background thread
+#     def run_processing():
+#         try:
+#             # Process the video
+#             result = process_video_wrapper(video, job_id, socketio)
 
-            if result.get("success", False):
-                # Create URL for the processed video
-                output_url = f"/output/{result['output_filename']}"
-                result["output_url"] = output_url
+#             if result.get("success", False):
+#                 # Create URL for the processed video
+#                 output_url = f"/output/{result['output_filename']}"
+#                 result["output_url"] = output_url
 
-                # Signal completion
-                log_message(job_id, f"DONE: Processing completed successfully.")
+#                 # Signal completion
+#                 log_message(job_id, f"DONE: Processing completed successfully.")
 
-                # Store result for later retrieval
-                log_message(job_id, f"RESULT:{json.dumps(result)}")
+#                 # Store result for later retrieval
+#                 log_message(job_id, f"RESULT:{json.dumps(result)}")
 
-                # Emit the completion event
-                socketio.emit(f"process_complete_{job_id}", result)
-            else:
-                error_msg = result.get("error", "Unknown error during processing")
-                log_message(job_id, f"ERROR: {error_msg}")
-                socketio.emit(f"process_error_{job_id}", {"error": error_msg})
+#                 # Emit the completion event
+#                 socketio.emit(f"process_complete_{job_id}", result)
+#             else:
+#                 error_msg = result.get("error", "Unknown error during processing")
+#                 log_message(job_id, f"ERROR: {error_msg}")
+#                 socketio.emit(f"process_error_{job_id}", {"error": error_msg})
 
-        except Exception as e:
-            stack_trace = traceback.format_exc()
-            error_msg = f"Error processing video: {str(e)}"
-            app.logger.error(f"{error_msg}\n{stack_trace}")
-            log_message(job_id, f"ERROR: {error_msg}")
-            socketio.emit(f"process_error_{job_id}", {"error": error_msg})
+#         except Exception as e:
+#             stack_trace = traceback.format_exc()
+#             error_msg = f"Error processing video: {str(e)}"
+#             app.logger.error(f"{error_msg}\n{stack_trace}")
+#             log_message(job_id, f"ERROR: {error_msg}")
+#             socketio.emit(f"process_error_{job_id}", {"error": error_msg})
 
-        # Clean up eventually
-        cleanup_thread = threading.Thread(target=cleanup_job, args=(job_id,))
-        cleanup_thread.daemon = True
-        cleanup_thread.start()
+#         # Clean up eventually
+#         cleanup_thread = threading.Thread(target=cleanup_job, args=(job_id,))
+#         cleanup_thread.daemon = True
+#         cleanup_thread.start()
 
-    # Start processing in a background thread
-    processing_thread = threading.Thread(target=run_processing)
-    processing_thread.daemon = True
-    processing_thread.start()
+#     # Start processing in a background thread
+#     processing_thread = threading.Thread(target=run_processing)
+#     processing_thread.daemon = True
+#     processing_thread.start()
 
-    # Return immediately with the job ID
-    emit("process_started", {"job_id": job_id})
+#     # Return immediately with the job ID
+#     emit("process_started", {"job_id": job_id})
 
 
 @socketio.on("process_video_with_points")
@@ -321,15 +314,16 @@ def handle_process_video_with_points(data):
     # Function to run the processing in a background thread
     def run_processing():
         try:
-            # Process the video
-            result = process_video_wrapper_with_points(
-                video, 
-                session_id, 
-                point_data_store, 
-                job_id, 
-                socketio,
-                validation_events
+            video_processor = VideoProcessor(
+                session_id=session_id, 
+                point_data_store=point_data_store,
+                point_cloud_type=PointCloudType.TAPIR,
+                job_id=job_id,
+                socketio=socketio,
+                validation_events=validation_events
             )
+            # Process the video
+            result = video_processor.process_video_wrapper_with_points(video)
 
             if result.get("success", False):
                 # Create URL for the processed video

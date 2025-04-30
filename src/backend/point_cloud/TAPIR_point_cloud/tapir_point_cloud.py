@@ -24,12 +24,12 @@ NUM_SLICES = 3
 CONFIDENCE_THRESHOLD = 0.8
 
 # Get paths
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+TAPIR_DIR = os.path.dirname(os.path.abspath(__file__))
+POINT_CLOUD_DIR = os.path.dirname(TAPIR_DIR)
+BACKEND_DIR = os.path.dirname(POINT_CLOUD_DIR)
 SRC_DIR = os.path.dirname(BACKEND_DIR)
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
 
-POINT_CLOUD_DIR = os.path.join(BACKEND_DIR, "point_cloud/")
 DATA_DIR = os.path.join(PROJECT_ROOT, "data/")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints/")
