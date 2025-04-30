@@ -80,6 +80,19 @@ to start the frontend server, at `http://localhost:3000`
 7. User validation, allowing point updates after each "segment"
 
 ### Next Steps
+(Not necessarily in order of priority)
+- Refactor critical code
+    - Further level of abstraction from TAPIR
+- Replace rhombus point initialization with circles
+    - Initially uniform weights
+    - Points need:
+        - Distance to QP
+        - Direction vector to QP
+- Develop basic weight calculation management
+    - Inter-distance relationships from cloud points to query point
+- Refactor non-critical code
+    - Get loging in frontend working
+    - Get video output working
 - Establish "uncertainty predicate" to measure how uncertain the point cloud estimate is of the bee in any given frame.
 - Replace primitive "midpoint + trajectory"-based recalculation with Kalman Filtering and RANSAC
     - Necessary to outline where and how precisely these techniques will be used
