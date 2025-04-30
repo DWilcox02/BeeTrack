@@ -8,21 +8,14 @@ import numpy as np
 import gc
 from .point_cloud_interface import PointCloudInterface, BeeSkeleton
 
-
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(CURRENT_DIR)
 SRC_DIR = os.path.dirname(BACKEND_DIR)
 POINT_CLOUD_DIR = os.path.join(BACKEND_DIR, "point_cloud/")
-TAPIR_DIR = os.path.join(POINT_CLOUD_DIR, "TAPIR_point_cloud/")
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data/")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
-
-# Import tapir_point_cloud module
-spec = importlib.util.spec_from_file_location("tapir_point_cloud", os.path.join(TAPIR_DIR, "tapir_point_cloud.py"))
-tapir_point_cloud = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(tapir_point_cloud)
 
 # Import video_utils
 spec = importlib.util.spec_from_file_location("video_utils", os.path.join(BACKEND_DIR, "server/utils/video_utils.py"))
@@ -56,7 +49,6 @@ class VideoProcessor():
         self.request_validation_callback = request_validation_callback
         self.job_id = job_id
         self.log_message = None
-
 
 
     def set_log_message_function(self, fn):
