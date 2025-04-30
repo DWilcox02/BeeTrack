@@ -19,22 +19,3 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # File types and settings
 ALLOWED_EXTENSIONS = {"mp4", "avi", "mov", "mkv", "webm", "flv", "wmv"}
-
-# Point cloud availability - try to import the adapter
-# Use a more specific import path that matches the project structure
-try:
-    # First, try to import from current directory (in case it was moved there)
-    try:
-        from .point_cloud_adapter import process_video_wrapper, set_log_message_function
-
-        POINT_CLOUD_AVAILABLE = True
-    except ImportError:
-        # If not in current directory, try to import from original location
-        sys.path.append(CURRENT_DIR)  # Make sure the UI directory is in path
-        from point_cloud_adapter import process_video_wrapper, set_log_message_function
-
-        POINT_CLOUD_AVAILABLE = True
-except ImportError:
-    print(f"Warning: point_cloud_adapter module could not be imported")
-    print(f"Looked in: {CURRENT_DIR}")
-    POINT_CLOUD_AVAILABLE = False
