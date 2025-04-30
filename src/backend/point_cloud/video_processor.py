@@ -6,7 +6,9 @@ import mediapy as media
 import tempfile
 import numpy as np
 import gc
-from .point_cloud_interface import PointCloudInterface, BeeSkeleton
+
+from .bee_skeleton import BeeSkeleton
+from .point_cloud_interface import PointCloudInterface
 
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +31,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 3
+NUM_SLICES = 2
 CONFIDENCE_THRESHOLD = 0.8
 
 class VideoProcessor():
@@ -358,7 +360,7 @@ class VideoProcessor():
                         request_validation=request_validation
                     )
 
-                    if request_validation:
+                    if i < segments_to_process - 1 and request_validation:
                         response = self.request_validation()
 
                         if response:

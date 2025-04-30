@@ -9,11 +9,10 @@ import torch
 import os
 import importlib.util
 from functools import partial  # noqa: F401
-from tapnet.models import tapir_model
-from tapnet.utils import model_utils
-from tapnet.utils import transforms
 from tqdm import tqdm
-
+from tapnet.models import tapir_model
+from tapnet.utils import model_utils, transforms
+from .tapir_point_cloud_slice import TapirPointCloudSlice
 
 
 # Get paths
@@ -174,8 +173,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         self.log("Converting coordinates and generating visualization...")
         tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
 
-        # TODO: Actual confidence calculation
-        confidence = 0.0
-        slice_result = point_cloud_interface.PointCloudSlice(orig_frames, tracks, visibles, confidence)
+        slice_result = TapirPointCloudSlice(orig_frames, tracks, visibles)
 
         return slice_result
