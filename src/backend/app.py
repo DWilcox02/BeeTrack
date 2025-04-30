@@ -1,21 +1,21 @@
 import os
 import sys
-import importlib.util
 import uuid
 import json
 import queue
 import threading
 import time
-import cv2
-import base64
 import traceback
-from flask import Flask, request, jsonify, send_from_directory
+from threading import Event
+from flask import Flask, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from .server.utils.video_utils import extract_frame
 from .point_cloud.video_processor import VideoProcessor
-from .point_cloud.point_cloud_type import PointCloudType
+from .point_cloud.TAPIR_point_cloud.tapir_point_cloud import TapirPointCloud
+
 POINT_CLOUD_AVAILABLE = True
+POINT_CLOUD_TYPE = "TAPIR"
 
 # Path configuration
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -53,9 +53,10 @@ validation_events = {}
 # Load video metadata
 try:
     videos = json.load(open(os.path.join(DATA_FOLDER, "video_meta.json")))
-except:
+except Exception as _:
     print(f"Error loading video metadata from {os.path.join(DATA_FOLDER, 'video_meta.json')}")
     videos = {}
+
 
 # -------------------------------------------------------------------------
 # Utility Functions
@@ -221,69 +222,51 @@ def handle_disconnect():
     print("Client disconnected")
 
 
-# @socketio.on("process_video")
-# def handle_process_video(data):
-#     """Process video with TAPIR point cloud."""
-#     if not POINT_CLOUD_AVAILABLE:
-#         emit("process_error", {"error": "Point cloud processing is not available"})
-#         return
+def send_frame_data_callback(frameData, points, confidence, request_validation):
+    # Serialize points to JSON
+    points_json = []
+    for point in points:
+        points_json.append({
+            "x": point["x"],
+            "y": point["y"],
+            "color": point["color"]
+        })
+        
+    socketio.emit("update_points_with_frame", {
+        "success": True, 
+        "points": points_json, 
+        "frameData": frameData,
+        "confidence": confidence,
+        "request_validation": request_validation
+    })
+    return
 
-#     video_path = data.get("video_path")
-#     if not video_path:
-#         emit("process_error", {"error": "No video path provided"})
-#         return
 
-#     # Create a unique job ID
-#     job_id = str(uuid.uuid4())
+def request_validation_callback():
+    # Generate a unique ID for validation request
+    request_id = str(uuid.uuid4())
 
-#     # Initialize logging for this job
-#     init_job_logging(job_id)
+    # Create an event to wait on
+    validation_event = Event()
+    validation_events[request_id] = {"event": validation_event, "response": None}
 
-#     video = get_video_info(video_path)
+    # Emit the event with the request ID
+    socketio.emit("validation_request", {"message": "Please validate this data", "request_id": request_id})
 
-#     # Function to run the processing in a background thread
-#     def run_processing():
-#         try:
-#             # Process the video
-#             result = process_video_wrapper(video, job_id, socketio)
+    print(f"Requesting frontend validation (ID: {request_id})")
 
-#             if result.get("success", False):
-#                 # Create URL for the processed video
-#                 output_url = f"/output/{result['output_filename']}"
-#                 result["output_url"] = output_url
-
-#                 # Signal completion
-#                 log_message(job_id, f"DONE: Processing completed successfully.")
-
-#                 # Store result for later retrieval
-#                 log_message(job_id, f"RESULT:{json.dumps(result)}")
-
-#                 # Emit the completion event
-#                 socketio.emit(f"process_complete_{job_id}", result)
-#             else:
-#                 error_msg = result.get("error", "Unknown error during processing")
-#                 log_message(job_id, f"ERROR: {error_msg}")
-#                 socketio.emit(f"process_error_{job_id}", {"error": error_msg})
-
-#         except Exception as e:
-#             stack_trace = traceback.format_exc()
-#             error_msg = f"Error processing video: {str(e)}"
-#             app.logger.error(f"{error_msg}\n{stack_trace}")
-#             log_message(job_id, f"ERROR: {error_msg}")
-#             socketio.emit(f"process_error_{job_id}", {"error": error_msg})
-
-#         # Clean up eventually
-#         cleanup_thread = threading.Thread(target=cleanup_job, args=(job_id,))
-#         cleanup_thread.daemon = True
-#         cleanup_thread.start()
-
-#     # Start processing in a background thread
-#     processing_thread = threading.Thread(target=run_processing)
-#     processing_thread.daemon = True
-#     processing_thread.start()
-
-#     # Return immediately with the job ID
-#     emit("process_started", {"job_id": job_id})
+    # Wait for the validation to be completed (with timeout)
+    if validation_event.wait(timeout=300):
+        response = validation_events[request_id]["response"]
+        # Clean up
+        del validation_events[request_id]
+        print("Validation received, recalc query points")
+        return response
+    else:
+        # Timeout occurred
+        del validation_events[request_id]
+        print("Validation request timed out")
+        return None
 
 
 @socketio.on("process_video_with_points")
@@ -311,19 +294,24 @@ def handle_process_video_with_points(data):
 
     video = get_video_info(video_path)
 
+    # Choose point cloud estimator
+    point_cloud = None
+    if POINT_CLOUD_TYPE == "TAPIR":
+        point_cloud = TapirPointCloud()
+
     # Function to run the processing in a background thread
     def run_processing():
         try:
             video_processor = VideoProcessor(
                 session_id=session_id, 
                 point_data_store=point_data_store,
-                point_cloud_type=PointCloudType.TAPIR,
-                job_id=job_id,
-                socketio=socketio,
-                validation_events=validation_events
+                point_cloud=point_cloud,
+                send_frame_data_callback=send_frame_data_callback,
+                request_validation_callback=request_validation_callback,
+                job_id=job_id
             )
             # Process the video
-            result = video_processor.process_video_wrapper_with_points(video)
+            result = video_processor.process_video(video)
 
             if result.get("success", False):
                 # Create URL for the processed video

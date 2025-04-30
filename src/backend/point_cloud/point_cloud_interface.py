@@ -6,14 +6,14 @@ TRAJECTORY_EPSILON = 10
 
 class PointCloudInterface(ABC):
     @abstractmethod
-    def process_video(
-        self, 
-        path: str, 
-        filename: str, 
-        fps: int,
-        max_segments=None,
-        save_intermediate=True,
-        predefined_points=None
+    def process_video_slice(
+        self,
+        orig_frames,
+        width,
+        height,
+        query_points,
+        resize_width=256,
+        resize_height=256,
     ):
         """
         Process a video file to generate a point cloud.
