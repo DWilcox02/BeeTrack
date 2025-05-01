@@ -53,15 +53,6 @@ class TapirEstimator(PointCloudEstimatorInterface):
         print("Initializing TAPIR model...")
         self.tapir = tapir_model.ParameterizedTAPIR(params, state, tapir_kwargs=kwargs)
 
-
-    def set_logger(self, log_fn):
-        self.log_fn = log_fn
-
-
-    def log(self, message):
-        self.log_fn(message)
-
-
     def process_video_slice(
         self,
         orig_frames,

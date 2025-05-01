@@ -76,20 +76,20 @@ app.get("/analysis/:filename", async (req, res) => {
     ];
 
     // Static points for outside_florea
-    points = [
-      { x: 1017.8, y: 638.1, color: "red" },
-      { x: 1077.8, y: 688.1, color: "green" },
-      { x: 1044.4, y: 674.8, color: "blue" },
-      { x: 1057.8, y: 659.8, color: "purple" },
-    ];
+    // points = [
+    //   { x: 1017.8, y: 638.1, color: "red" },
+    //   { x: 1077.8, y: 688.1, color: "green" },
+    //   { x: 1044.4, y: 674.8, color: "blue" },
+    //   { x: 1057.8, y: 659.8, color: "purple" },
+    // ];
 
     // Static points for dance_15
-    // points = [
-    //   { x: 304.9, y: 367.8, color: "red" },
-    //   { x: 348.3, y: 250.5, color: "green" },
-    //   { x: 341.3, y: 312.7, color: "blue" },
-    //   { x: 297.9, y: 295.1, color: "purple" },
-    // ]
+    points = [
+      { x: 304.9, y: 367.8, color: "red" },
+      { x: 348.3, y: 250.5, color: "green" },
+      { x: 341.3, y: 312.7, color: "blue" },
+      { x: 297.9, y: 295.1, color: "purple" },
+    ]
 
     // Generate Plotly HTML using Plotly.js
     // Note: We'll create a client-side solution instead of server-side rendering

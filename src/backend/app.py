@@ -320,7 +320,7 @@ def handle_process_video_with_points(data):
                 result["output_url"] = output_url
 
                 # Signal completion
-                log_message(job_id, f"DONE: Processing completed successfully.")
+                log_message(job_id, "DONE: Processing completed successfully.")
 
                 # Store result for later retrieval
                 log_message(job_id, f"RESULT:{json.dumps(result)}")
