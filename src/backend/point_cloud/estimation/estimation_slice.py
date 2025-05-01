@@ -1,9 +1,11 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
+
 TRAJECTORY_EPSILON = 10
 
-class PointCloudSlice(ABC):
+
+class EstimationSlice(ABC):
     def __init__(self, orig_frames, tracks, visibles):
         self.orig_frames = orig_frames
         self.tracks = tracks  # shape (num_points, num_frame, 2), floats
@@ -27,7 +29,7 @@ class PointCloudSlice(ABC):
             mean_trajectory = prev_trajectory
         normalized_trajectory = mean_trajectory / np.linalg.norm(mean_trajectory)  # Normalize the trajectory
         return normalized_trajectory
-    
+
     @abstractmethod
     def get_video(self):
         pass

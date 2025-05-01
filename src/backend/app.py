@@ -12,14 +12,14 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from .server.utils.video_utils import extract_frame
 from .point_cloud.video_processor import VideoProcessor
-from .point_cloud.TAPIR_point_cloud.tapir_point_cloud import TapirPointCloud
+from .point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator import TapirEstimator
 
 POINT_CLOUD_AVAILABLE = True
 POINT_CLOUD_TYPE = "TAPIR"
 
 # Path configuration
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.dirname(CURRENT_DIR)  # Go up one level to src/
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.dirname(BACKEND_DIR)  # Go up one level to src/
 PROJECT_ROOT = os.path.dirname(SRC_DIR)  # Go up another level to project root
 
 # Add src directory to python path to enable imports
@@ -295,9 +295,9 @@ def handle_process_video_with_points(data):
     video = get_video_info(video_path)
 
     # Choose point cloud estimator
-    point_cloud = None
+    point_cloud_estimator = None
     if POINT_CLOUD_TYPE == "TAPIR":
-        point_cloud = TapirPointCloud()
+        point_cloud_estimator = TapirEstimator()
 
     # Function to run the processing in a background thread
     def run_processing():
@@ -305,13 +305,14 @@ def handle_process_video_with_points(data):
             video_processor = VideoProcessor(
                 session_id=session_id, 
                 point_data_store=point_data_store,
-                point_cloud=point_cloud,
+                point_cloud_estimator=point_cloud_estimator,
                 send_frame_data_callback=send_frame_data_callback,
                 request_validation_callback=request_validation_callback,
+                video=video,
                 job_id=job_id
             )
             # Process the video
-            result = video_processor.process_video(video)
+            result = video_processor.process_video()
 
             if result.get("success", False):
                 # Create URL for the processed video

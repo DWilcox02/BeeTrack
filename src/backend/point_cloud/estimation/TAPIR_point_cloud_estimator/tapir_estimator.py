@@ -1,58 +1,37 @@
-import matplotlib
-matplotlib.use("Agg")  # Use non-interactive backend
-import haiku as hk  # noqa: F401
 import jax
 import jax.numpy as jnp
 import mediapy as media
 import numpy as np
 import torch
+import haiku as hk  # noqa: F401
 import os
-import importlib.util
-from functools import partial  # noqa: F401
-from tqdm import tqdm
+import matplotlib
+matplotlib.use("Agg")  # Use non-interactive backend
 from tapnet.models import tapir_model
 from tapnet.utils import model_utils, transforms
-from .tapir_point_cloud_slice import TapirPointCloudSlice
+from tqdm import tqdm
+from src.backend.point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator_slice import TapirEstimatorSlice
+from src.backend.point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 
 
-# Get paths
 TAPIR_DIR = os.path.dirname(os.path.abspath(__file__))
-POINT_CLOUD_DIR = os.path.dirname(TAPIR_DIR)
+ESTIMATION_DIR = os.path.dirname(TAPIR_DIR)
+POINT_CLOUD_DIR = os.path.dirname(ESTIMATION_DIR)
 BACKEND_DIR = os.path.dirname(POINT_CLOUD_DIR)
 SRC_DIR = os.path.dirname(BACKEND_DIR)
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
 
-DATA_DIR = os.path.join(PROJECT_ROOT, "data/")
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints/")
 
-# Create output directory if it doesn't exist
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# Import point cloud interface
-spec = importlib.util.spec_from_file_location(
-    "point_cloud_interface", os.path.join(POINT_CLOUD_DIR, "point_cloud_interface.py")
-)
-point_cloud_interface = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(point_cloud_interface)
-
-# Import video_utils
-spec = importlib.util.spec_from_file_location(
-    "video_utils", os.path.join(BACKEND_DIR, "server/utils/video_utils.py")
-)
-video_utils = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(video_utils)
-
-DATA_DIR = "data/"
-OUTPUT_DIR = "output/"
 MODEL_TYPE = "tapir"
+
 
 torch.cuda.empty_cache()
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.5"
 
 
-class TapirPointCloud(point_cloud_interface.PointCloudInterface):
+class TapirEstimator(PointCloudEstimatorInterface):
     def __init__(self):
         self.log_fn = print  # Default to standard print
 
@@ -173,6 +152,6 @@ class TapirPointCloud(point_cloud_interface.PointCloudInterface):
         self.log("Converting coordinates and generating visualization...")
         tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))
 
-        slice_result = TapirPointCloudSlice(orig_frames, tracks, visibles)
+        slice_result = TapirEstimatorSlice(orig_frames, tracks, visibles)
 
         return slice_result

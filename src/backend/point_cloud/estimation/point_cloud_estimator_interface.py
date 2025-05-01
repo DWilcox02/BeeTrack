@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-class PointCloudInterface(ABC):
+
+class PointCloudEstimatorInterface(ABC):
     @abstractmethod
     def process_video_slice(
         self,

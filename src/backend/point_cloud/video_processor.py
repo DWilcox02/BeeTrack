@@ -1,5 +1,4 @@
 import os
-import importlib.util
 import json
 import time
 import mediapy as media
@@ -8,7 +7,10 @@ import numpy as np
 import gc
 
 from .bee_skeleton import BeeSkeleton
-from .point_cloud_interface import PointCloudInterface
+from .estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
+from ..server.utils.video_utils import extract_frame
+from .circular_point_cloud import CircularPointCloud
+
 
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,14 +20,6 @@ POINT_CLOUD_DIR = os.path.join(BACKEND_DIR, "point_cloud/")
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data/")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
-
-# Import video_utils
-spec = importlib.util.spec_from_file_location("video_utils", os.path.join(BACKEND_DIR, "server/utils/video_utils.py"))
-video_utils = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(video_utils)
-
-# Create output directory if it doesn't exist
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Video FPS lookup dictionary based on your existing data
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
@@ -39,19 +33,21 @@ class VideoProcessor():
         self,
         session_id: str,
         point_data_store: dict,
-        point_cloud: PointCloudInterface,
+        point_cloud_estimator: PointCloudEstimatorInterface,
         send_frame_data_callback, 
         request_validation_callback,
+        video,
         job_id=None,
     ):
         self.session_id = session_id
         self.point_data_store = point_data_store
-        self.point_cloud = point_cloud
+        self.point_cloud_estimator = point_cloud_estimator
         self.send_frame_data_callback = send_frame_data_callback
         self.request_validation_callback = request_validation_callback
+        self.video = video
         self.job_id = job_id
         self.log_message = None
-
+        self.point_cloud = CircularPointCloud(point_data_store[session_id]["points"])
 
     def set_log_message_function(self, fn):
         self.log_message = fn
@@ -72,7 +68,7 @@ class VideoProcessor():
 
 
     def send_current_frame_data(self, video_path, frame, confidence, request_validation):
-        frame_base64, error, width, height = video_utils.extract_frame(video_path, frame)
+        frame_base64, error, width, height = extract_frame(video_path, frame)
         frameData = {"frame": frame_base64, "width": width, "height": height, "frame_idx": frame}
         self.send_frame_data_callback(frameData, self.get_points(), confidence, request_validation)
 
@@ -227,11 +223,11 @@ class VideoProcessor():
         return query_points, trajectory
 
 
-    def process_video(self, video):
+    def process_video(self):
         # Determine FPS from our lookup, default to 30 if not found
-        filename = video["filename"]
-        path = video["path"]
-        fps = video.get("fps", 30)
+        filename = self.video["filename"]
+        path = self.video["path"]
+        fps = self.video.get("fps", 30)
 
         assert(self.session_id in self.point_data_store)
         points = self.point_data_store[self.session_id].get("points")
@@ -251,7 +247,7 @@ class VideoProcessor():
                     self.log_message(self.job_id, message)
                     print(message)  # Still print to console for debugging
 
-                self.point_cloud.set_logger(custom_logger)
+                self.point_cloud_estimator.set_logger(custom_logger)
 
             max_segments = None
             save_intermediate=True
@@ -303,10 +299,11 @@ class VideoProcessor():
             resize_height = 256
             resize_width = 256
             query_frame = 0
-            stride = 8
+            # stride = 8
 
             height_ratio = resize_height / height
             width_ratio = resize_width / width
+            
             bee_skeleton = BeeSkeleton(self.get_points())
             query_points = self.convert_select_points_to_query_points(query_frame=query_frame, points=self.get_points(), height_ratio=height_ratio, width_ratio=width_ratio)
             current_trajectory = bee_skeleton.initial_trajectory
@@ -323,7 +320,7 @@ class VideoProcessor():
                 # Process the slice
                 try:              
                     # Use saved points  
-                    slice_result = self.point_cloud.process_video_slice(
+                    slice_result = self.point_cloud_estimator.process_video_slice(
                         orig_frames_slice, 
                         width, 
                         height, 
