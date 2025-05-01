@@ -3,6 +3,13 @@ from .point_cloud import PointCloud
 from .bee_skeleton import BeeSkeleton
 
 class RhombusPointCloud(PointCloud):
+    # Points ends up being of format:
+    # [
+    #     {"x": 292.514404296875, "y": 425.1623229980469, "color": "red"},
+    #     {"x": 331.7908020019531, "y": 306.4179992675781, "color": "green"},
+    #     {"x": 326.9676208496094, "y": 368.82452392578125, "color": "blue"},
+    #     {"x": 282.9793701171875, "y": 352.75115966796875, "color": "purple"},
+    # ]
 
     def __init__(self, init_points, point_data_store, session_id):
         super().__init__(init_points, point_data_store, session_id)

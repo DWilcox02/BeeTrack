@@ -1,7 +1,14 @@
 from abc import ABC, abstractmethod
 
 class PointCloud(ABC):
-    
+    # Points format:
+    # [
+    #   {'x': Array(1014.8928, dtype=float32), 'y': Array(642.25415, dtype=float32), 'color': 'red'},
+    #   {'x': Array(1074.8928, dtype=float32), 'y': Array(692.25415, dtype=float32), 'color': 'green'},
+    #   {'x': Array(1041.4928, dtype=float32), 'y': Array(678.9541, dtype=float32), 'color': 'blue'},
+    #   {'x': Array(1054.8928, dtype=float32), 'y': Array(663.9541, dtype=float32), 'color': 'purple'}
+    # ]
+
     def __init__(self, init_points, point_data_store, session_id):
         self.query_points = init_points # Initial query points
         self.point_data_store = point_data_store

@@ -293,8 +293,8 @@ function updatePlot(newPoints, frameData=null) {
 
     // Create new data array with scatter traces for each point
     const newData = newPoints.map((point) => ({
-      x: [point.x],
-      y: [point.y],
+      x: [parseFloat(point.x)],
+      y: [parseFloat(point.y)],
       mode: "markers",
       marker: {
         size: 10,

@@ -227,18 +227,21 @@ def send_frame_data_callback(frameData, points, confidence, request_validation):
     points_json = []
     for point in points:
         points_json.append({
-            "x": point["x"],
-            "y": point["y"],
+            "x": json.dumps(float(point["x"])),
+            "y": json.dumps(float(point["y"])),
             "color": point["color"]
         })
-        
-    socketio.emit("update_points_with_frame", {
-        "success": True, 
-        "points": points_json, 
-        "frameData": frameData,
-        "confidence": confidence,
-        "request_validation": request_validation
-    })
+    
+    socketio.emit(
+        "update_points_with_frame",
+        {
+            "success": True,
+            "points": points_json,
+            "frameData": frameData,
+            "confidence": json.dumps(float(confidence)),
+            "request_validation": json.dumps(str(request_validation)),
+        },
+    )
     return
 
 
@@ -411,12 +414,20 @@ def handle_update_point(data):
         session_data["points"][point_index]["y"] = y
 
         session_points = session_data["points"]
+        
+        points_json = []
+        for point in session_points:
+            points_json.append({
+                "x": json.dumps(float(point["x"])),
+                "y": json.dumps(float(point["y"])),
+                "color": point["color"]
+            })
     
         # print(f"Updating, session data points: {session_points}")
 
         emit('update_point_response', {
             "success": True, 
-            "points": session_points
+            "points": points_json
         })
     except Exception as e:
         app.logger.error(f"Error updating point: {str(e)}")

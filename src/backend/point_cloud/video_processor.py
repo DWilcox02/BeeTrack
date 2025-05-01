@@ -8,7 +8,7 @@ import gc
 
 from .estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from ..server.utils.video_utils import extract_frame
-# from .circular_point_cloud import CircularPointCloud
+from .circular_point_cloud import CircularPointCloud
 from .rhombus_point_cloud import RhombusPointCloud
 
 
@@ -25,7 +25,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 3
+NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.8
 
 class VideoProcessor():
@@ -46,9 +46,17 @@ class VideoProcessor():
         self.video = video
         self.job_id = job_id
         self.log_message = None
-        self.point_cloud = RhombusPointCloud(
-            init_points=point_data_store[session_id]["points"], point_data_store=point_data_store, session_id=session_id
+        self.point_cloud = CircularPointCloud(
+            init_points=point_data_store[session_id]["points"], 
+            point_data_store=point_data_store, 
+            session_id=session_id,
+            radius=50
         )
+        # self.point_cloud = RhombusPointCloud(
+        #     init_points=point_data_store[session_id]["points"],
+        #     point_data_store=point_data_store,
+        #     session_id=session_id
+        # )
 
 
     def set_log_message_function(self, fn):
@@ -116,7 +124,6 @@ class VideoProcessor():
             if temp_dir and os.path.exists(temp_dir):
                 os.rmdir(temp_dir)
             return None, fps
-
 
 
     def process_video(self):
@@ -196,7 +203,6 @@ class VideoProcessor():
             
             query_points = self.point_cloud.generate_cloud_points(query_frame=query_frame, height_ratio=height_ratio, width_ratio=width_ratio)
             current_trajectory = self.point_cloud.initial_trajectory()
-            # print(query_points)
 
             # Process each segment
             for i in range(segments_to_process):
@@ -226,16 +232,6 @@ class VideoProcessor():
                         width_ratio,
                         current_trajectory
                     )
-                    
-                    
-                    # Points format:
-                    # [
-                    #   {'x': Array(1014.8928, dtype=float32), 'y': Array(642.25415, dtype=float32), 'color': 'red'}, 
-                    #   {'x': Array(1074.8928, dtype=float32), 'y': Array(692.25415, dtype=float32), 'color': 'green'}, 
-                    #   {'x': Array(1041.4928, dtype=float32), 'y': Array(678.9541, dtype=float32), 'color': 'blue'}, 
-                    #   {'x': Array(1054.8928, dtype=float32), 'y': Array(663.9541, dtype=float32), 'color': 'purple'}
-                    # ]
-
                 
                     request_validation = slice_result.confidence < CONFIDENCE_THRESHOLD
                     self.send_current_frame_data(
@@ -301,6 +297,4 @@ class VideoProcessor():
             self.log(error_message)
             self.log(stack_trace)
             return {"success": False, "error": error_message}
-
-
 
