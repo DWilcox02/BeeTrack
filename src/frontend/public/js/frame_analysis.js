@@ -3,6 +3,7 @@ let selectedPointIndex = null;
 let selectedPointColor = null;
 let plotlyPlot = null;
 let pointPositions = {}; // Keep track of current point positions
+let pointRadiusValues = [50, 50, 50, 50];
 
 const backend_url = "http://127.0.0.1:5001";
 
@@ -16,11 +17,18 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  const sendRadiusBtn = document.getElementById("sendRadiusBtn");
+  if (sendRadiusBtn) {
+    sendRadiusBtn.addEventListener("click", updateRadiusForSelectedPoint);
+  }
+
   // Initialize overlay and handlers
   initializePlotHandlers();
 
   // Show initial status
   showStatus("Select a point and click on the image to place it.", "processing");
+
+  setTimeout(initializeRadiusValues, 500);
 });
 
 // Initialize plot handlers
@@ -55,6 +63,17 @@ function initializePlotHandlers() {
   } else {
     console.error("Plot overlay element not found");
   }
+}
+
+function initializeRadiusValues() {
+  if (window.pointsData && Array.isArray(window.pointsData)) {
+    pointsData.forEach((point, index) => {
+      if (point && point.radius !== undefined) {
+        pointRadiusValues[index] = parseInt(point.radius, 10);
+      }
+    });
+  }
+  console.log("Initialized radius values:", pointRadiusValues);
 }
 
 // Resize the overlay to match the plot
@@ -102,14 +121,66 @@ function selectPoint(index, color) {
   // Set the selected point
   selectedPointIndex = parseInt(index);
   selectedPointColor = color;
-  // TODO: Actually get the radii from the EJS
-  selectedPointRadius = 50;
+
+  // Get current radius for this point from our array or from the pointsData
+  let currentRadius = 50; // Default
+
+  // Try to get it from pointsData first if available
+  if (
+    window.pointsData &&
+    window.pointsData[selectedPointIndex] &&
+    window.pointsData[selectedPointIndex].radius !== undefined
+  ) {
+    currentRadius = parseInt(window.pointsData[selectedPointIndex].radius, 10);
+    // Update our tracking array
+    pointRadiusValues[selectedPointIndex] = currentRadius;
+  } else if (pointRadiusValues[selectedPointIndex] !== undefined) {
+    // Fall back to our tracking array
+    currentRadius = pointRadiusValues[selectedPointIndex];
+  }
+
+  // Update the slider value
+  const radiusSlider = document.getElementById("radiusRange");
+  radiusSlider.value = currentRadius;
+
+  // Update the displayed value
+  document.getElementById("radiusValue").textContent = currentRadius;
+
+  // Store as selected radius
+  selectedPointRadius = currentRadius;
 
   // Highlight the selected button
   document.getElementById("point" + color.charAt(0).toUpperCase() + color.slice(1)).classList.add("active");
 
   // Show status
-  showStatus(`Selected ${color} point. Click on the image to place it.`, "processing");
+  showStatus(
+    `Selected ${color} point. Click on the image to place it or use the slider to adjust radius.`,
+    "processing"
+  );
+}
+
+function updateRadiusForSelectedPoint() {
+  if (selectedPointIndex === null) {
+    showStatus("Please select a point first.", "processing");
+    return;
+  }
+
+  // Get the current slider value
+  const newRadius = parseInt(document.getElementById("radiusRange").value, 10);
+
+  // Store the new radius in our array
+  pointRadiusValues[selectedPointIndex] = newRadius;
+
+  // Get the last known position of this point
+  const point = window.pointsData[selectedPointIndex];
+
+  // Make sure we have valid coordinates
+  if (point && point.x !== undefined && point.y !== undefined) {
+    // Update the point with the new radius
+    updatePoint(selectedPointIndex, point.x, point.y, newRadius);
+  } else {
+    showStatus("Point position unknown. Place the point first.", "error");
+  }
 }
 
 

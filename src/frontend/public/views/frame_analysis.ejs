@@ -36,7 +36,27 @@
             <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>
             <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Circle 2</div>
             <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Circle 3</div>
-            <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div>
+            <!-- <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div> -->
+        </div>
+        <div>
+            Circle Radius
+            <div class="slider-container">
+                <input type="range" min="0" max="500" value="50" class="slider" id="radiusRange">
+                <button id="sendRadiusBtn" class="btn btn-action">Send Radius</button>
+            </div>
+            <div class="value-display">
+                Value: <span id="radiusValue"></span> pixels
+            </div>
+
+            <script>
+                var slider = document.getElementById("radiusRange")
+                var output = document.getElementById("radiusValue")
+                output.innerHTML = slider.value
+
+                slider.oninput = function() {
+                    output.innerHTML = this.value
+                }
+            </script>
         </div>
         
         <div class="plotly-container" id="plotly-container">
