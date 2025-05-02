@@ -3,11 +3,13 @@
 Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Project. Detect and track honeybees performing their waggle dance for apiology researchers. Leverages TAPIR (Track Any Point library) for point cloud establishment, Kalman filtering and RANSAC for future position prediction. 
 
 <p align="center">
-    <img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="python"> <img src="https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E" alt="JavaScript"> <img src="https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=TensorFlow&logoColor=white" alt="TensorFlow"> <img src="https://img.shields.io/badge/Plotly-239120?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly">
+    <img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="python"> <img src="https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E" alt="JavaScript">  <img src="https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge" alt="GPL3">
+    <!-- <img src="https://img.shields.io/badge/Plotly-239120?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly"> -->
+    <!-- <img src="https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=TensorFlow&logoColor=white" alt="TensorFlow"> -->
 </p>
-<p align="center">
-    <img src="https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge" alt="GPL3">
-</p>
+<!-- <p align="center">
+    
+</p> -->
 
 ## Version Information
 Running `python 3.11.10`. Updates made to fix Keras 3 compatibility.
@@ -78,18 +80,18 @@ to start the frontend server, at `http://localhost:3000`
 5. Basic re-adjustment process, using "segment" midpoint and trajectory to recalculate points after each segment
 6. Server split into JS/HTML (frontend) + Python (backend) with socket for bidirectional communication
 7. User validation, allowing point updates after each "segment"
+8. Further level of abstraction from TAPIR
+9. Replace rhombus point initialization with circles
 
 ### Next Steps
 (Not necessarily in order of priority)
-- Refactor critical code
-    - Further level of abstraction from TAPIR
-- Replace rhombus point initialization with circles
+- Setup weight system for RANSAC to use
     - Initially uniform weights
     - Points need:
         - Distance to QP
         - Direction vector to QP
-- Develop basic weight calculation management
-    - Inter-distance relationships from cloud points to query point
+    - Develop basic weight calculation management
+        - Inter-distance relationships from cloud points to query point
 - Refactor non-critical code
     - Get loging in frontend working
     - Get video output working
