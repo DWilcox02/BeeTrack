@@ -3,21 +3,8 @@ from .point_cloud import PointCloud
 
 
 class CircularPointCloud(PointCloud):
-    # Points ends up being of format:
-    # [
-    #     {"x": np.float32(293.44388), "y": np.float32(397.61832), "color": "red"},
-    #     {"x": np.float32(336.84387), "y": np.float32(280.31833), "color": "green"},
-    #     {"x": np.float32(329.84387), "y": np.float32(342.51834), "color": "blue"},
-    #     {"x": np.float32(286.44388), "y": np.float32(324.91833), "color": "purple"},
-    # ]
-
-    def __init__(self, init_points, point_data_store, session_id, radius=10):
+    def __init__(self, init_points, point_data_store, session_id):
         super().__init__(init_points, point_data_store, session_id)
-        self.radius = radius  # Default radius for the circles
-
-    def set_radius(self, radius):
-        """Set the radius for circular point interpolation"""
-        self.radius = radius
 
     def generate_cloud_points(self, query_frame=None, height_ratio=None, width_ratio=None):
         """Generate circular point clouds around each query point"""
@@ -36,7 +23,7 @@ class CircularPointCloud(PointCloud):
 
         # Initialize an empty array to hold all interpolated points
         all_interpolated_points = []
-
+        print(points)
         # For each query point, generate a circle of points around it
         for point in points:
             circle_points = self._generate_circle_points(point, n_points_per_circle)
@@ -60,13 +47,14 @@ class CircularPointCloud(PointCloud):
         """Helper method to generate points in a circle around a center point"""
         center_x = float(center_point["x"])
         center_y = float(center_point["y"])
+        radius = float(center_point["radius"])
 
         circle_points = []
         for i in range(n_points):
             # Calculate points around a circle
             angle = 2 * np.pi * i / n_points
-            x = center_x + self.radius * np.cos(angle)
-            y = center_y + self.radius * np.sin(angle)
+            x = center_x + radius * np.cos(angle)
+            y = center_y + radius * np.sin(angle)
             circle_points.append((x, y))
 
         # Add the center point as well
@@ -105,6 +93,7 @@ class CircularPointCloud(PointCloud):
                 "x": float(point["x"]) + offset[0],
                 "y": float(point["y"]) + offset[1],
                 "color": point["color"],
+                "radius": point["radius"]
             }
             new_points.append(new_point)
 

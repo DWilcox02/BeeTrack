@@ -49,9 +49,7 @@ class VideoProcessor():
         self.point_cloud = CircularPointCloud(
             init_points=point_data_store[session_id]["points"], 
             point_data_store=point_data_store, 
-            session_id=session_id,
-            radius=50
-        )
+            session_id=session_id        )
         # self.point_cloud = RhombusPointCloud(
         #     init_points=point_data_store[session_id]["points"],
         #     point_data_store=point_data_store,
