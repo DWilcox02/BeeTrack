@@ -229,7 +229,8 @@ def send_frame_data_callback(frameData, points, confidence, request_validation):
         points_json.append({
             "x": json.dumps(float(point["x"])),
             "y": json.dumps(float(point["y"])),
-            "color": point["color"]
+            "color": point["color"],
+            "radius": json.dumps(float(point["radius"]))
         })
     
     socketio.emit(
