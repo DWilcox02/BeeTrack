@@ -366,6 +366,7 @@ def parsePoints(points: str):
                 "x": float(point["x"]),
                 "y": float(point["y"]),
                 "color": point.get("color", "#FFFFFF"),
+                "radius": float(point["radius"]),
             }
             parsed_points.append(parsed_point)
         return parsed_points
@@ -396,6 +397,7 @@ def handle_update_point(data):
         point_index = int(data.get("point_index"))
         x = float(data.get("x"))
         y = float(data.get("y"))
+        radius = float(data.get("radius"))
 
         if session_id not in point_data_store:
             print(f"Session ID {session_id} not found in point_data_store")
@@ -412,16 +414,20 @@ def handle_update_point(data):
         # Update the point position
         session_data["points"][point_index]["x"] = x
         session_data["points"][point_index]["y"] = y
+        session_data["points"][point_index]["radius"] = radius
 
         session_points = session_data["points"]
         
         points_json = []
         for point in session_points:
-            points_json.append({
-                "x": json.dumps(float(point["x"])),
-                "y": json.dumps(float(point["y"])),
-                "color": point["color"]
-            })
+            points_json.append(
+                {
+                    "x": json.dumps(float(point["x"])),
+                    "y": json.dumps(float(point["y"])),
+                    "color": point["color"],
+                    "radius": json.dumps(float(point["radius"])),
+                }
+            )
     
         # print(f"Updating, session data points: {session_points}")
 

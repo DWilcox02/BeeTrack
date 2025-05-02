@@ -102,6 +102,8 @@ function selectPoint(index, color) {
   // Set the selected point
   selectedPointIndex = parseInt(index);
   selectedPointColor = color;
+  // TODO: Actually get the radii from the EJS
+  selectedPointRadius = 50;
 
   // Highlight the selected button
   document.getElementById("point" + color.charAt(0).toUpperCase() + color.slice(1)).classList.add("active");
@@ -110,12 +112,15 @@ function selectPoint(index, color) {
   showStatus(`Selected ${color} point. Click on the image to place it.`, "processing");
 }
 
+
 // Function to handle plot clicks with precise coordinate mapping
 function handlePlotClick(event) {
   if (selectedPointIndex === null) {
     showStatus("Please select a point color first.", "processing");
     return;
   }
+
+  radius = selectedPointRadius;
 
   // Get the Plotly plot element
   const plotlyDiv = document.querySelector(".js-plotly-plot");
@@ -158,11 +163,11 @@ function handlePlotClick(event) {
       console.log(`Converted to data coordinates: (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
 
       // Update point position on the server
-      updatePoint(selectedPointIndex, dataX, dataY);
+      updatePoint(selectedPointIndex, dataX, dataY, radius);
     } else {
       console.log(`Using clickmodeBar data:`, coordData);
       // Update point position using the coordinate data from clickmodeBar
-      updatePoint(selectedPointIndex, coordData.x, coordData.y);
+      updatePoint(selectedPointIndex, coordData.x, coordData.y, radius);
     }
   } catch (error) {
     console.error("Error converting coordinates:", error);
@@ -209,7 +214,7 @@ function handlePlotClick(event) {
       console.log(`X range: [${xa.range[0]}, ${xa.range[1]}], Y range: [${ya.range[0]}, ${ya.range[1]}]`);
 
       // Update point position on the server
-      updatePoint(selectedPointIndex, dataX, dataY);
+      updatePoint(selectedPointIndex, dataX, dataY, radius);
     } catch (fallbackError) {
       console.error("Fallback coordinate conversion also failed:", fallbackError);
       showStatus("Error calculating coordinates. Please try again.", "error");
@@ -237,7 +242,7 @@ function showStatus(message, type) {
 }
 
 // Function to update a point's position
-async function updatePoint(pointIndex, x, y) {
+async function updatePoint(pointIndex, x, y, radius) {
   showStatus(`Updating ${selectedPointColor} point position...`, "processing");
 
   try {
@@ -252,6 +257,7 @@ async function updatePoint(pointIndex, x, y) {
         point_index: pointIndex,
         x: x,
         y: y,
+        radius: radius
       });
 
       // The response will be handled by the socket.on('update_point_response') handler above
@@ -273,15 +279,25 @@ function ensureDataUrlFormat(imageData) {
   return imageData;
 }
 
+function pointToCircle(point) {
+  return {
+    type: "circle",
+    xref: "x",
+    yref: "y",
+    x0: parseFloat(point["x"]) - parseFloat(point["radius"]),
+    y0: parseFloat(point["y"]) - parseFloat(point["radius"]),
+    x1: parseFloat(point["x"]) + parseFloat(point["radius"]),
+    y1: parseFloat(point["y"]) + parseFloat(point["radius"]),
+    line: {
+      color: point["color"],
+    },
+  };
+}
+
+
 // Function to update the plot with new data
 function updatePlot(newPoints, frameData=null) {
   try {
-    // Validate input
-    if (!Array.isArray(newPoints) || newPoints.length !== 4) {
-      console.error("newPoints must be an array of 4 points");
-      return;
-    }
-
     // Find the Plotly element if not already found
     if (!plotlyPlot) {
       plotlyPlot = document.querySelector(".js-plotly-plot");
@@ -291,17 +307,8 @@ function updatePlot(newPoints, frameData=null) {
       }
     }
 
-    // Create new data array with scatter traces for each point
-    const newData = newPoints.map((point) => ({
-      x: [parseFloat(point.x)],
-      y: [parseFloat(point.y)],
-      mode: "markers",
-      marker: {
-        size: 10,
-        color: point.color,
-      },
-      name: `Point (${point.color})`,
-    }));
+    // Create new shapes array
+    const newCircles = newPoints.map(pointToCircle)
 
     // Update the global pointsData
     window.pointsData = newPoints;
@@ -310,6 +317,11 @@ function updatePlot(newPoints, frameData=null) {
     if (window.Plotly) {
       // Get the current layout
       let currentLayout = plotlyPlot.layout || plotData.layout;
+
+      if (!Array.isArray(newPoints) || currentLayout.shapes.length != newPoints.length) {
+        console.error("newPoints must be an array of the same length as current number of points");
+        return;
+      }
       
       // Update the image in the layout if frameData is provided
       if (frameData && frameData.frame) {
@@ -353,7 +365,12 @@ function updatePlot(newPoints, frameData=null) {
         currentLayout.title = `Frame Analysis`;
       }
 
-      Plotly.react(plotlyPlot, newData, currentLayout, {
+      console.log(currentLayout.shapes)
+      for (let i = 0; i < currentLayout.shapes.length; i++) {
+        currentLayout.shapes[i] = newCircles[i];
+      }
+
+      Plotly.react(plotlyPlot, [], currentLayout, {
         displayModeBar: true,
         staticPlot: false,
         scrollZoom: false,

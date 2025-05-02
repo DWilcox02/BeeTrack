@@ -200,7 +200,7 @@
             
             // Create the plot
             Plotly.newPlot(plotlyDiv, figure.data, figure.layout, figure.config);
-            
+            console.log(figure.layout.shapes)
             // Store points globally for use in the rest of the app
             window.pointsData = INITIAL_POINTS;
         }
