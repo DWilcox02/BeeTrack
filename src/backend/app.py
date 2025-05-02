@@ -12,14 +12,14 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from .server.utils.video_utils import extract_frame
 from .point_cloud.video_processor import VideoProcessor
-from .point_cloud.TAPIR_point_cloud.tapir_point_cloud import TapirPointCloud
+from .point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator import TapirEstimator
 
 POINT_CLOUD_AVAILABLE = True
 POINT_CLOUD_TYPE = "TAPIR"
 
 # Path configuration
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.dirname(CURRENT_DIR)  # Go up one level to src/
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.dirname(BACKEND_DIR)  # Go up one level to src/
 PROJECT_ROOT = os.path.dirname(SRC_DIR)  # Go up another level to project root
 
 # Add src directory to python path to enable imports
@@ -227,18 +227,22 @@ def send_frame_data_callback(frameData, points, confidence, request_validation):
     points_json = []
     for point in points:
         points_json.append({
-            "x": point["x"],
-            "y": point["y"],
-            "color": point["color"]
+            "x": json.dumps(float(point["x"])),
+            "y": json.dumps(float(point["y"])),
+            "color": point["color"],
+            "radius": json.dumps(float(point["radius"]))
         })
-        
-    socketio.emit("update_points_with_frame", {
-        "success": True, 
-        "points": points_json, 
-        "frameData": frameData,
-        "confidence": confidence,
-        "request_validation": request_validation
-    })
+    
+    socketio.emit(
+        "update_points_with_frame",
+        {
+            "success": True,
+            "points": points_json,
+            "frameData": frameData,
+            "confidence": json.dumps(float(confidence)),
+            "request_validation": json.dumps(str(request_validation)),
+        },
+    )
     return
 
 
@@ -295,9 +299,9 @@ def handle_process_video_with_points(data):
     video = get_video_info(video_path)
 
     # Choose point cloud estimator
-    point_cloud = None
+    point_cloud_estimator = None
     if POINT_CLOUD_TYPE == "TAPIR":
-        point_cloud = TapirPointCloud()
+        point_cloud_estimator = TapirEstimator()
 
     # Function to run the processing in a background thread
     def run_processing():
@@ -305,13 +309,14 @@ def handle_process_video_with_points(data):
             video_processor = VideoProcessor(
                 session_id=session_id, 
                 point_data_store=point_data_store,
-                point_cloud=point_cloud,
+                point_cloud_estimator=point_cloud_estimator,
                 send_frame_data_callback=send_frame_data_callback,
                 request_validation_callback=request_validation_callback,
+                video=video,
                 job_id=job_id
             )
             # Process the video
-            result = video_processor.process_video(video)
+            result = video_processor.process_video()
 
             if result.get("success", False):
                 # Create URL for the processed video
@@ -319,7 +324,7 @@ def handle_process_video_with_points(data):
                 result["output_url"] = output_url
 
                 # Signal completion
-                log_message(job_id, f"DONE: Processing completed successfully.")
+                log_message(job_id, "DONE: Processing completed successfully.")
 
                 # Store result for later retrieval
                 log_message(job_id, f"RESULT:{json.dumps(result)}")
@@ -362,6 +367,7 @@ def parsePoints(points: str):
                 "x": float(point["x"]),
                 "y": float(point["y"]),
                 "color": point.get("color", "#FFFFFF"),
+                "radius": float(point["radius"]),
             }
             parsed_points.append(parsed_point)
         return parsed_points
@@ -392,6 +398,7 @@ def handle_update_point(data):
         point_index = int(data.get("point_index"))
         x = float(data.get("x"))
         y = float(data.get("y"))
+        radius = float(data.get("radius"))
 
         if session_id not in point_data_store:
             print(f"Session ID {session_id} not found in point_data_store")
@@ -408,14 +415,26 @@ def handle_update_point(data):
         # Update the point position
         session_data["points"][point_index]["x"] = x
         session_data["points"][point_index]["y"] = y
+        session_data["points"][point_index]["radius"] = radius
 
         session_points = session_data["points"]
+        
+        points_json = []
+        for point in session_points:
+            points_json.append(
+                {
+                    "x": json.dumps(float(point["x"])),
+                    "y": json.dumps(float(point["y"])),
+                    "color": point["color"],
+                    "radius": json.dumps(float(point["radius"])),
+                }
+            )
     
         # print(f"Updating, session data points: {session_points}")
 
         emit('update_point_response', {
             "success": True, 
-            "points": session_points
+            "points": points_json
         })
     except Exception as e:
         app.logger.error(f"Error updating point: {str(e)}")

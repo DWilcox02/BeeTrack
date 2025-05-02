@@ -1,6 +1,13 @@
 from abc import ABC, abstractmethod
 
-class PointCloudInterface(ABC):
+
+class PointCloudEstimatorInterface(ABC):
+    def set_logger(self, log_fn):
+        self.log_fn = log_fn
+
+    def log(self, message):
+        self.log_fn(message)
+
     @abstractmethod
     def process_video_slice(
         self,

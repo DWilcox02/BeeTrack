@@ -69,27 +69,27 @@ app.get("/analysis/:filename", async (req, res) => {
     const height = frameData.height;
 
     let points = [
-      { x: width * 0.25, y: height * 0.25, color: "red" },
-      { x: width * 0.75, y: height * 0.25, color: "green" },
-      { x: width * 0.75, y: height * 0.75, color: "blue" },
-      { x: width * 0.25, y: height * 0.75, color: "purple" },
+      { x: width * 0.25, y: height * 0.25, color: "red", radius: 50 },
+      { x: width * 0.75, y: height * 0.25, color: "green", radius: 50 },
+      { x: width * 0.75, y: height * 0.75, color: "blue", radius: 50 },
+      // { x: width * 0.25, y: height * 0.75, color: "purple", radius: 50 },
     ];
 
     // Static points for outside_florea
-    points = [
-      { x: 1017.8, y: 638.1, color: "red" },
-      { x: 1077.8, y: 688.1, color: "green" },
-      { x: 1044.4, y: 674.8, color: "blue" },
-      { x: 1057.8, y: 659.8, color: "purple" },
-    ];
+    // points = [
+    //   { x: 1017.8, y: 638.1, color: "red" },
+    //   { x: 1077.8, y: 688.1, color: "green" },
+    //   { x: 1044.4, y: 674.8, color: "blue" },
+    //   { x: 1057.8, y: 659.8, color: "purple" },
+    // ];
 
     // Static points for dance_15
-    // points = [
-    //   { x: 304.9, y: 367.8, color: "red" },
-    //   { x: 348.3, y: 250.5, color: "green" },
-    //   { x: 341.3, y: 312.7, color: "blue" },
-    //   { x: 297.9, y: 295.1, color: "purple" },
-    // ]
+    points = [
+      { x: 308.6, y: 349.6, color: "red", radius: 32 },
+      { x: 340.6, y: 266.6, color: "green", radius: 32 },
+      { x: 322.6, y: 305.6, color: "blue", radius: 32 },
+      // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
+    ];
 
     // Generate Plotly HTML using Plotly.js
     // Note: We'll create a client-side solution instead of server-side rendering

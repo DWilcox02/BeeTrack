@@ -3,6 +3,7 @@ let selectedPointIndex = null;
 let selectedPointColor = null;
 let plotlyPlot = null;
 let pointPositions = {}; // Keep track of current point positions
+let pointRadiusValues = [50, 50, 50, 50];
 
 const backend_url = "http://127.0.0.1:5001";
 
@@ -16,11 +17,18 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  const sendRadiusBtn = document.getElementById("sendRadiusBtn");
+  if (sendRadiusBtn) {
+    sendRadiusBtn.addEventListener("click", updateRadiusForSelectedPoint);
+  }
+
   // Initialize overlay and handlers
   initializePlotHandlers();
 
   // Show initial status
   showStatus("Select a point and click on the image to place it.", "processing");
+
+  setTimeout(initializeRadiusValues, 500);
 });
 
 // Initialize plot handlers
@@ -55,6 +63,17 @@ function initializePlotHandlers() {
   } else {
     console.error("Plot overlay element not found");
   }
+}
+
+function initializeRadiusValues() {
+  if (window.pointsData && Array.isArray(window.pointsData)) {
+    pointsData.forEach((point, index) => {
+      if (point && point.radius !== undefined) {
+        pointRadiusValues[index] = parseInt(point.radius, 10);
+      }
+    });
+  }
+  console.log("Initialized radius values:", pointRadiusValues);
 }
 
 // Resize the overlay to match the plot
@@ -103,12 +122,67 @@ function selectPoint(index, color) {
   selectedPointIndex = parseInt(index);
   selectedPointColor = color;
 
+  // Get current radius for this point from our array or from the pointsData
+  let currentRadius = 50; // Default
+
+  // Try to get it from pointsData first if available
+  if (
+    window.pointsData &&
+    window.pointsData[selectedPointIndex] &&
+    window.pointsData[selectedPointIndex].radius !== undefined
+  ) {
+    currentRadius = parseInt(window.pointsData[selectedPointIndex].radius, 10);
+    // Update our tracking array
+    pointRadiusValues[selectedPointIndex] = currentRadius;
+  } else if (pointRadiusValues[selectedPointIndex] !== undefined) {
+    // Fall back to our tracking array
+    currentRadius = pointRadiusValues[selectedPointIndex];
+  }
+
+  // Update the slider value
+  const radiusSlider = document.getElementById("radiusRange");
+  radiusSlider.value = currentRadius;
+
+  // Update the displayed value
+  document.getElementById("radiusValue").textContent = currentRadius;
+
+  // Store as selected radius
+  selectedPointRadius = currentRadius;
+
   // Highlight the selected button
   document.getElementById("point" + color.charAt(0).toUpperCase() + color.slice(1)).classList.add("active");
 
   // Show status
-  showStatus(`Selected ${color} point. Click on the image to place it.`, "processing");
+  showStatus(
+    `Selected ${color} point. Click on the image to place it or use the slider to adjust radius.`,
+    "processing"
+  );
 }
+
+function updateRadiusForSelectedPoint() {
+  if (selectedPointIndex === null) {
+    showStatus("Please select a point first.", "processing");
+    return;
+  }
+
+  // Get the current slider value
+  const newRadius = parseInt(document.getElementById("radiusRange").value, 10);
+
+  // Store the new radius in our array
+  pointRadiusValues[selectedPointIndex] = newRadius;
+
+  // Get the last known position of this point
+  const point = window.pointsData[selectedPointIndex];
+
+  // Make sure we have valid coordinates
+  if (point && point.x !== undefined && point.y !== undefined) {
+    // Update the point with the new radius
+    updatePoint(selectedPointIndex, point.x, point.y, newRadius);
+  } else {
+    showStatus("Point position unknown. Place the point first.", "error");
+  }
+}
+
 
 // Function to handle plot clicks with precise coordinate mapping
 function handlePlotClick(event) {
@@ -116,6 +190,8 @@ function handlePlotClick(event) {
     showStatus("Please select a point color first.", "processing");
     return;
   }
+
+  radius = selectedPointRadius;
 
   // Get the Plotly plot element
   const plotlyDiv = document.querySelector(".js-plotly-plot");
@@ -158,11 +234,11 @@ function handlePlotClick(event) {
       console.log(`Converted to data coordinates: (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
 
       // Update point position on the server
-      updatePoint(selectedPointIndex, dataX, dataY);
+      updatePoint(selectedPointIndex, dataX, dataY, radius);
     } else {
       console.log(`Using clickmodeBar data:`, coordData);
       // Update point position using the coordinate data from clickmodeBar
-      updatePoint(selectedPointIndex, coordData.x, coordData.y);
+      updatePoint(selectedPointIndex, coordData.x, coordData.y, radius);
     }
   } catch (error) {
     console.error("Error converting coordinates:", error);
@@ -209,7 +285,7 @@ function handlePlotClick(event) {
       console.log(`X range: [${xa.range[0]}, ${xa.range[1]}], Y range: [${ya.range[0]}, ${ya.range[1]}]`);
 
       // Update point position on the server
-      updatePoint(selectedPointIndex, dataX, dataY);
+      updatePoint(selectedPointIndex, dataX, dataY, radius);
     } catch (fallbackError) {
       console.error("Fallback coordinate conversion also failed:", fallbackError);
       showStatus("Error calculating coordinates. Please try again.", "error");
@@ -237,7 +313,7 @@ function showStatus(message, type) {
 }
 
 // Function to update a point's position
-async function updatePoint(pointIndex, x, y) {
+async function updatePoint(pointIndex, x, y, radius) {
   showStatus(`Updating ${selectedPointColor} point position...`, "processing");
 
   try {
@@ -252,6 +328,7 @@ async function updatePoint(pointIndex, x, y) {
         point_index: pointIndex,
         x: x,
         y: y,
+        radius: radius
       });
 
       // The response will be handled by the socket.on('update_point_response') handler above
@@ -273,15 +350,25 @@ function ensureDataUrlFormat(imageData) {
   return imageData;
 }
 
+function pointToCircle(point) {
+  return {
+    type: "circle",
+    xref: "x",
+    yref: "y",
+    x0: parseFloat(point["x"]) - parseFloat(point["radius"]),
+    y0: parseFloat(point["y"]) - parseFloat(point["radius"]),
+    x1: parseFloat(point["x"]) + parseFloat(point["radius"]),
+    y1: parseFloat(point["y"]) + parseFloat(point["radius"]),
+    line: {
+      color: point["color"],
+    },
+  };
+}
+
+
 // Function to update the plot with new data
 function updatePlot(newPoints, frameData=null) {
   try {
-    // Validate input
-    if (!Array.isArray(newPoints) || newPoints.length !== 4) {
-      console.error("newPoints must be an array of 4 points");
-      return;
-    }
-
     // Find the Plotly element if not already found
     if (!plotlyPlot) {
       plotlyPlot = document.querySelector(".js-plotly-plot");
@@ -291,17 +378,8 @@ function updatePlot(newPoints, frameData=null) {
       }
     }
 
-    // Create new data array with scatter traces for each point
-    const newData = newPoints.map((point) => ({
-      x: [point.x],
-      y: [point.y],
-      mode: "markers",
-      marker: {
-        size: 10,
-        color: point.color,
-      },
-      name: `Point (${point.color})`,
-    }));
+    // Create new shapes array
+    const newCircles = newPoints.map(pointToCircle)
 
     // Update the global pointsData
     window.pointsData = newPoints;
@@ -310,6 +388,11 @@ function updatePlot(newPoints, frameData=null) {
     if (window.Plotly) {
       // Get the current layout
       let currentLayout = plotlyPlot.layout || plotData.layout;
+
+      if (!Array.isArray(newPoints) || currentLayout.shapes.length != newPoints.length) {
+        console.error("newPoints must be an array of the same length as current number of points");
+        return;
+      }
       
       // Update the image in the layout if frameData is provided
       if (frameData && frameData.frame) {
@@ -353,7 +436,12 @@ function updatePlot(newPoints, frameData=null) {
         currentLayout.title = `Frame Analysis`;
       }
 
-      Plotly.react(plotlyPlot, newData, currentLayout, {
+      console.log(currentLayout.shapes)
+      for (let i = 0; i < currentLayout.shapes.length; i++) {
+        currentLayout.shapes[i] = newCircles[i];
+      }
+
+      Plotly.react(plotlyPlot, [], currentLayout, {
         displayModeBar: true,
         staticPlot: false,
         scrollZoom: false,
