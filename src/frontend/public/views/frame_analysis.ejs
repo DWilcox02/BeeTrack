@@ -33,10 +33,10 @@
         </div>
         <div class="point-controls">
             <h3>Select point to place:</h3>
-            <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Head</div>
-            <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Butt</div>
-            <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Left Side</div>
-            <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Right Side</div>
+            <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>
+            <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Circle 2</div>
+            <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Circle 3</div>
+            <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div>
         </div>
         
         <div class="plotly-container" id="plotly-container">
@@ -106,6 +106,21 @@
             return imageData;
         }
 
+        function pointToCircle(point) {
+            return {
+                type: "circle",
+                xref: "x",
+                yref: "y",
+                x0: point["x"] - point["radius"],
+                y0: point["y"] - point["radius"],
+                x1: point["x"] + point["radius"],
+                y1: point["y"] + point["radius"],
+                line: {
+                    color: point["color"]
+                }
+            }
+        }
+
         function createPlotlyChart() {
             const plotlyDiv = document.getElementById('plotlyDiv');
 
@@ -119,7 +134,7 @@
             
             // Create a figure with the image and points
             const figure = {
-                data: [],
+                // data: [],
                 layout: {
                     xaxis: {
                         range: [0, IMAGE_WIDTH],
@@ -154,6 +169,7 @@
                     width: width,
                     height: height,
                     showlegend: true,
+                    shapes: INITIAL_POINTS.map(pointToCircle)
                 },
                 config: {
                     displayModeBar: true,
@@ -165,22 +181,22 @@
             };
             
             // Add each point as a scatter trace
-            if (Array.isArray(INITIAL_POINTS)) {
-                INITIAL_POINTS.forEach(point => {
-                    figure.data.push({
-                        x: [point.x],
-                        y: [point.y],
-                        mode: 'markers',
-                        marker: {
-                            size: 10,
-                            color: point.color
-                        },
-                        name: `Point (${point.color})`
-                    });
-                });
-            } else {
-                console.error("INITIAL_POINTS is not an array:", INITIAL_POINTS);
-            }
+            // if (Array.isArray(INITIAL_POINTS)) {
+            //     INITIAL_POINTS.forEach(point => {
+            //         figure.data.push({
+            //             x: [point.x],
+            //             y: [point.y],
+            //             mode: 'markers',
+            //             marker: {
+            //                 size: 10,
+            //                 color: point.color
+            //             },
+            //             name: `Point (${point.color})`
+            //         });
+            //     });
+            // } else {
+            //     console.error("INITIAL_POINTS is not an array:", INITIAL_POINTS);
+            // }
             
             // Create the plot
             Plotly.newPlot(plotlyDiv, figure.data, figure.layout, figure.config);
