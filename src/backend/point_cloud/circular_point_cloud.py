@@ -43,23 +43,40 @@ class CircularPointCloud(PointCloud):
 
         return np.array(all_interpolated_points, dtype=np.float32)
 
-    def _generate_circle_points(self, center_point, n_points):
-        """Helper method to generate points in a circle around a center point"""
+    def _generate_circle_points(self, center_point, n_points_per_perimeter):
+        """Helper method to generate points that fill a circle around a center point"""
         center_x = float(center_point["x"])
         center_y = float(center_point["y"])
         radius = float(center_point["radius"])
-
+        
+        # Create a filled circle of points
         circle_points = []
-        for i in range(n_points):
-            # Calculate points around a circle
-            angle = 2 * np.pi * i / n_points
-            x = center_x + radius * np.cos(angle)
-            y = center_y + radius * np.sin(angle)
-            circle_points.append((x, y))
-
-        # Add the center point as well
+        
+        # Determine how dense to make the grid based on perimeter points
+        # We'll calculate the grid size to achieve approximately the same density
+        grid_step = (2 * radius) / np.sqrt(n_points_per_perimeter * 3)
+        
+        # Create a grid of points within a square around the circle
+        x_min, x_max = center_x - radius, center_x + radius
+        y_min, y_max = center_y - radius, center_y + radius
+        
+        # Generate grid points
+        x_coords = np.arange(x_min, x_max, grid_step)
+        y_coords = np.arange(y_min, y_max, grid_step)
+        
+        # Add center point first
         circle_points.append((center_x, center_y))
-
+        
+        # Add all points within the radius
+        for x in x_coords:
+            for y in y_coords:
+                # Calculate distance from center
+                distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+                
+                # Only include points within the radius
+                if distance <= radius:
+                    circle_points.append((x, y))
+        
         return circle_points
 
     def recalculate_query_points(self, point_cloud_slice, query_frame, height_ratio, width_ratio, previous_trajectory):
