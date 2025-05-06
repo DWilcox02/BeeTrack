@@ -85,19 +85,14 @@ class CircularPointCloudGenerator(PointCloudGenerator):
 
     def recalc_query_points(self, final_positions):
         current_query_points = self.get_query_points()
-        slice_i = 0
 
         new_query_points = []
-        for qp in range(len(current_query_points)):
+        for cloud_weights, cloud_points in zip(self.weights, final_positions):
             new_point = np.array([0, 0], dtype=np.float32)
-            for cp in range(self.cp_per_qp):
-                weight = self.weights[slice_i]
-                point = final_positions[slice_i]
+            for weight, point in zip(cloud_weights, cloud_points):
                 new_point += weight * point
-                slice_i += 1
             new_query_points.append(new_point)
         
-        # Convert new_query_points into the desired format
         formatted_query_points = []
         for i, point in enumerate(new_query_points):
             formatted_query_points.append({
@@ -109,52 +104,6 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         
         new_query_points = formatted_query_points
         self.set_query_points(new_query_points)
-
-
-
-
-
-        # midpoint = point_cloud_slice.get_final_mean()
-
-        # # Get new trajectory
-        # trajectory = point_cloud_slice.get_trajectory(previous_trajectory)
-
-        # # Normalize trajectory if it's not a zero vector
-        # if np.linalg.norm(trajectory) > 0:
-        #     trajectory = trajectory / np.linalg.norm(trajectory)
-
-        # self.log(f"Midpoint: {midpoint}, Trajectory: {trajectory}")
-
-        # # Get the current query points
-        # current_points = self.get_query_points()
-
-        # # Calculate the centroid of the current points
-        # points_array = np.array([(float(point["x"]), float(point["y"])) for point in current_points], dtype=np.float32)
-        # current_centroid = np.mean(points_array, axis=0)
-
-        # # Calculate the offset from the current centroid to the new midpoint
-        # offset = np.array([midpoint[0] - current_centroid[0], midpoint[1] - current_centroid[1]], dtype=np.float32)
-
-        # # Update each point with the offset
-        # new_points = []
-        # for point in current_points:
-        #     new_point = {
-        #         "x": float(point["x"]) + offset[0],
-        #         "y": float(point["y"]) + offset[1],
-        #         "color": point["color"],
-        #         "radius": point["radius"]
-        #     }
-        #     new_points.append(new_point)
-
-        # # Update query points
-        # self.set_query_points(new_points)
-
-        # # Generate new cloud points
-        # cloud_points = self.generate_cloud_points(
-        #     query_frame=query_frame, height_ratio=height_ratio, width_ratio=width_ratio
-        # )
-
-        # return cloud_points, trajectory
 
 
     def calculate_confidence(self):

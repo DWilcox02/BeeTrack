@@ -234,8 +234,16 @@ class VideoProcessor():
                         resize_height=resize_height,
                     )
 
-                    initial_positions = slice_result.tracks[:, 0, :]
-                    final_positions = slice_result.tracks[:, -1, :]
+                    initial_positions = slice_result.get_final_points_for_frame(
+                        frame=0, 
+                        num_qp=self.point_cloud.num_qp,
+                        num_cp_per_qp=self.point_cloud.num_cp_per_qp
+                    )
+                    final_positions = slice_result.get_final_points_for_frame(
+                        frame=-1, 
+                        num_qp=self.point_cloud.num_qp, 
+                        num_cp_per_qp=self.point_cloud.num_cp_per_qp
+                    )
                     
                     # Calculate points for next slice
                     self.point_cloud.update_weights(

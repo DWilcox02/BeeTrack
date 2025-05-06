@@ -16,8 +16,14 @@ class PointCloudGenerator(ABC):
         self.session_id = session_id
         self.log_fn = print
         current_cloud_points = self.generate_cloud_points()
-        self.cp_per_qp = int(len(current_cloud_points) / len(init_points))
-        self.weights = np.array([1 / self.cp_per_qp] * len(current_cloud_points), dtype=np.float32)
+        self.num_qp = len(init_points)
+        self.num_cp_per_qp = int(len(current_cloud_points) / len(init_points))
+        self.weights = np.array(
+            [
+                [1 / self.num_cp_per_qp] * self.num_cp_per_qp
+            ] * self.num_qp, 
+            dtype=np.float32
+        )
         # print(f"Initialised generator with {len(self.weights)} weights")
         # print(f"{self.cp_per_qp} cloud points per query point")
 
