@@ -5,6 +5,7 @@ import mediapy as media
 import tempfile
 import numpy as np
 import gc
+import traceback
 
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from .server.utils.video_utils import extract_frame
@@ -23,7 +24,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 3
+NUM_SLICES = 6
 CONFIDENCE_THRESHOLD = 0.8
 
 class VideoProcessor():
@@ -245,12 +246,22 @@ class VideoProcessor():
                     )
                     
                     # Calculate points for next slice
-                    self.point_cloud.update_weights(
+                    new_query_points = self.point_cloud.update_weights(
                         initial_positions=initial_positions,
                         final_positions=final_positions
                     )
                     self.point_cloud.recalc_query_points(final_positions=final_positions)
-                
+                    formatted_query_points = []
+                    for i, point in enumerate(new_query_points):
+                        formatted_query_points.append({
+                        "x": float(point[0]),
+                        "y": float(point[1]),
+                        "color": self.point_cloud.get_query_points()[i]["color"],
+                        "radius": self.point_cloud.get_query_points()[i]["radius"]
+                        })
+                    self.point_cloud.set_query_points(formatted_query_points)  
+                    
+                                  
                     confidence = self.point_cloud.calculate_confidence()
                     request_validation = confidence < CONFIDENCE_THRESHOLD
                     self.send_current_frame_data(

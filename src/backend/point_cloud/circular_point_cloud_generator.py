@@ -75,9 +75,18 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         
         return circle_points
 
+    # Which points behave correctly?
     def update_weights(self, initial_positions, final_positions):
-        for i_p, f_p in zip(initial_positions, final_positions):
-            self.circle_movement_predictor.predict_circle_x_y_r(i_p, f_p)
+        x_y_query_points = [[point["x"], point["y"]] for point in self.get_query_points()]
+        new_query_points = []
+        for query_point_start, i_p, f_p in zip(x_y_query_points, initial_positions, final_positions):
+            new_center = self.circle_movement_predictor.predict_circle_x_y_r(
+                query_point_start=np.array(query_point_start, dtype=np.float32), 
+                initial_positions=np.array(i_p, dtype=np.float32), 
+                final_positions=np.array(f_p, dtype=np.float32)
+            )
+            new_query_points.append(new_center)
+        return new_query_points
         
 
     def recalc_query_points(self, final_positions):
