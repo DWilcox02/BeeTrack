@@ -1,16 +1,13 @@
 import numpy as np
-from .point_cloud import PointCloud
+from .point_cloud_generator import PointCloudGenerator
 
 
-class CircularPointCloud(PointCloud):
+class CircularPointCloudGenerator(PointCloudGenerator):
     def __init__(self, init_points, point_data_store, session_id):
         super().__init__(init_points, point_data_store, session_id)
 
-    def generate_cloud_points(self, query_frame=None, height_ratio=None, width_ratio=None):
+    def generate_cloud_points(self):
         """Generate circular point clouds around each query point"""
-        assert query_frame is not None
-        assert height_ratio is not None
-        assert width_ratio is not None
 
         points = self.get_query_points()
 
@@ -30,11 +27,9 @@ class CircularPointCloud(PointCloud):
 
             # Convert to the expected format with the query frame and ratios applied
             for cp in circle_points:
-                interpolated_point = np.array(
-                    [
-                        query_frame,  # frame
-                        cp[1] * height_ratio,  # y-coordinate
-                        cp[0] * width_ratio,  # x-coordinate
+                interpolated_point = np.array([
+                        cp[0], # x-coordinate
+                        cp[1]  # y-coordinate
                     ],
                     dtype=np.float32,
                 )
@@ -79,50 +74,41 @@ class CircularPointCloud(PointCloud):
         
         return circle_points
 
-    def recalculate_query_points(self, point_cloud_slice, query_frame, height_ratio, width_ratio, previous_trajectory):
-        """Recalculate query points based on the point cloud slice"""
-        # Get new midpoint from the point cloud slice
-        midpoint = point_cloud_slice.get_final_mean()
+    def update_weights(self, initial_positions, final_positions):
+        # Both arrays N x 2 of (x, y)
+        # print("Initial Points:")
+        # print(initial_positions)
+        # print("Final points:")
+        # print(final_positions)
+        # print("Some calculations to update the weights based on the initial and final points and the existing weights....")
+        pass
 
-        # Get new trajectory
-        trajectory = point_cloud_slice.get_trajectory(previous_trajectory)
+    def recalc_query_points(self, final_positions):
+        current_query_points = self.get_query_points()
 
-        # Normalize trajectory if it's not a zero vector
-        if np.linalg.norm(trajectory) > 0:
-            trajectory = trajectory / np.linalg.norm(trajectory)
+        new_query_points = []
+        for cloud_weights, cloud_points in zip(self.weights, final_positions):
+            new_point = np.array([0, 0], dtype=np.float32)
+            for weight, point in zip(cloud_weights, cloud_points):
+                new_point += weight * point
+            new_query_points.append(new_point)
+        
+        formatted_query_points = []
+        for i, point in enumerate(new_query_points):
+            formatted_query_points.append({
+            "x": float(point[0]),
+            "y": float(point[1]),
+            "color": current_query_points[i]["color"],
+            "radius": current_query_points[i]["radius"]
+            })
+        
+        new_query_points = formatted_query_points
+        self.set_query_points(new_query_points)
 
-        self.log(f"Midpoint: {midpoint}, Trajectory: {trajectory}")
 
-        # Get the current query points
-        current_points = self.get_query_points()
+    def calculate_confidence(self):
+        return 0.0
 
-        # Calculate the centroid of the current points
-        points_array = np.array([(float(point["x"]), float(point["y"])) for point in current_points], dtype=np.float32)
-        current_centroid = np.mean(points_array, axis=0)
-
-        # Calculate the offset from the current centroid to the new midpoint
-        offset = np.array([midpoint[0] - current_centroid[0], midpoint[1] - current_centroid[1]], dtype=np.float32)
-
-        # Update each point with the offset
-        new_points = []
-        for point in current_points:
-            new_point = {
-                "x": float(point["x"]) + offset[0],
-                "y": float(point["y"]) + offset[1],
-                "color": point["color"],
-                "radius": point["radius"]
-            }
-            new_points.append(new_point)
-
-        # Update query points
-        self.set_query_points(new_points)
-
-        # Generate new cloud points
-        query_points = self.generate_cloud_points(
-            query_frame=query_frame, height_ratio=height_ratio, width_ratio=width_ratio
-        )
-
-        return query_points, trajectory
 
     def initial_trajectory(self):
         """Calculate initial trajectory based on query points"""

@@ -8,9 +8,8 @@ import gc
 
 from .estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from ..server.utils.video_utils import extract_frame
-from .circular_point_cloud import CircularPointCloud
-from .rhombus_point_cloud import RhombusPointCloud
-
+from .circular_point_cloud_generator import CircularPointCloudGenerator
+from .estimation.estimation_slice import EstimationSlice
 
 # Get paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +24,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 1
+NUM_SLICES = 3
 CONFIDENCE_THRESHOLD = 0.8
 
 class VideoProcessor():
@@ -46,10 +45,10 @@ class VideoProcessor():
         self.video = video
         self.job_id = job_id
         self.log_message = None
-        self.point_cloud = CircularPointCloud(
+        self.point_cloud = CircularPointCloudGenerator(
             init_points=point_data_store[session_id]["points"], 
             point_data_store=point_data_store, 
-            session_id=session_id        )
+            session_id=session_id)
         # self.point_cloud = RhombusPointCloud(
         #     init_points=point_data_store[session_id]["points"],
         #     point_data_store=point_data_store,
@@ -122,6 +121,13 @@ class VideoProcessor():
             if temp_dir and os.path.exists(temp_dir):
                 os.rmdir(temp_dir)
             return None, fps
+
+    def resize_points_add_frame(self, cloud_points, query_frame, height_ratio, width_ratio):
+        cloud_points = np.array(
+            [[query_frame, point[1] * height_ratio, point[0] * width_ratio] for point in cloud_points],
+            dtype=np.float32
+        )
+        return cloud_points
 
 
     def process_video(self):
@@ -199,9 +205,8 @@ class VideoProcessor():
             height_ratio = resize_height / height
             width_ratio = resize_width / width
             
-            query_points = self.point_cloud.generate_cloud_points(query_frame=query_frame, height_ratio=height_ratio, width_ratio=width_ratio)
-            current_trajectory = self.point_cloud.initial_trajectory()
 
+            # NEXT: point_cloud_generator = CircularPointCloud(blah blah blah), initialise with uniform weights
             # Process each segment
             for i in range(segments_to_process):
                 start_frame = i * fps
@@ -211,44 +216,53 @@ class VideoProcessor():
                 orig_frames_slice = orig_frames[start_frame:end_frame]
 
                 # Process the slice
-                try:              
+                try:
+                    cloud_points = self.point_cloud.generate_cloud_points() # N x 2 (for N points)
+                    resized_points = self.resize_points_add_frame(
+                        cloud_points=cloud_points, 
+                        query_frame=query_frame, 
+                        height_ratio=height_ratio, 
+                        width_ratio=width_ratio
+                    )
                     # Use saved points  
-                    slice_result = self.point_cloud_estimator.process_video_slice(
-                        orig_frames_slice, 
-                        width, 
-                        height, 
-                        query_points, 
-                        resize_width=resize_width, 
-                        resize_height=resize_height
+                    slice_result: EstimationSlice = self.point_cloud_estimator.process_video_slice(
+                        orig_frames_slice,
+                        width,
+                        height,
+                        resized_points,
+                        resize_width=resize_width,
+                        resize_height=resize_height,
+                    )
+
+                    initial_positions = slice_result.get_final_points_for_frame(
+                        frame=0, 
+                        num_qp=self.point_cloud.num_qp,
+                        num_cp_per_qp=self.point_cloud.num_cp_per_qp
+                    )
+                    final_positions = slice_result.get_final_points_for_frame(
+                        frame=-1, 
+                        num_qp=self.point_cloud.num_qp, 
+                        num_cp_per_qp=self.point_cloud.num_cp_per_qp
                     )
                     
                     # Calculate points for next slice
-                    query_points, current_trajectory = self.point_cloud.recalculate_query_points(
-                        slice_result, 
-                        query_frame, 
-                        height_ratio,
-                        width_ratio,
-                        current_trajectory
+                    self.point_cloud.update_weights(
+                        initial_positions=initial_positions,
+                        final_positions=final_positions
                     )
+                    self.point_cloud.recalc_query_points(final_positions=final_positions)
                 
-                    request_validation = slice_result.confidence < CONFIDENCE_THRESHOLD
+                    confidence = self.point_cloud.calculate_confidence()
+                    request_validation = confidence < CONFIDENCE_THRESHOLD
                     self.send_current_frame_data(
                         video_path=DATA_DIR + path + filename, 
                         frame=end_frame - 1, 
-                        confidence=slice_result.confidence, 
+                        confidence=confidence, 
                         request_validation=request_validation
                     )
 
                     if i < segments_to_process - 1 and request_validation:
-                        response = self.request_validation()
-
-                        if response:
-                            # Validation received, re-calculate query points
-                            query_points = self.point_cloud.generate_cloud_points(query_frame=query_frame, height_ratio=height_ratio, width_ratio=width_ratio)
-                            current_trajectory = self.point_cloud.initial_trajectory()
-                        else:
-                            # Handle timeout or validation failure
-                            self.log("Validation failed or timed out, continuing with default behavior")
+                        self.request_validation() # Query points will have been updated
 
 
                     video_segment = slice_result.get_video()

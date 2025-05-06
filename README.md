@@ -127,3 +127,36 @@ https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
 4. (Apply point cloud based on bounding box)
 4. Run video for X time slice
 5. Calculate estimated skeleton position via RANSAC and Kalman Filtering -->
+
+
+
+
+
+
+<!-- get_inliers(initial_distances_directions, final_points):
+    initial_distances_directions is shape N x 2
+    final_points is shape N x 2
+    RANSAC(initial_distances_directions, final_points, )
+
+RANSAC(i, f):
+    sample = sample of initial_distances_directions and final_points
+
+    MovementModel.fit(samplex, sampley)
+
+
+movementmodel:
+    center: original circle center
+    input: N x 2, list of (x, y) coordinates
+    parameters: delta_x, delta_y, rotation_x, rotation_y
+
+    error = mse(calculated finals - finals)
+
+    calculated final = 
+        new_Cetner_x = center_x + delta_x
+        new_center_Y = center_y + delta_y
+        v_x = initial_direction_x + rotation_x
+        v_y = intitial_direction_y + rotation_y
+        pred_x = new_center_x + initial_distance * v_x
+        pred_y = new_center_y + initial_distance * v_y
+
+        return (pred_x, pred_y) -->

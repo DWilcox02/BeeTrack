@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+import numpy as np
 
-class PointCloud(ABC):
+class PointCloudGenerator(ABC):
     # Points format:
     # [
     #   {'x': Array(1014.8928, dtype=float32), 'y': Array(642.25415, dtype=float32), 'color': 'red'},
@@ -14,11 +15,23 @@ class PointCloud(ABC):
         self.point_data_store = point_data_store
         self.session_id = session_id
         self.log_fn = print
+        current_cloud_points = self.generate_cloud_points()
+        self.num_qp = len(init_points)
+        self.num_cp_per_qp = int(len(current_cloud_points) / len(init_points))
+        self.weights = np.array(
+            [
+                [1 / self.num_cp_per_qp] * self.num_cp_per_qp
+            ] * self.num_qp, 
+            dtype=np.float32
+        )
+        # print(f"Initialised generator with {len(self.weights)} weights")
+        # print(f"{self.cp_per_qp} cloud points per query point")
+
 
     def get_query_points(self):
         assert(self.session_id in self.point_data_store)
         assert(self.query_points == self.point_data_store[self.session_id]["points"])
-        return self.query_points
+        return self.point_data_store[self.session_id]["points"]
     
     def set_query_points(self, points):
         self.query_points = points
@@ -34,20 +47,21 @@ class PointCloud(ABC):
         self.log_fn(message)
 
     @abstractmethod
-    def generate_cloud_points(self, query_frame=None, height_ratio=None, width_ratio=None):
+    def generate_cloud_points(self):
         pass
 
     @abstractmethod
-    def recalculate_query_points(
-        self,
-        point_cloud_slice,
-        query_frame,
-        height_ratio,
-        width_ratio,
-        previous_trajectory,
-    ):
+    def update_weights(self, initial_positions, final_positions):
         pass
 
     @abstractmethod
     def initial_trajectory(self):
+        pass
+
+    @abstractmethod
+    def recalc_query_points(self, final_positions):
+        pass
+
+    @abstractmethod
+    def calculate_confidence(self):
         pass
