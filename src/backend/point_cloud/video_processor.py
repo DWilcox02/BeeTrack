@@ -25,7 +25,7 @@ videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
 NUM_SLICES = 3
-CONFIDENCE_THRESHOLD = -0.8
+CONFIDENCE_THRESHOLD = 0.8
 
 class VideoProcessor():
     def __init__(
