@@ -6,14 +6,13 @@ import tempfile
 import numpy as np
 import gc
 
-from .estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
-from ..server.utils.video_utils import extract_frame
-from .circular_point_cloud_generator import CircularPointCloudGenerator
-from .estimation.estimation_slice import EstimationSlice
+from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
+from .server.utils.video_utils import extract_frame
+from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenerator
+from .point_cloud.estimation.estimation_slice import EstimationSlice
 
 # Get paths
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(BACKEND_DIR)
 POINT_CLOUD_DIR = os.path.join(BACKEND_DIR, "point_cloud/")
 PROJECT_ROOT = os.path.dirname(SRC_DIR)

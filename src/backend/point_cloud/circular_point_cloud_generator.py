@@ -1,10 +1,11 @@
 import numpy as np
 from .point_cloud_generator import PointCloudGenerator
-
+from .circle_movement_predictor import CircleMovementPredictor
 
 class CircularPointCloudGenerator(PointCloudGenerator):
     def __init__(self, init_points, point_data_store, session_id):
         super().__init__(init_points, point_data_store, session_id)
+        self.circle_movement_predictor = CircleMovementPredictor()
 
     def generate_cloud_points(self):
         """Generate circular point clouds around each query point"""
@@ -75,13 +76,9 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         return circle_points
 
     def update_weights(self, initial_positions, final_positions):
-        # Both arrays N x 2 of (x, y)
-        # print("Initial Points:")
-        # print(initial_positions)
-        # print("Final points:")
-        # print(final_positions)
-        # print("Some calculations to update the weights based on the initial and final points and the existing weights....")
-        pass
+        for i_p, f_p in zip(initial_positions, final_positions):
+            self.circle_movement_predictor.predict_circle_x_y_r(i_p, f_p)
+        
 
     def recalc_query_points(self, final_positions):
         current_query_points = self.get_query_points()
