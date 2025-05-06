@@ -1,8 +1,8 @@
 import numpy as np
-from .point_cloud import PointCloud
-from .bee_skeleton import BeeSkeleton
+from ..backend.point_cloud.point_cloud_generator import PointCloudGenerator
+from ..backend.point_cloud.bee_skeleton import BeeSkeleton
 
-class RhombusPointCloud(PointCloud):
+class RhombusPointCloudGenerator(PointCloudGenerator):
     # Points ends up being of format:
     # [
     #     {"x": 292.514404296875, "y": 425.1623229980469, "color": "red"},
@@ -81,7 +81,7 @@ class RhombusPointCloud(PointCloud):
     
 
     # Methods to recalculate query points
-    def recalculate_query_points(
+    def update_weights(
         self,
         point_cloud_slice,
         query_frame,

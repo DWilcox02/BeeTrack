@@ -1,0 +1,23 @@
+
+First query row: [  0.      151.25333 135.70667]
+
+
+First intial position: 136.3227996826172, 151.4956817626953
+First final position: 134.7556915283203, 151.80133056640625
+
+
+First query row: [  0.      151.80133 134.75569]
+
+
+First intial position: 135.18017578125, 152.0205535888672
+First final position: 128.46978759765625, 145.10958862304688
+
+
+First query row: [  0.      145.10959 128.46979]
+
+
+First intial position: 128.6320037841797, 145.11459350585938
+First final position: 126.37509155273438, 141.20147705078125
+
+Processing completed in 66.89 seconds
+Processing completed successfully for outside_botgard_5_secs_1080_15fps.mp4
