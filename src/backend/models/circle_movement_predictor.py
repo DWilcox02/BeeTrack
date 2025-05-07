@@ -19,7 +19,7 @@ class CircleMovementPredictor:
         # RANSAC setup
         ransac_model = RANSAC(
             n=24,
-            k=100,
+            k=200,
             t=100,
             model=circle_movement_model
         )

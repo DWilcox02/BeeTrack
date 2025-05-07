@@ -34,41 +34,49 @@ class RANSAC():
         self.inliers = np.arange(len(X))
 
         # Decrease number of samples taken
-        # for num_samples in range(len(X), self.n, -1):
-        num_samples = self.n
-        for _ in range(self.k):
-            ids = rng.permutation(X.shape[0])
+        for num_samples in range(len(X) - 1, self.n, -1):
+        # num_samples = self.n
+            for _ in range(self.k):
+                ids = rng.permutation(X.shape[0])
 
-            maybe_inliers = ids[: num_samples]
-            maybe_model = copy(self.model).fit(X[maybe_inliers], y[maybe_inliers])
-            # print(f"Maybe inliers: {maybe_inliers}")
-            # print(f"Maybe model final prediction: {maybe_model.delta_translation[0].item()}, {maybe_model.delta_translation[1].item()}")
-
-            # Get the remaining indices (not used as maybe_inliers)
-            remaining_indices = ids[num_samples :]
-
-            # Calculate errors for remaining points
-            errors = self.square_error_loss(y[remaining_indices], maybe_model.predict(X[remaining_indices]))
-            # print(f"Error for remaining points: {errors}")
-
-            # Find which remaining points are inliers
-            thresholded = errors < best_fit_mse
-            # print(f"Thresholded: {thresholded}")
-
-            # Get the actual indices of inliers (not their position in the remaining_indices array)
-            inlier_indices = np.where(thresholded)[0]  # Get positions where thresholded is True
-            inlier_ids = remaining_indices[inlier_indices]  # Map to original indices
-
-            if inlier_ids.size > self.d:
-                inlier_points = np.hstack([maybe_inliers, inlier_ids])
-                better_model = copy(self.model).fit(X[inlier_points], y[inlier_points])
-
-                this_error = self.mse_loss(y[inlier_points], better_model.predict(X[inlier_points]))
+                maybe_inliers = ids[: num_samples]
+                maybe_model = copy(self.model).fit(X[maybe_inliers], y[maybe_inliers])
+                this_error = self.mse_loss(y, maybe_model.predict(X))
 
                 if this_error < self.best_error:
                     self.best_error = this_error
-                    self.best_fit = better_model
-                    self.inliers = inlier_ids
+                    self.best_fit = maybe_model
+                    self.inliers = ids
+
+        # for _ in range(self.k):
+        #     ids = rng.permutation(X.shape[0])
+
+        #     maybe_inliers = ids[: num_samples]
+        #     maybe_model = copy(self.model).fit(X[maybe_inliers], y[maybe_inliers])
+
+        #     # Get the remaining indices (not used as maybe_inliers)
+        #     remaining_indices = ids[num_samples :]
+
+        #     # Calculate errors for remaining points
+        #     errors = self.square_error_loss(y[remaining_indices], maybe_model.predict(X[remaining_indices]))
+
+        #     # Find which remaining points are inliers
+        #     thresholded = errors < best_fit_mse
+
+        #     # Get the actual indices of inliers (not their position in the remaining_indices array)
+        #     inlier_indices = np.where(thresholded)[0]  # Get positions where thresholded is True
+        #     inlier_ids = remaining_indices[inlier_indices]  # Map to original indices
+
+        #     if inlier_ids.size > self.d:
+        #         inlier_points = np.hstack([maybe_inliers, inlier_ids])
+        #         better_model = copy(self.model).fit(X[inlier_points], y[inlier_points])
+
+        #         this_error = self.mse_loss(y[inlier_points], better_model.predict(X[inlier_points]))
+
+        #         if this_error < self.best_error:
+        #             self.best_error = this_error
+        #             self.best_fit = better_model
+        #             self.inliers = inlier_ids
 
         return self
 

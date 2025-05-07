@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-MODEL_ITERATIONS = 100
+MODEL_ITERATIONS = 50
 
 class CircleMovementModel(nn.Module):
     def __init__(self, original_center, initial_guess):
