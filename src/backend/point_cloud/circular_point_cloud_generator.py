@@ -1,10 +1,11 @@
 import numpy as np
 from .point_cloud_generator import PointCloudGenerator
-
+from ..models.circle_movement_predictor import CircleMovementPredictor
 
 class CircularPointCloudGenerator(PointCloudGenerator):
     def __init__(self, init_points, point_data_store, session_id):
         super().__init__(init_points, point_data_store, session_id)
+        self.circle_movement_predictor = CircleMovementPredictor()
 
     def generate_cloud_points(self):
         """Generate circular point clouds around each query point"""
@@ -74,36 +75,52 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         
         return circle_points
 
+    # Which points behave correctly?
     def update_weights(self, initial_positions, final_positions):
-        # Both arrays N x 2 of (x, y)
-        # print("Initial Points:")
-        # print(initial_positions)
-        # print("Final points:")
-        # print(final_positions)
-        # print("Some calculations to update the weights based on the initial and final points and the existing weights....")
         pass
-
-    def recalc_query_points(self, final_positions):
-        current_query_points = self.get_query_points()
-
-        new_query_points = []
-        for cloud_weights, cloud_points in zip(self.weights, final_positions):
-            new_point = np.array([0, 0], dtype=np.float32)
-            for weight, point in zip(cloud_weights, cloud_points):
-                new_point += weight * point
-            new_query_points.append(new_point)
         
+
+    def recalc_query_points(self, initial_positions, final_positions):
+        # current_query_points = self.get_query_points()
+
+        # new_query_points = []
+        # for cloud_weights, cloud_points in zip(self.weights, final_positions):
+        #     new_point = np.array([0, 0], dtype=np.float32)
+        #     for weight, point in zip(cloud_weights, cloud_points):
+        #         new_point += weight * point
+        #     new_query_points.append(new_point)
+        
+        # formatted_query_points = []
+        # for i, point in enumerate(new_query_points):
+        #     formatted_query_points.append({
+        #     "x": float(point[0]),
+        #     "y": float(point[1]),
+        #     "color": current_query_points[i]["color"],
+        #     "radius": current_query_points[i]["radius"]
+        #     })
+        
+        # new_query_points = formatted_query_points
+        # self.set_query_points(new_query_points)
+        x_y_query_points = [[point["x"], point["y"]] for point in self.get_query_points()]
+        new_query_points = []
+        for query_point_start, i_p, f_p in zip(x_y_query_points, initial_positions, final_positions):
+            new_center = self.circle_movement_predictor.predict_circle_x_y_r(
+                query_point_start=np.array(query_point_start, dtype=np.float32),
+                initial_positions=np.array(i_p, dtype=np.float32),
+                final_positions=np.array(f_p, dtype=np.float32),
+            )
+            new_query_points.append(new_center)
+
+        # Set new query points
         formatted_query_points = []
         for i, point in enumerate(new_query_points):
             formatted_query_points.append({
             "x": float(point[0]),
             "y": float(point[1]),
-            "color": current_query_points[i]["color"],
-            "radius": current_query_points[i]["radius"]
+            "color": self.get_query_points()[i]["color"],
+            "radius": self.get_query_points()[i]["radius"]
             })
-        
-        new_query_points = formatted_query_points
-        self.set_query_points(new_query_points)
+        self.set_query_points(formatted_query_points)  
 
 
     def calculate_confidence(self):

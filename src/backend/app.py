@@ -11,7 +11,7 @@ from flask import Flask, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from .server.utils.video_utils import extract_frame
-from .point_cloud.video_processor import VideoProcessor
+from .video_processor import VideoProcessor
 from .point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator import TapirEstimator
 
 POINT_CLOUD_AVAILABLE = True

@@ -138,7 +138,8 @@ class TapirEstimator(PointCloudEstimatorInterface):
 
         self.log("Concatenating results...")
         tracks = jnp.concatenate(tracks, axis=0)
-        visibles = jnp.concatenate(visibles, axis=0)
+        # visibles = jnp.concatenate(visibles, axis=0)
+        visibles = jnp.ones((tracks.shape[0], tracks.shape[1]), dtype=bool)
 
         self.log("Converting coordinates and generating visualization...")
         tracks = transforms.convert_grid_coordinates(tracks, (resize_width, resize_height), (width, height))

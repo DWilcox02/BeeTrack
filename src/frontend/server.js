@@ -75,20 +75,25 @@ app.get("/analysis/:filename", async (req, res) => {
     ];
 
     // Static points for outside_florea
-    points = [
-      { x: 1017.8, y: 638.1, color: "red", radius: 24 },
-      { x: 1067.2, y: 683.6, color: "green", radius: 24 },
-      { x: 1048.6, y: 665.1, color: "blue", radius: 24 },
-      // { x: 1057.8, y: 659.8, color: "purple" },
-    ];
+    // points = [
+    //   { x: 1017.8, y: 638.1, color: "red", radius: 24 },
+    //   { x: 1067.2, y: 683.6, color: "green", radius: 24 },
+    //   { x: 1048.6, y: 665.1, color: "blue", radius: 24 },
+    //   // { x: 1057.8, y: 659.8, color: "purple" },
+    // ];
 
     // Static points for dance_15
     // points = [
-      //   { x: 308.6, y: 349.6, color: "red", radius: 32 },
-      //   { x: 340.6, y: 266.6, color: "green", radius: 32 },
+    //   { x: 308.6, y: 349.6, color: "red", radius: 32 },
+    //   { x: 340.6, y: 266.6, color: "green", radius: 32 },
     //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
     //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
     // ];
+    points = [
+      { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
+      { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
+      { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
+    ];
 
     // Generate Plotly HTML using Plotly.js
     // Note: We'll create a client-side solution instead of server-side rendering
