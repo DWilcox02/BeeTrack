@@ -4,8 +4,6 @@ Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Proje
 
 <p align="center">
     <img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="python"> <img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch"> <img src="https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E" alt="JavaScript">  <img src="https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge" alt="GPL3">
-    
-    <!-- <img src="https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=TensorFlow&logoColor=white" alt="TensorFlow"> -->
 </p>
 <!-- <p align="center">
     
