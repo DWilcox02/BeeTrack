@@ -3,8 +3,8 @@
 Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Project. Detect and track honeybees performing their waggle dance for apiology researchers. Leverages TAPIR (Track Any Point library) for point cloud establishment, Kalman filtering and RANSAC for future position prediction. 
 
 <p align="center">
-    <img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="python"> <img src="https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E" alt="JavaScript">  <img src="https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge" alt="GPL3">
-    <!-- <img src="https://img.shields.io/badge/Plotly-239120?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly"> -->
+    <img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="python"> <img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch"> <img src="https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E" alt="JavaScript">  <img src="https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge" alt="GPL3">
+    
     <!-- <img src="https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=TensorFlow&logoColor=white" alt="TensorFlow"> -->
 </p>
 <!-- <p align="center">
@@ -82,14 +82,12 @@ to start the frontend server, at `http://localhost:3000`
 7. User validation, allowing point updates after each "segment"
 8. Further level of abstraction from TAPIR
 9. Replace rhombus point initialization with circles
+10. Setup weight system for RANSAC to use
+11. CircleMovementModel for RANSAC Prediction and outliers
 
 ### Next Steps
 (Not necessarily in order of priority)
-- Setup weight system for RANSAC to use
-    - Initially uniform weights
-    - Points need:
-        - Distance to QP
-        - Direction vector to QP
+- Implement weight updates following RANSAC outliers
     - Develop basic weight calculation management
         - Inter-distance relationships from cloud points to query point
 - Refactor non-critical code
