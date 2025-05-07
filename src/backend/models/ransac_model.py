@@ -27,23 +27,32 @@ class RANSAC():
         return torch.sum(self.square_error_loss(y_true, y_pred)) / y_true.shape[0]
 
     def fit(self, X, y):
+        # Start with all points for initial guess
+        self.best_fit = copy(self.model).fit(X, y)
+        best_fit_mse = self.mse_loss(y, self.best_fit.predict(X))
+        print(f"MSE for all inliers (score to beat): {best_fit_mse}")
+        self.inliers = np.arange(len(X))
+
+        # Decrease number of samples taken
+        # for num_samples in range(len(X), self.n, -1):
+        num_samples = self.n
         for _ in range(self.k):
             ids = rng.permutation(X.shape[0])
 
-            maybe_inliers = ids[: self.n]
+            maybe_inliers = ids[: num_samples]
             maybe_model = copy(self.model).fit(X[maybe_inliers], y[maybe_inliers])
             # print(f"Maybe inliers: {maybe_inliers}")
             # print(f"Maybe model final prediction: {maybe_model.delta_translation[0].item()}, {maybe_model.delta_translation[1].item()}")
 
             # Get the remaining indices (not used as maybe_inliers)
-            remaining_indices = ids[self.n :]
+            remaining_indices = ids[num_samples :]
 
             # Calculate errors for remaining points
             errors = self.square_error_loss(y[remaining_indices], maybe_model.predict(X[remaining_indices]))
             # print(f"Error for remaining points: {errors}")
 
             # Find which remaining points are inliers
-            thresholded = errors < self.t
+            thresholded = errors < best_fit_mse
             # print(f"Thresholded: {thresholded}")
 
             # Get the actual indices of inliers (not their position in the remaining_indices array)
@@ -62,9 +71,6 @@ class RANSAC():
                     self.inliers = inlier_ids
 
         return self
-        # maybe_model = copy(self.model)
-        # maybe_model.fit(X, y)
-        # return maybe_model
 
     def predict(self, X):
         return self.best_fit.predict(X)

@@ -9,7 +9,7 @@ class CircleMovementPredictor:
     def predict_circle_x_y_r(self, query_point_start, initial_positions, final_positions) -> CircleMovementResult:
         # Model setup
         query_point_start_tensor = torch.tensor(query_point_start, dtype=torch.float32)
-        initial_guess = np.mean(initial_positions, axis=0)  # Mean across all points
+        initial_guess = np.mean(final_positions, axis=0)  # Mean across all points
         initial_guess_tensor = torch.tensor(initial_guess, dtype=torch.float32)
         circle_movement_model = CircleMovementModel(
             original_center=query_point_start_tensor, initial_guess=initial_guess_tensor
@@ -18,9 +18,9 @@ class CircleMovementPredictor:
 
         # RANSAC setup
         ransac_model = RANSAC(
-            n=20,
-            k=50,
-            t=50,
+            n=24,
+            k=100,
+            t=100,
             model=circle_movement_model
         )
 
@@ -40,10 +40,6 @@ class CircleMovementPredictor:
         fitted_ransac: RANSAC = ransac_model.fit(X, y)
         best_model: CircleMovementModel = fitted_ransac.best_fit
         inliers, outliers = ransac_model.get_inliers_outliers()
-
-        if best_model is None:
-            best_model = circle_movement_model.fit(X, y) # Fit with all
-            inliers = np.arange(len(initial_positions)) # Use all as inliers
 
         print(f"Best model: {best_model}")
         print(f"Inliers: {inliers}")
