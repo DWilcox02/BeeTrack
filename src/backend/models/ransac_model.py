@@ -1,64 +1,80 @@
 import numpy as np
 import torch
+from copy import copy
+from numpy.random import default_rng
 
 from src.backend.models.circle_movement_model import CircleMovementModel
 
-ITERATIONS = 100
+rng = default_rng()
+
+MODEL_ITERATIONS = 100
 
 class RANSAC():
-    def ransac(self, query_point_start, initial_positions, final_positions):
-        print(f"Starting prediction with {len(initial_positions)} points")
-        print(f"Query point start: {query_point_start}")
+    def __init__(self, n=10, k=50, t=0.05, d=10, model=None, loss=None, metric=None):
+        self.n = n  # `n`: Minimum number of data points to estimate parameters
+        self.k = k  # `k`: Maximum iterations allowed
+        self.t = t  # `t`: Threshold value to determine if points are fit well
+        self.d = d  # `d`: Number of close data points required to assert model fits well
+        self.model = model  # `model`: class implementing `fit` and `predict`
+        self.loss = loss  # `loss`: function of `y_true` and `y_pred` that returns a vector
+        self.metric = metric  # `metric`: function of `y_true` and `y_pred` and returns a float
+        self.best_fit = None
+        self.best_error = np.inf
+        self.inliers = []
+        self.outliers = []
 
-        # Convert numpy arrays to torch tensors
-        query_point_start_tensor = torch.tensor(query_point_start, dtype=torch.float32)
-        initial_guess = np.mean(initial_positions, axis=0)  # Mean across all points
-        initial_guess_tensor = torch.tensor(initial_guess, dtype=torch.float32)
+    def fit(self, X, y):
+        # for _ in range(self.k):
+        #     ids = rng.permutation(X.shape[0])
 
-        print(f"Initial guess for center: {initial_guess}")
+        #     maybe_inliers = ids[: self.n]
+        #     maybe_model = copy(self.model).fit(X[maybe_inliers], y[maybe_inliers])
 
-        # Calculate initial distances and directions
-        initial_distances_directions = []
-        for point in initial_positions:
-            difference = point - query_point_start
-            distance = np.linalg.norm(difference)
-            initial_distances_directions.append([distance, difference[0] / distance, difference[1] / distance])
-        initial_distances_directions = np.array(initial_distances_directions, dtype=np.float32)
+        #     thresholded = self.loss(y[ids][self.n :], maybe_model.predict(X[ids][self.n :])) < self.t
 
-        print(f"Calculated {len(initial_distances_directions)} distance/direction vectors")
+        #     inlier_ids = ids[self.n :][np.flatnonzero(thresholded).flatten()]
 
-        # Convert to tensors
-        X = torch.tensor(initial_distances_directions, dtype=torch.float32)
-        y = torch.tensor(final_positions, dtype=torch.float32)
+        #     if inlier_ids.size > self.d:
+        #         inlier_points = np.hstack([maybe_inliers, inlier_ids])
+        #         better_model = copy(self.model).fit(X[inlier_points], y[inlier_points])
 
-        print(f"Input tensor shape: {X.shape}, Output tensor shape: {y.shape}")
+        #         this_error = self.metric(y[inlier_points], better_model.predict(X[inlier_points]))
 
-        # Setup model with tensor inputs
-        circle_movement_model = CircleMovementModel(
-            original_center=query_point_start_tensor, initial_guess=initial_guess_tensor
-        )
+        #         if this_error < self.best_error:
+        #             self.best_error = this_error
+        #             self.best_fit = better_model
 
+        # return self
+        maybe_model = copy(self.model)
+        self.fit_model(X, y, maybe_model)
+        return maybe_model
+
+    def predict(self, X):
+        return self.best_fit.predict(X)
+
+    def fit_model(self, X, y, model):
+        
         print("Model initialized, starting optimization")
-        print(f"Training for {ITERATIONS} iterations")
+        print(f"Training for {MODEL_ITERATIONS} iterations")
 
         criterion = torch.nn.MSELoss()
-        optimizer = torch.optim.Adam(circle_movement_model.parameters(), lr=1)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1)
 
-        for t in range(ITERATIONS):
-            y_pred = circle_movement_model(X)
+        for t in range(MODEL_ITERATIONS):
+            y_pred = model(X)
             loss = criterion(y_pred, y)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        delta_x = circle_movement_model.delta_translation[0].item()
-        delta_y = circle_movement_model.delta_translation[1].item()
-        rotation = circle_movement_model.rotation_angle.item()
 
-        print(f"Optimization complete")
-        print(f"Calculated delta: ({delta_x:.4f}, {delta_y:.4f})")
-
+    def get_new_point(self, model, query_point_start):
+        delta_x = model.delta_translation[0].item()
+        delta_y = model.delta_translation[1].item()
+        rotation = model.rotation_angle.item()
         new_center = (query_point_start[0] + delta_x, query_point_start[1] + delta_y)
         print(f"New center position: {new_center}")
-
         return new_center, rotation
+    
+    def get_inliers_outliers(self):
+        return [], []
