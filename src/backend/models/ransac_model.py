@@ -3,11 +3,7 @@ import torch
 from copy import copy
 from numpy.random import default_rng
 
-from src.backend.models.circle_movement_model import CircleMovementModel
-
 rng = default_rng()
-
-MODEL_ITERATIONS = 100
 
 class RANSAC():
     def __init__(self, n=10, k=50, t=0.05, d=10, model=None, loss=None, metric=None):
@@ -46,27 +42,11 @@ class RANSAC():
 
         # return self
         maybe_model = copy(self.model)
-        self.fit_model(X, y, maybe_model)
+        maybe_model.fit(X, y)
         return maybe_model
 
     def predict(self, X):
         return self.best_fit.predict(X)
-
-    def fit_model(self, X, y, model):
-        
-        print("Model initialized, starting optimization")
-        print(f"Training for {MODEL_ITERATIONS} iterations")
-
-        criterion = torch.nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=1)
-
-        for t in range(MODEL_ITERATIONS):
-            y_pred = model(X)
-            loss = criterion(y_pred, y)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
 
     def get_new_point(self, model, query_point_start):
         delta_x = model.delta_translation[0].item()

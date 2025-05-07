@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+MODEL_ITERATIONS = 100
 
 class CircleMovementModel(nn.Module):
     def __init__(self, original_center, initial_guess):
@@ -41,3 +42,21 @@ class CircleMovementModel(nn.Module):
         predicted_points = new_center.unsqueeze(0) + vectors
 
         return predicted_points
+
+
+    def fit(self, X, y):
+        print(f"Training for {MODEL_ITERATIONS} iterations")
+
+        criterion = torch.nn.MSELoss()
+        optimizer = torch.optim.Adam(self.parameters(), lr=1)
+
+        for t in range(MODEL_ITERATIONS):
+            y_pred = self(X)
+            loss = criterion(y_pred, y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+    def predict(self, X):
+        with torch.no_grad():
+            return self(X)
