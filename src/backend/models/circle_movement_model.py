@@ -45,7 +45,7 @@ class CircleMovementModel(nn.Module):
 
 
     def fit(self, X, y):
-        print(f"Training for {MODEL_ITERATIONS} iterations")
+        # print(f"Training for {MODEL_ITERATIONS} iterations")
 
         criterion = torch.nn.MSELoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=1)
@@ -56,6 +56,8 @@ class CircleMovementModel(nn.Module):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        
+        return self
 
     def predict(self, X):
         with torch.no_grad():
