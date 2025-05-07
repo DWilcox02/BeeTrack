@@ -1,6 +1,6 @@
 import numpy as np
 from .point_cloud_generator import PointCloudGenerator
-from .circle_movement_predictor import CircleMovementPredictor
+from ..models.circle_movement_predictor import CircleMovementPredictor
 
 class CircularPointCloudGenerator(PointCloudGenerator):
     def __init__(self, init_points, point_data_store, session_id):

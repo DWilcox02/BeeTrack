@@ -5,7 +5,6 @@ import mediapy as media
 import tempfile
 import numpy as np
 import gc
-import traceback
 
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from .server.utils.video_utils import extract_frame
