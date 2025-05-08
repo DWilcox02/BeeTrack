@@ -9,7 +9,7 @@ class CircleMovementPredictor:
     def predict_circle_x_y_r(self, query_point_start, initial_positions, final_positions) -> CircleMovementResult:
         # Model setup
         query_point_start_tensor = torch.tensor(query_point_start, dtype=torch.float32)
-        initial_guess = np.mean(final_positions, axis=0)  # Mean across all points
+        initial_guess = np.mean(initial_positions, axis=0)  # Mean across all points
         initial_guess_tensor = torch.tensor(initial_guess, dtype=torch.float32)
         circle_movement_model = CircleMovementModel(
             original_center=query_point_start_tensor, initial_guess=initial_guess_tensor
@@ -19,21 +19,19 @@ class CircleMovementPredictor:
         # RANSAC setup
         ransac_model = RANSAC(
             n=24,
-            k=200,
+            k=10,
             t=100,
             model=circle_movement_model
         )
 
         # Input/output setup
-        initial_distances_directions = []
+        initial_vectors = []
         for point in initial_positions:
-            difference = point - query_point_start
-            distance = np.linalg.norm(difference)
-            initial_distances_directions.append([distance, difference[0] / distance, difference[1] / distance])
-        initial_distances_directions = np.array(initial_distances_directions, dtype=np.float32)
+            initial_vectors.append(point - query_point_start)
+        initial_vectors = np.array(initial_vectors, dtype=np.float32)
 
         # Convert to tensors
-        X = torch.tensor(initial_distances_directions, dtype=torch.float32)
+        X = torch.tensor(initial_vectors, dtype=torch.float32)
         y = torch.tensor(final_positions, dtype=torch.float32)
 
         # Fit with RANSAC
@@ -62,4 +60,5 @@ class CircleMovementPredictor:
         rotation = model.rotation_angle.item()
         new_center = (query_point_start[0] + delta_x, query_point_start[1] + delta_y)
         print(f"New center position: {new_center}")
+        print(f"Circle rotated by {rotation} (degrees or radians idk which)")
         return new_center, rotation

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-MODEL_ITERATIONS = 50
+MODEL_ITERATIONS = 100
 
 class CircleMovementModel(nn.Module):
     def __init__(self, original_center, initial_guess):
@@ -14,33 +14,27 @@ class CircleMovementModel(nn.Module):
         self.delta_translation = nn.Parameter(initial_guess - original_center)  # [delta_x, delta_y]
         self.rotation_angle = nn.Parameter(torch.zeros(1))  # Single rotation angle
 
-    def forward(self, initial_distances_directions):
+    def forward(self, initial_vectors):
         """
-        initial_distances_directions: tensor of shape N x 3
-                                      where each row is [distance, dir_x, dir_y]
+        initial_vectors: tensor of shape N x 2
+                        where each row is [x_offset, y_offset]
         """
         # Calculate new center
         new_center = self.original_center + self.delta_translation
-
-        # Extract components
-        distances = initial_distances_directions[:, 0].unsqueeze(1)
-        directions = initial_distances_directions[:, 1:]  # dir_x and dir_y
-
+        
         # Create rotation matrix
         cos_theta = torch.cos(self.rotation_angle)
         sin_theta = torch.sin(self.rotation_angle)
-
-        rotation_matrix = torch.tensor([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
-
-        # Rotate directions
-        rotated_directions = torch.matmul(directions, rotation_matrix.T)
-
-        # Scale by distances
-        vectors = rotated_directions * distances
-
+        
+        rotation_matrix = torch.tensor([[cos_theta, -sin_theta], 
+                                        [sin_theta, cos_theta]])
+        
+        # Rotate the offset vectors directly
+        rotated_vectors = torch.matmul(initial_vectors, rotation_matrix.T)
+        
         # Calculate final positions
-        predicted_points = new_center.unsqueeze(0) + vectors
-
+        predicted_points = new_center.unsqueeze(0) + rotated_vectors
+        
         return predicted_points
 
 
