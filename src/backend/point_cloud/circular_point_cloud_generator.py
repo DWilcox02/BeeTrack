@@ -1,6 +1,7 @@
 import numpy as np
 from .point_cloud_generator import PointCloudGenerator
 from ..models.circle_movement_predictor import CircleMovementPredictor
+from ..models.circle_movement_result import CircleMovementResult
 
 class CircularPointCloudGenerator(PointCloudGenerator):
     def __init__(self, init_points, point_data_store, session_id):
@@ -104,12 +105,12 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         x_y_query_points = [[point["x"], point["y"]] for point in self.get_query_points()]
         new_query_points = []
         for query_point_start, i_p, f_p in zip(x_y_query_points, initial_positions, final_positions):
-            new_center = self.circle_movement_predictor.predict_circle_x_y_r(
+            circle_movement_result: CircleMovementResult = self.circle_movement_predictor.predict_circle_x_y_r(
                 query_point_start=np.array(query_point_start, dtype=np.float32),
                 initial_positions=np.array(i_p, dtype=np.float32),
                 final_positions=np.array(f_p, dtype=np.float32),
             )
-            new_query_points.append(new_center)
+            new_query_points.append([circle_movement_result.x, circle_movement_result.y])
 
         # Set new query points
         formatted_query_points = []
