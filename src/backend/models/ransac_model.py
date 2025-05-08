@@ -29,9 +29,9 @@ class RANSAC():
     def fit(self, X, y):
         # Start with all points for initial guess
         self.best_fit = copy(self.model).fit(X, y)
-        best_fit_mse = self.mse_loss(y, self.best_fit.predict(X))
-        print(f"MSE for all inliers (score to beat): {best_fit_mse}")
+        self.best_error = self.mse_loss(y, self.best_fit.predict(X))
         self.inliers = np.arange(len(X))
+        print(f"MSE for all inliers (score to beat): {self.best_error}")
 
         # Decrease number of samples taken
         for num_samples in range(len(X) - 1, self.n, -1):
@@ -44,9 +44,10 @@ class RANSAC():
                 this_error = self.mse_loss(y, maybe_model.predict(X))
 
                 if this_error < self.best_error:
+                    # print(f"Better error: {this_error}")
                     self.best_error = this_error
                     self.best_fit = maybe_model
-                    self.inliers = ids
+                    self.inliers = maybe_inliers
 
         # for _ in range(self.k):
         #     ids = rng.permutation(X.shape[0])
