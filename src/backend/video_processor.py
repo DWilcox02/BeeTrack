@@ -10,8 +10,11 @@ from typing import List
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from .server.utils.video_utils import extract_frame
 from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenerator
+from .models.circle_movement_predictor import CircleMovementPredictor
 from .point_cloud.estimation.estimation_slice import EstimationSlice
 from .point_cloud.point_cloud import PointCloud
+from src.backend.models.circle_movement_result import CircleMovementResult
+
 
 # Get paths
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -47,6 +50,7 @@ class VideoProcessor():
         self.job_id = job_id
         self.log_message = None
         self.point_cloud_generator = CircularPointCloudGenerator()
+        self.movement_predictor = CircleMovementPredictor()
         self.point_data_store = point_data_store
 
 
@@ -131,6 +135,31 @@ class VideoProcessor():
         cloud_point_lists = [cloud.cloud_points for cloud in point_clouds]
         return [point for cloud_points in cloud_point_lists for point in cloud_points]
 
+    def update_weights(self, predictions, point_clouds, path, filename, end_frame, i, segments_to_process):
+        x_y_points = [[p.x, p.y] for p in predictions]
+        query_points = [cloud.query_point for cloud in point_clouds]
+
+        confidence = min([p.confidence() for p in predictions])
+        request_validation = confidence < CONFIDENCE_THRESHOLD
+
+        query_points = [
+            self.point_cloud_generator.format_new_query_point(x_y_point, previous_point)
+            for x_y_point, previous_point in zip(x_y_points, query_points)
+        ]
+
+        self.send_current_frame_data(
+            query_points=query_points,
+            video_path=DATA_DIR + path + filename, 
+            frame=end_frame - 1, 
+            confidence=confidence, 
+            request_validation=request_validation
+        )
+
+        if i < segments_to_process - 1 and request_validation:
+            self.request_validation()  # Query points will have been updateds
+
+        rotations = [p.r for p in predictions]
+        return query_points, rotations, point_clouds
 
     def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
@@ -219,6 +248,7 @@ class VideoProcessor():
 
                 # Process the slice
                 try:
+                    # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
                         cloud_points=flattened_points,
@@ -226,7 +256,8 @@ class VideoProcessor():
                         height_ratio=height_ratio,
                         width_ratio=width_ratio,
                     )
-                    # Use saved points  
+
+                    # Estimate points to generate slice result  
                     slice_result: EstimationSlice = self.point_cloud_estimator.process_video_slice(
                         orig_frames_slice,
                         width,
@@ -235,55 +266,39 @@ class VideoProcessor():
                         resize_width=resize_width,
                         resize_height=resize_height,
                     )
-
-                    initial_positions = slice_result.get_points_for_frame(
-                        frame=0, 
-                        num_qp=len(point_clouds),
-                        num_cp_per_qp=len(point_clouds[0].cloud_points)
-                    )
                     final_positions = slice_result.get_points_for_frame(
                         frame=-1, 
                         num_qp=len(point_clouds), 
                         num_cp_per_qp=len(point_clouds[0].cloud_points)
                     )
                     
-                    x_y_points, rotations = self.point_cloud_generator.recalc_query_points_rotations(
+                    # Predictions based on clustering, RANSAC, weights
+                    predictions: List[CircleMovementResult] = self.movement_predictor.recalc_query_points_rotations(
                         point_clouds=point_clouds,
-                        initial_positions=initial_positions, 
-                        final_positions=final_positions
+                        final_positions_lists=final_positions
                     )
 
-                    query_points = [
-                        self.point_cloud_generator.format_new_query_point(x_y_point, previous_point)
-                        for x_y_point, previous_point in zip(
-                            x_y_points,
-                            query_points
-                        )
-                    ]
+                    # Update weights and potentially request validation
+                    query_points, rotations, point_clouds = self.update_weights(
+                        predictions=predictions, 
+                        point_clouds=point_clouds,
+                        path=path, 
+                        filename=filename,
+                        end_frame=end_frame,
+                        i=i,
+                        segments_to_process=segments_to_process
+                    )
+
                     self.export_to_point_data_store(query_points)
 
+                    # Reconstruct after new query points calculated (retains weights)
                     point_clouds = self.point_cloud_generator.reconstruct_all_clouds_from_vectors(
                         query_points=query_points,
                         rotations=rotations,
                         point_clouds=point_clouds
                     )
-        
-                    confidence = self.point_cloud_generator.calculate_confidence()
-                    request_validation = confidence < CONFIDENCE_THRESHOLD
-                    self.send_current_frame_data(
-                        query_points=query_points,
-                        video_path=DATA_DIR + path + filename, 
-                        frame=end_frame - 1, 
-                        confidence=confidence, 
-                        request_validation=request_validation
-                    )
-
-                    if i < segments_to_process - 1 and request_validation:
-                        self.request_validation() # Query points will have been updated
-
 
                     video_segment = slice_result.get_video()
-
                     if save_intermediate:
                         # Save segment to disk
                         segment_path = os.path.join(temp_dir, f"segment_{i:04d}.npy")

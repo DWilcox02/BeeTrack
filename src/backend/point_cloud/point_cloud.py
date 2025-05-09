@@ -14,3 +14,6 @@ class PointCloud():
             self.offset_vectors = np.array(self.offset_vectors, dtype=np.float32)
         else:
             self.offset_vectors = offset_vectors
+
+    def query_point_array(self):
+        return np.array([self.query_point["x"], self.query_point["y"]], dtype=np.float32)

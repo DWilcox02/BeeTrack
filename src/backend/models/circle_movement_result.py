@@ -7,3 +7,6 @@ class CircleMovementResult():
         self.r = r
         self.inlier_idxs = inlier_idxs
         self.outlier_idxs = outlier_idxs
+
+    def confidence(self):
+        return 0.0

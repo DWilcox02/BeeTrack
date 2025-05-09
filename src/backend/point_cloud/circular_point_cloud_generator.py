@@ -1,7 +1,6 @@
 import numpy as np
 from .point_cloud_generator import PointCloudGenerator
 from ..models.circle_movement_predictor import CircleMovementPredictor
-from ..models.circle_movement_result import CircleMovementResult
 from .point_cloud import PointCloud
 from typing import List
 
@@ -18,6 +17,13 @@ class CircularPointCloudGenerator(PointCloudGenerator):
             "radius": previous_query_point["radius"],
         }
     
+
+    def reconstruct_all_clouds_from_vectors(self, query_points, rotations, point_clouds: List[PointCloud]):
+        return [
+            self.reconstruct_with_center_rotation(qp, r, point_cloud) for qp, r, point_cloud in zip(query_points, rotations, point_clouds)
+        ]
+
+
     def reconstruct_with_center_rotation(self, query_point, rotation, point_cloud):
         query_point_array = np.array([query_point["x"], query_point["y"]], dtype=np.float32)
         # Create rotation matrix
@@ -42,10 +48,6 @@ class CircularPointCloudGenerator(PointCloudGenerator):
             offset_vectors=point_cloud.offset_vectors,
         )
 
-    def reconstruct_all_clouds_from_vectors(self, query_points, rotations, point_clouds: List[PointCloud]):
-        return [
-            self.reconstruct_with_center_rotation(qp, r, point_cloud) for qp, r, point_cloud in zip(query_points, rotations, point_clouds)
-        ]
 
     def generate_initial_point_clouds(self, query_points):
         """Generate circular point clouds around each query point"""
@@ -96,49 +98,5 @@ class CircularPointCloudGenerator(PointCloudGenerator):
                     circle_points.append((x, y))
         
         cloud_points = np.array(circle_points, dtype=np.float32)
-        weights = np.array([[1 / len(cloud_points)] * len(cloud_points)], dtype=np.float32)
+        weights = np.array([1 / len(cloud_points)] * len(cloud_points), dtype=np.float32)
         return PointCloud(query_point=center_point, cloud_points=cloud_points, rotation=0.0, weights=weights)
-
-    # Which points behave correctly?
-    def update_weights(self, initial_positions, final_positions):
-        pass
-        
-
-    def recalc_query_points_rotations(self, point_clouds: List[PointCloud], initial_positions, final_positions):
-
-        # new_query_points = []
-        # for cloud_weights, cloud_points in zip(self.weights, final_positions):
-        #     new_point = np.array([0, 0], dtype=np.float32)
-        #     for weight, point in zip(cloud_weights, cloud_points):
-        #         new_point += weight * point
-        #     new_query_points.append(new_point)
-        
-        # formatted_query_points = []
-        # for i, point in enumerate(new_query_points):
-        #     formatted_query_points.append({
-        #     "x": float(point[0]),
-        #     "y": float(point[1]),
-        #     "color": query_points[i]["color"],
-        #     "radius": query_points[i]["radius"]
-        #     })
-        
-        # new_query_points = formatted_query_points
-        # self.set_query_points(new_query_points)
-        x_y_query_points = [[point.query_point["x"], point.query_point["y"]] for point in point_clouds]
-        new_query_points = []
-        rotations = []
-        for query_point_start, i_p, f_p in zip(x_y_query_points, initial_positions, final_positions):
-            circle_movement_result: CircleMovementResult = self.circle_movement_predictor.predict_circle_x_y_r(
-                query_point_start=np.array(query_point_start, dtype=np.float32),
-                initial_positions=np.array(i_p, dtype=np.float32),
-                final_positions=np.array(f_p, dtype=np.float32),
-            )
-            new_query_points.append([circle_movement_result.x, circle_movement_result.y])
-            rotations.append(circle_movement_result.r)
-
-        return new_query_points, rotations
-
-
-    def calculate_confidence(self):
-        return 0.0
-

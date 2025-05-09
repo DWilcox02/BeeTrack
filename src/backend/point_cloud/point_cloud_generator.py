@@ -23,14 +23,3 @@ class PointCloudGenerator(ABC):
     def generate_initial_point_clouds(self):
         pass
 
-    @abstractmethod
-    def update_weights(self, initial_positions, final_positions):
-        pass
-
-    @abstractmethod
-    def recalc_query_points_rotations(self, final_positions):
-        pass
-
-    @abstractmethod
-    def calculate_confidence(self):
-        pass

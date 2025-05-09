@@ -1,59 +1,30 @@
 import numpy as np
-import torch
+from typing import List
 
 from src.backend.models.circle_movement_model import CircleMovementModel
 from src.backend.models.circle_movement_result import CircleMovementResult
-from src.backend.models.ransac_model import RANSAC
+from src.backend.point_cloud.point_cloud import PointCloud
 
 class CircleMovementPredictor:
-    def predict_circle_x_y_r(self, query_point_start, initial_positions, final_positions) -> CircleMovementResult:
-        # Model setup
-        query_point_start_tensor = torch.tensor(query_point_start, dtype=torch.float32)
-        initial_guess = np.mean(initial_positions, axis=0)  # Mean across all points
-        initial_guess_tensor = torch.tensor(initial_guess, dtype=torch.float32)
-        circle_movement_model = CircleMovementModel(
-            original_center=query_point_start_tensor, initial_guess=initial_guess_tensor
-        )
-        print(f"Initial guess for center: {initial_guess}")
+    def recalc_query_points_rotations(self, point_clouds: List[PointCloud], final_positions_lists):
+        return [
+            self.predict_circle_x_y_r(point_cloud=point_cloud, final_positions=final_positions) 
+            for point_cloud, final_positions in zip(point_clouds, final_positions_lists)
+        ]
 
-        # RANSAC setup
-        ransac_model = RANSAC(
-            n=24,
-            k=10,
-            t=100,
-            model=circle_movement_model
-        )
-
-        # Input/output setup
-        initial_vectors = []
-        for point in initial_positions:
-            initial_vectors.append(point - query_point_start)
-        initial_vectors = np.array(initial_vectors, dtype=np.float32)
-
-        # Convert to tensors
-        X = torch.tensor(initial_vectors, dtype=torch.float32)
-        y = torch.tensor(final_positions, dtype=torch.float32)
-
-        # Fit with RANSAC
-        fitted_ransac: RANSAC = ransac_model.fit(X, y)
-        best_model: CircleMovementModel = fitted_ransac.best_fit
-        inliers, outliers = ransac_model.get_inliers_outliers()
-
-        print(f"Best model: {best_model}")
-        print(f"Inliers: {inliers}")
-
-        # Get results
-        new_center, rotation = self.get_new_point(best_model, query_point_start)
-
-        
+    def predict_circle_x_y_r(self, point_cloud: PointCloud, final_positions) -> CircleMovementResult:
+        # TODO: Calculate inliers
+        weighted_mean = np.array([0, 0], dtype=np.float32)
+        for weight, point in zip(point_cloud.weights, final_positions):
+            weighted_mean += weight * point
         return CircleMovementResult(
-            x=new_center[0], 
-            y=new_center[1],
-            r=rotation,
-            inlier_idxs=inliers,
-            outlier_idxs=outliers
+            x=weighted_mean[0],
+            y=weighted_mean[1],
+            r=0,
+            inlier_idxs=[i for i in range(len(final_positions))],
+            outlier_idxs=[]
         )
-    
+        
     def get_new_point(self, model: CircleMovementModel, query_point_start):
         delta_x = model.delta_translation[0].item()
         delta_y = model.delta_translation[1].item()
@@ -62,3 +33,5 @@ class CircleMovementPredictor:
         print(f"New center position: {new_center}")
         print(f"Circle rotated by {rotation} (degrees or radians idk which)")
         return new_center, rotation
+    
+    
