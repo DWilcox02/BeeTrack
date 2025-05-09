@@ -30,7 +30,7 @@ class EstimationSlice(ABC):
         normalized_trajectory = mean_trajectory / np.linalg.norm(mean_trajectory)  # Normalize the trajectory
         return normalized_trajectory
 
-    def get_final_points_for_frame(self, frame, num_qp, num_cp_per_qp):
+    def get_points_for_frame(self, frame, num_qp, num_cp_per_qp):
         slice_i = 0
 
         new_query_points = []

@@ -10,35 +10,8 @@ class PointCloudGenerator(ABC):
     #   {'x': Array(1054.8928, dtype=float32), 'y': Array(663.9541, dtype=float32), 'color': 'purple'}
     # ]
 
-    def __init__(self, init_points, point_data_store, session_id):
-        self.query_points = init_points # Initial query points
-        self.point_data_store = point_data_store
-        self.session_id = session_id
+    def __init__(self):
         self.log_fn = print
-        current_cloud_points = self.generate_initial_cloud_points()
-        self.num_qp = len(init_points)
-        self.num_cp_per_qp = int(len(current_cloud_points) / len(init_points))
-        self.weights = np.array(
-            [
-                [1 / self.num_cp_per_qp] * self.num_cp_per_qp
-            ] * self.num_qp, 
-            dtype=np.float32
-        )
-        # print(f"Initialised generator with {len(self.weights)} weights")
-        # print(f"{self.cp_per_qp} cloud points per query point")
-
-
-    def get_query_points(self):
-        assert(self.session_id in self.point_data_store)
-        assert(self.query_points == self.point_data_store[self.session_id]["points"])
-        return self.point_data_store[self.session_id]["points"]
-    
-    def set_query_points(self, points):
-        self.query_points = points
-        self.export_to_point_data_store()
-    
-    def export_to_point_data_store(self):
-        self.point_data_store[self.session_id]["points"] = self.query_points
 
     def set_logger(self, log_fn):
         self.log_fn = log_fn
@@ -47,7 +20,7 @@ class PointCloudGenerator(ABC):
         self.log_fn(message)
 
     @abstractmethod
-    def generate_initial_cloud_points(self):
+    def generate_initial_point_clouds(self):
         pass
 
     @abstractmethod
@@ -55,11 +28,7 @@ class PointCloudGenerator(ABC):
         pass
 
     @abstractmethod
-    def initial_trajectory(self):
-        pass
-
-    @abstractmethod
-    def recalc_query_points(self, final_positions):
+    def recalc_query_points_rotations(self, final_positions):
         pass
 
     @abstractmethod

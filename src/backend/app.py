@@ -316,7 +316,8 @@ def handle_process_video_with_points(data):
                 job_id=job_id
             )
             # Process the video
-            result = video_processor.process_video()
+            init_query_points = point_data_store[session_id]["points"]
+            result = video_processor.process_video(init_query_points)
 
             if result.get("success", False):
                 # Create URL for the processed video
