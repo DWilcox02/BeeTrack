@@ -15,7 +15,7 @@ class PointCloudGenerator(ABC):
         self.point_data_store = point_data_store
         self.session_id = session_id
         self.log_fn = print
-        current_cloud_points = self.generate_cloud_points()
+        current_cloud_points = self.generate_initial_cloud_points()
         self.num_qp = len(init_points)
         self.num_cp_per_qp = int(len(current_cloud_points) / len(init_points))
         self.weights = np.array(
@@ -47,7 +47,7 @@ class PointCloudGenerator(ABC):
         self.log_fn(message)
 
     @abstractmethod
-    def generate_cloud_points(self):
+    def generate_initial_cloud_points(self):
         pass
 
     @abstractmethod

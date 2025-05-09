@@ -8,7 +8,22 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         super().__init__(init_points, point_data_store, session_id)
         self.circle_movement_predictor = CircleMovementPredictor()
 
-    def generate_cloud_points(self):
+    def reconstruct_cloud_from_vectors(self, query_point, vectors, rotation):
+        # Create rotation matrix
+        cos_theta = np.cos(rotation)
+        sin_theta = np.sin(rotation)
+
+        rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
+
+        # Rotate the offset vectors directly
+        rotated_vectors = np.matmul(vectors, rotation_matrix.T)
+
+        # Calculate final positions
+        reconstructed_points = query_point + rotated_vectors
+
+        return reconstructed_points
+
+    def generate_initial_cloud_points(self):
         """Generate circular point clouds around each query point"""
 
         points = self.get_query_points()
@@ -20,23 +35,8 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         # Number of points to generate around each circle
         n_points_per_circle = 12
 
-        # Initialize an empty array to hold all interpolated points
-        all_interpolated_points = []
-        print(points)
         # For each query point, generate a circle of points around it
-        for point in points:
-            circle_points = self._generate_circle_points(point, n_points_per_circle)
-
-            # Convert to the expected format with the query frame and ratios applied
-            for cp in circle_points:
-                interpolated_point = np.array([
-                        cp[0], # x-coordinate
-                        cp[1]  # y-coordinate
-                    ],
-                    dtype=np.float32,
-                )
-
-                all_interpolated_points.append(interpolated_point)
+        all_interpolated_points = [self._generate_circle_points(point, n_points_per_circle) for point in points]
 
         return np.array(all_interpolated_points, dtype=np.float32)
 
@@ -74,7 +74,7 @@ class CircularPointCloudGenerator(PointCloudGenerator):
                 if distance <= radius:
                     circle_points.append((x, y))
         
-        return circle_points
+        return np.array(circle_points, dtype=np.float32)
 
     # Which points behave correctly?
     def update_weights(self, initial_positions, final_positions):

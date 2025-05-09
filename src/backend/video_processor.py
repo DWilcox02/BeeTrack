@@ -23,7 +23,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 2
+NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.8
 
 class VideoProcessor():
@@ -48,11 +48,6 @@ class VideoProcessor():
             init_points=point_data_store[session_id]["points"], 
             point_data_store=point_data_store, 
             session_id=session_id)
-        # self.point_cloud = RhombusPointCloud(
-        #     init_points=point_data_store[session_id]["points"],
-        #     point_data_store=point_data_store,
-        #     session_id=session_id
-        # )
 
 
     def set_log_message_function(self, fn):
@@ -204,8 +199,8 @@ class VideoProcessor():
             height_ratio = resize_height / height
             width_ratio = resize_width / width
             
+            cloud_points = self.point_cloud.generate_initial_cloud_points() # N x 2 (for N points)
 
-            # NEXT: point_cloud_generator = CircularPointCloud(blah blah blah), initialise with uniform weights
             # Process each segment
             for i in range(segments_to_process):
                 start_frame = i * fps
@@ -216,12 +211,13 @@ class VideoProcessor():
 
                 # Process the slice
                 try:
-                    cloud_points = self.point_cloud.generate_cloud_points() # N x 2 (for N points)
+                    cloud_points = self.point_cloud.generate_initial_cloud_points() # N x 2 (for N points)
+                    flattened_points = [x for xs in cloud_points for x in xs]
                     resized_points = self.resize_points_add_frame(
-                        cloud_points=cloud_points, 
-                        query_frame=query_frame, 
-                        height_ratio=height_ratio, 
-                        width_ratio=width_ratio
+                        cloud_points=flattened_points,
+                        query_frame=query_frame,
+                        height_ratio=height_ratio,
+                        width_ratio=width_ratio,
                     )
                     # Use saved points  
                     slice_result: EstimationSlice = self.point_cloud_estimator.process_video_slice(
@@ -244,15 +240,8 @@ class VideoProcessor():
                         num_cp_per_qp=self.point_cloud.num_cp_per_qp
                     )
                     
-                    # Calculate points for next slice
-                    # self.point_cloud.update_weights(
-                    #     initial_positions=initial_positions,
-                    #     final_positions=final_positions
-                    # )
                     self.point_cloud.recalc_query_points(initial_positions=initial_positions, final_positions=final_positions)
-                    
-                    
-                                  
+        
                     confidence = self.point_cloud.calculate_confidence()
                     request_validation = confidence < CONFIDENCE_THRESHOLD
                     self.send_current_frame_data(
