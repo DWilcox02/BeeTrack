@@ -158,6 +158,9 @@ class VideoProcessor():
         if i < segments_to_process - 1 and request_validation:
             self.request_validation()  # Query points will have been updateds
 
+        # NEXT:
+        # Make relevant weight updates based on the provided information,
+        # Query point is either user's input or the prediction
         rotations = [p.r for p in predictions]
         return query_points, rotations, point_clouds
 

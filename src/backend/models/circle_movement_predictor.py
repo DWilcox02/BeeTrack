@@ -13,7 +13,9 @@ class CircleMovementPredictor:
         ]
 
     def predict_circle_x_y_r(self, point_cloud: PointCloud, final_positions) -> CircleMovementResult:
-        # TODO: Calculate inliers
+        # NEXT: 
+        # Use clustering, rotations, and error minimization to determine the best cluster
+        # and its rotation
         weighted_mean = np.array([0, 0], dtype=np.float32)
         for weight, point in zip(point_cloud.weights, final_positions):
             weighted_mean += weight * point
