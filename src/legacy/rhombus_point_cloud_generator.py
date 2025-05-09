@@ -16,7 +16,7 @@ class RhombusPointCloudGenerator(PointCloudGenerator):
         self.bee_skeleton = BeeSkeleton(init_points)
 
     # Methods to generate cloud
-    def generate_cloud_points(self, query_frame, height_ratio, width_ratio):
+    def generate_initial_point_clouds(self, query_frame, height_ratio, width_ratio):
         assert(query_frame is not None)
         assert(height_ratio is not None)
         assert(width_ratio is not None)
@@ -113,7 +113,7 @@ class RhombusPointCloudGenerator(PointCloudGenerator):
         # self.log(f"Recalculated points: {points}")
 
         # Convert to query points
-        query_points = self.generate_cloud_points(
+        query_points = self.generate_initial_point_clouds(
             query_frame=query_frame, height_ratio=height_ratio, width_ratio=width_ratio
         )
 

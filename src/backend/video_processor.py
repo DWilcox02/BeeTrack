@@ -5,11 +5,13 @@ import mediapy as media
 import tempfile
 import numpy as np
 import gc
+from typing import List
 
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from .server.utils.video_utils import extract_frame
 from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenerator
 from .point_cloud.estimation.estimation_slice import EstimationSlice
+from .point_cloud.point_cloud import PointCloud
 
 # Get paths
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -44,15 +46,8 @@ class VideoProcessor():
         self.video = video
         self.job_id = job_id
         self.log_message = None
-        self.point_cloud = CircularPointCloudGenerator(
-            init_points=point_data_store[session_id]["points"], 
-            point_data_store=point_data_store, 
-            session_id=session_id)
-        # self.point_cloud = RhombusPointCloud(
-        #     init_points=point_data_store[session_id]["points"],
-        #     point_data_store=point_data_store,
-        #     session_id=session_id
-        # )
+        self.point_cloud_generator = CircularPointCloudGenerator()
+        self.point_data_store = point_data_store
 
 
     def set_log_message_function(self, fn):
@@ -63,12 +58,16 @@ class VideoProcessor():
         if self.job_id and self.log_message:
             self.log_message(self.job_id, message)
         print(message)
+    
+    
+    def export_to_point_data_store(self, points):
+        self.point_data_store[self.session_id]["points"] = points
 
 
-    def send_current_frame_data(self, video_path, frame, confidence, request_validation):
+    def send_current_frame_data(self, query_points, video_path, frame, confidence, request_validation):
         frame_base64, error, width, height = extract_frame(video_path, frame)
         frameData = {"frame": frame_base64, "width": width, "height": height, "frame_idx": frame}
-        self.send_frame_data_callback(frameData, self.point_cloud.get_query_points(), confidence, request_validation)
+        self.send_frame_data_callback(frameData, query_points, confidence, request_validation)
 
 
     def request_validation(self):
@@ -127,15 +126,19 @@ class VideoProcessor():
             dtype=np.float32
         )
         return cloud_points
+    
+    def flatten_point_clouds(self, point_clouds: List[PointCloud]):
+        cloud_point_lists = [cloud.cloud_points for cloud in point_clouds]
+        return [point for cloud_points in cloud_point_lists for point in cloud_points]
 
 
-    def process_video(self):
+    def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
         filename = self.video["filename"]
         path = self.video["path"]
         fps = self.video.get("fps", 30)
 
-        self.log(f"Processing video: {filename} at {fps} FPS with predefined points {self.point_cloud.get_query_points()}")
+        self.log(f"Processing video: {filename} at {fps} FPS with predefined points {query_points}")
         self.log(f"Path: {path}")
 
         try:
@@ -147,7 +150,7 @@ class VideoProcessor():
                     print(message)  # Still print to console for debugging
 
                 self.point_cloud_estimator.set_logger(custom_logger)
-                self.point_cloud.set_logger(custom_logger)
+                self.point_cloud_generator.set_logger(custom_logger)
 
             max_segments = None
             save_intermediate=True
@@ -204,8 +207,8 @@ class VideoProcessor():
             height_ratio = resize_height / height
             width_ratio = resize_width / width
             
+            point_clouds: List[PointCloud] = self.point_cloud_generator.generate_initial_point_clouds(query_points) # N x 2 (for N points)
 
-            # NEXT: point_cloud_generator = CircularPointCloud(blah blah blah), initialise with uniform weights
             # Process each segment
             for i in range(segments_to_process):
                 start_frame = i * fps
@@ -216,12 +219,12 @@ class VideoProcessor():
 
                 # Process the slice
                 try:
-                    cloud_points = self.point_cloud.generate_cloud_points() # N x 2 (for N points)
+                    flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
-                        cloud_points=cloud_points, 
-                        query_frame=query_frame, 
-                        height_ratio=height_ratio, 
-                        width_ratio=width_ratio
+                        cloud_points=flattened_points,
+                        query_frame=query_frame,
+                        height_ratio=height_ratio,
+                        width_ratio=width_ratio,
                     )
                     # Use saved points  
                     slice_result: EstimationSlice = self.point_cloud_estimator.process_video_slice(
@@ -233,29 +236,42 @@ class VideoProcessor():
                         resize_height=resize_height,
                     )
 
-                    initial_positions = slice_result.get_final_points_for_frame(
+                    initial_positions = slice_result.get_points_for_frame(
                         frame=0, 
-                        num_qp=self.point_cloud.num_qp,
-                        num_cp_per_qp=self.point_cloud.num_cp_per_qp
+                        num_qp=len(point_clouds),
+                        num_cp_per_qp=len(point_clouds[0].cloud_points)
                     )
-                    final_positions = slice_result.get_final_points_for_frame(
+                    final_positions = slice_result.get_points_for_frame(
                         frame=-1, 
-                        num_qp=self.point_cloud.num_qp, 
-                        num_cp_per_qp=self.point_cloud.num_cp_per_qp
+                        num_qp=len(point_clouds), 
+                        num_cp_per_qp=len(point_clouds[0].cloud_points)
                     )
                     
-                    # Calculate points for next slice
-                    # self.point_cloud.update_weights(
-                    #     initial_positions=initial_positions,
-                    #     final_positions=final_positions
-                    # )
-                    self.point_cloud.recalc_query_points(initial_positions=initial_positions, final_positions=final_positions)
-                    
-                    
-                                  
-                    confidence = self.point_cloud.calculate_confidence()
+                    x_y_points, rotations = self.point_cloud_generator.recalc_query_points_rotations(
+                        point_clouds=point_clouds,
+                        initial_positions=initial_positions, 
+                        final_positions=final_positions
+                    )
+
+                    query_points = [
+                        self.point_cloud_generator.format_new_query_point(x_y_point, previous_point)
+                        for x_y_point, previous_point in zip(
+                            x_y_points,
+                            query_points
+                        )
+                    ]
+                    self.export_to_point_data_store(query_points)
+
+                    point_clouds = self.point_cloud_generator.reconstruct_all_clouds_from_vectors(
+                        query_points=query_points,
+                        rotations=rotations,
+                        point_clouds=point_clouds
+                    )
+        
+                    confidence = self.point_cloud_generator.calculate_confidence()
                     request_validation = confidence < CONFIDENCE_THRESHOLD
                     self.send_current_frame_data(
+                        query_points=query_points,
                         video_path=DATA_DIR + path + filename, 
                         frame=end_frame - 1, 
                         confidence=confidence, 

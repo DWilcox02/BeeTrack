@@ -2,45 +2,66 @@ import numpy as np
 from .point_cloud_generator import PointCloudGenerator
 from ..models.circle_movement_predictor import CircleMovementPredictor
 from ..models.circle_movement_result import CircleMovementResult
+from .point_cloud import PointCloud
+from typing import List
 
 class CircularPointCloudGenerator(PointCloudGenerator):
-    def __init__(self, init_points, point_data_store, session_id):
-        super().__init__(init_points, point_data_store, session_id)
+    def __init__(self):
+        super().__init__()
         self.circle_movement_predictor = CircleMovementPredictor()
 
-    def generate_cloud_points(self):
+    def format_new_query_point(self, query_point_array, previous_query_point):
+        return {
+            "x": float(query_point_array[0]),
+            "y": float(query_point_array[1]),
+            "color": previous_query_point["color"],
+            "radius": previous_query_point["radius"],
+        }
+    
+    def reconstruct_with_center_rotation(self, query_point, rotation, point_cloud):
+        query_point_array = np.array([query_point["x"], query_point["y"]], dtype=np.float32)
+        # Create rotation matrix
+        cos_theta = np.cos(rotation)
+        sin_theta = np.sin(rotation)
+
+        rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
+
+        # Rotate the offset vectors directly
+        rotated_vectors = np.matmul(point_cloud.offset_vectors, rotation_matrix.T)
+
+        # Calculate final positions
+        reconstructed_points = query_point_array + rotated_vectors
+
+        return PointCloud(
+            query_point=self.format_new_query_point(
+                query_point_array=query_point_array, 
+                previous_query_point=query_point),
+            cloud_points=reconstructed_points,
+            rotation=rotation,
+            weights=point_cloud.weights,
+            offset_vectors=point_cloud.offset_vectors,
+        )
+
+    def reconstruct_all_clouds_from_vectors(self, query_points, rotations, point_clouds: List[PointCloud]):
+        return [
+            self.reconstruct_with_center_rotation(qp, r, point_cloud) for qp, r, point_cloud in zip(query_points, rotations, point_clouds)
+        ]
+
+    def generate_initial_point_clouds(self, query_points):
         """Generate circular point clouds around each query point"""
 
-        points = self.get_query_points()
-
-        if not points or not isinstance(points, list):
+        if not query_points or not isinstance(query_points, list):
             self.log("process_error: Invalid query points data")
             return []
 
         # Number of points to generate around each circle
         n_points_per_circle = 12
 
-        # Initialize an empty array to hold all interpolated points
-        all_interpolated_points = []
-        print(points)
         # For each query point, generate a circle of points around it
-        for point in points:
-            circle_points = self._generate_circle_points(point, n_points_per_circle)
+        return [self._generate_point_cloud(point, n_points_per_circle) for point in query_points]
 
-            # Convert to the expected format with the query frame and ratios applied
-            for cp in circle_points:
-                interpolated_point = np.array([
-                        cp[0], # x-coordinate
-                        cp[1]  # y-coordinate
-                    ],
-                    dtype=np.float32,
-                )
 
-                all_interpolated_points.append(interpolated_point)
-
-        return np.array(all_interpolated_points, dtype=np.float32)
-
-    def _generate_circle_points(self, center_point, n_points_per_perimeter):
+    def _generate_point_cloud(self, center_point, n_points_per_perimeter):
         """Helper method to generate points that fill a circle around a center point"""
         center_x = float(center_point["x"])
         center_y = float(center_point["y"])
@@ -74,15 +95,16 @@ class CircularPointCloudGenerator(PointCloudGenerator):
                 if distance <= radius:
                     circle_points.append((x, y))
         
-        return circle_points
+        cloud_points = np.array(circle_points, dtype=np.float32)
+        weights = np.array([[1 / len(cloud_points)] * len(cloud_points)], dtype=np.float32)
+        return PointCloud(query_point=center_point, cloud_points=cloud_points, rotation=0.0, weights=weights)
 
     # Which points behave correctly?
     def update_weights(self, initial_positions, final_positions):
         pass
         
 
-    def recalc_query_points(self, initial_positions, final_positions):
-        # current_query_points = self.get_query_points()
+    def recalc_query_points_rotations(self, point_clouds: List[PointCloud], initial_positions, final_positions):
 
         # new_query_points = []
         # for cloud_weights, cloud_points in zip(self.weights, final_positions):
@@ -96,14 +118,15 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         #     formatted_query_points.append({
         #     "x": float(point[0]),
         #     "y": float(point[1]),
-        #     "color": current_query_points[i]["color"],
-        #     "radius": current_query_points[i]["radius"]
+        #     "color": query_points[i]["color"],
+        #     "radius": query_points[i]["radius"]
         #     })
         
         # new_query_points = formatted_query_points
         # self.set_query_points(new_query_points)
-        x_y_query_points = [[point["x"], point["y"]] for point in self.get_query_points()]
+        x_y_query_points = [[point.query_point["x"], point.query_point["y"]] for point in point_clouds]
         new_query_points = []
+        rotations = []
         for query_point_start, i_p, f_p in zip(x_y_query_points, initial_positions, final_positions):
             circle_movement_result: CircleMovementResult = self.circle_movement_predictor.predict_circle_x_y_r(
                 query_point_start=np.array(query_point_start, dtype=np.float32),
@@ -111,52 +134,11 @@ class CircularPointCloudGenerator(PointCloudGenerator):
                 final_positions=np.array(f_p, dtype=np.float32),
             )
             new_query_points.append([circle_movement_result.x, circle_movement_result.y])
+            rotations.append(circle_movement_result.r)
 
-        # Set new query points
-        formatted_query_points = []
-        for i, point in enumerate(new_query_points):
-            formatted_query_points.append({
-            "x": float(point[0]),
-            "y": float(point[1]),
-            "color": self.get_query_points()[i]["color"],
-            "radius": self.get_query_points()[i]["radius"]
-            })
-        self.set_query_points(formatted_query_points)  
+        return new_query_points, rotations
 
 
     def calculate_confidence(self):
         return 0.0
 
-
-    def initial_trajectory(self):
-        """Calculate initial trajectory based on query points"""
-        points = self.get_query_points()
-
-        if not points or len(points) < 2:
-            # Default trajectory pointing right if insufficient points
-            return np.array([1.0, 0.0], dtype=np.float32)
-
-        # Calculate centroid
-        points_array = np.array([(float(point["x"]), float(point["y"])) for point in points], dtype=np.float32)
-        centroid = np.mean(points_array, axis=0)
-
-        # Find the point furthest from the centroid to use for trajectory
-        max_dist = -1
-        furthest_point = None
-
-        for point in points_array:
-            dist = np.linalg.norm(point - centroid)
-            if dist > max_dist:
-                max_dist = dist
-                furthest_point = point
-
-        if furthest_point is not None:
-            # Calculate initial trajectory as vector from centroid to furthest point
-            trajectory = furthest_point - centroid
-            # Normalize
-            if np.linalg.norm(trajectory) > 0:
-                trajectory = trajectory / np.linalg.norm(trajectory)
-            return trajectory
-
-        # Default trajectory if calculation fails
-        return np.array([1.0, 0.0], dtype=np.float32)
