@@ -16,15 +16,20 @@ class CircleMovementPredictor:
         # NEXT: 
         # Use clustering, rotations, and error minimization to determine the best cluster
         # and its rotation
+        final_predictions = np.array([
+            pos - vec_qp_to_cp
+            for vec_qp_to_cp, pos in zip(point_cloud.vectors_qp_to_cp, final_positions)
+        ], dtype=np.float32)
         weighted_mean = np.array([0, 0], dtype=np.float32)
-        for weight, point in zip(point_cloud.weights, final_positions):
+        for weight, point in zip(point_cloud.weights, final_predictions):
             weighted_mean += weight * point
         return CircleMovementResult(
             x=weighted_mean[0],
             y=weighted_mean[1],
             r=0,
             inlier_idxs=[i for i in range(len(final_positions))],
-            outlier_idxs=[]
+            outlier_idxs=[],
+            final_predictions=final_predictions
         )
         
     def get_new_point(self, model: CircleMovementModel, query_point_start):
