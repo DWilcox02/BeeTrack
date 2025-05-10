@@ -138,8 +138,7 @@ class VideoProcessor():
     def distances_to_predictions(self, true_query_point, predicted_query_points):
         return np.linalg.norm(predicted_query_points - true_query_point, axis=1)
 
-    def update_weights_with_distances(self, distances, point_clouds):
-        print(distances)
+    def update_weights_with_distances(self, distances: np.ndarray, point_clouds: List[PointCloud]):
         pass
 
     def validate_and_update_weights(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], path, filename, end_frame, i, segments_to_process):
@@ -153,7 +152,10 @@ class VideoProcessor():
             self.point_cloud_generator.format_new_query_point(x_y_point, previous_point)
             for x_y_point, previous_point in zip(x_y_points, query_points)
         ]
+        for qp in query_points:
+            print(qp)
 
+        self.export_to_point_data_store(query_points)
         self.send_current_frame_data(
             query_points=query_points,
             video_path=DATA_DIR + path + filename, 
@@ -293,7 +295,6 @@ class VideoProcessor():
                         final_positions_lists=final_positions
                     )
 
-                    self.export_to_point_data_store(query_points)
                     # Update weights and potentially request validation
                     query_points, rotations, point_clouds = self.validate_and_update_weights(
                         predictions=predictions, 
