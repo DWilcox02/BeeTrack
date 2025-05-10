@@ -135,7 +135,14 @@ class VideoProcessor():
         cloud_point_lists = [cloud.cloud_points for cloud in point_clouds]
         return [point for cloud_points in cloud_point_lists for point in cloud_points]
 
-    def update_weights(self, predictions, point_clouds, path, filename, end_frame, i, segments_to_process):
+    def distances_to_predictions(self, true_query_point, predicted_query_points):
+        return np.linalg.norm(predicted_query_points - true_query_point, axis=1)
+
+    def update_weights_with_distances(self, distances, point_clouds):
+        print(distances)
+        pass
+
+    def validate_and_update_weights(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], path, filename, end_frame, i, segments_to_process):
         x_y_points = [[p.x, p.y] for p in predictions]
         query_points = [cloud.query_point for cloud in point_clouds]
 
@@ -157,10 +164,15 @@ class VideoProcessor():
 
         if i < segments_to_process - 1 and request_validation:
             self.request_validation()  # Query points will have been updateds
+            query_points = self.point_data_store[self.session_id]["points"]
+
+        x_y_points = np.array([[p["x"], p["y"]] for p in query_points], dtype=np.float32)
 
         # NEXT:
         # Make relevant weight updates based on the provided information,
         # Query point is either user's input or the prediction
+        distances = [self.distances_to_predictions(tqp, pred.final_predictions) for tqp, pred in zip(x_y_points, predictions)]
+        self.update_weights_with_distances(distances=distances, point_clouds=point_clouds)
         rotations = [p.r for p in predictions]
         return query_points, rotations, point_clouds
 
@@ -281,8 +293,9 @@ class VideoProcessor():
                         final_positions_lists=final_positions
                     )
 
+                    self.export_to_point_data_store(query_points)
                     # Update weights and potentially request validation
-                    query_points, rotations, point_clouds = self.update_weights(
+                    query_points, rotations, point_clouds = self.validate_and_update_weights(
                         predictions=predictions, 
                         point_clouds=point_clouds,
                         path=path, 
@@ -291,7 +304,6 @@ class VideoProcessor():
                         i=i,
                         segments_to_process=segments_to_process
                     )
-
                     self.export_to_point_data_store(query_points)
 
                     # Reconstruct after new query points calculated (retains weights)

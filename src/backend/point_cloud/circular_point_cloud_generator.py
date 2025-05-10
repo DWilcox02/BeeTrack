@@ -33,7 +33,7 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
 
         # Rotate the offset vectors directly
-        rotated_vectors = np.matmul(point_cloud.offset_vectors, rotation_matrix.T)
+        rotated_vectors = np.matmul(point_cloud.vectors_qp_to_cp, rotation_matrix.T)
 
         # Calculate final positions
         reconstructed_points = query_point_array + rotated_vectors
@@ -45,7 +45,7 @@ class CircularPointCloudGenerator(PointCloudGenerator):
             cloud_points=reconstructed_points,
             rotation=rotation,
             weights=point_cloud.weights,
-            offset_vectors=point_cloud.offset_vectors,
+            vectors_qp_to_cp=point_cloud.vectors_qp_to_cp,
         )
 
 
