@@ -30,6 +30,8 @@ videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 NUM_SLICES = 2
 CONFIDENCE_THRESHOLD = 0.8
+ERROR_SIGMA = 0.5
+OUTLIER_PENALTY = 0.5
 
 class VideoProcessor():
     def __init__(
@@ -138,8 +140,32 @@ class VideoProcessor():
     def distances_to_predictions(self, true_query_point, predicted_query_points):
         return np.linalg.norm(predicted_query_points - true_query_point, axis=1)
 
-    def update_weights_with_distances(self, distances: np.ndarray, point_clouds: List[PointCloud]):
-        pass
+    def update_weights_with_distances_outliers(self, true_query_points, point_clouds: List[PointCloud], predictions: List[CircleMovementResult]):
+        for true_query_point, point_cloud, prediction in zip(true_query_points, point_clouds, predictions):
+            # print(f"Updating weights for {true_query_point}")
+            x_y_point = np.array([true_query_point["x"], true_query_point["y"]], dtype=np.float32)
+            distances = self.distances_to_predictions(x_y_point, prediction.final_predictions)
+            distance_threshold = true_query_point["radius"]
+
+            accuracy_weights = np.exp(-distances / distance_threshold)
+            for i in prediction.outlier_idxs:
+                accuracy_weights[i] *= OUTLIER_PENALTY # Penalize outliers
+            accuracy_weight_sum = np.sum(accuracy_weights)
+            accuracy_weights /= accuracy_weight_sum # Normalize
+
+
+            new_weights = point_cloud.weights * (1 - ERROR_SIGMA) + accuracy_weights * ERROR_SIGMA
+            weight_sum = np.sum(new_weights)
+            new_weights /= weight_sum # Normalize
+            point_cloud.weights = new_weights
+
+            # for d, w in zip(distances, new_weights):
+            #     print(f"Point with distance {d} has new weight {w}")
+            # print(f"New weight sum: {np.sum(new_weights)}")
+            assert(np.sum(new_weights) - 1 < 0.01)
+
+
+
 
     def validate_and_update_weights(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], path, filename, end_frame, i, segments_to_process):
         x_y_points = [[p.x, p.y] for p in predictions]
@@ -152,8 +178,6 @@ class VideoProcessor():
             self.point_cloud_generator.format_new_query_point(x_y_point, previous_point)
             for x_y_point, previous_point in zip(x_y_points, query_points)
         ]
-        for qp in query_points:
-            print(qp)
 
         self.export_to_point_data_store(query_points)
         self.send_current_frame_data(
@@ -168,13 +192,11 @@ class VideoProcessor():
             self.request_validation()  # Query points will have been updateds
             query_points = self.point_data_store[self.session_id]["points"]
 
-        x_y_points = np.array([[p["x"], p["y"]] for p in query_points], dtype=np.float32)
 
         # NEXT:
         # Make relevant weight updates based on the provided information,
         # Query point is either user's input or the prediction
-        distances = [self.distances_to_predictions(tqp, pred.final_predictions) for tqp, pred in zip(x_y_points, predictions)]
-        self.update_weights_with_distances(distances=distances, point_clouds=point_clouds)
+        self.update_weights_with_distances_outliers(true_query_points=query_points, point_clouds=point_clouds, predictions=predictions)
         rotations = [p.r for p in predictions]
         return query_points, rotations, point_clouds
 
