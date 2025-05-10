@@ -148,6 +148,7 @@ class VideoProcessor():
             distance_threshold = true_query_point["radius"]
 
             accuracy_weights = np.exp(-distances / distance_threshold)
+            print(f"Penalizing weights for {len(prediction.outlier_idxs)} outliers")
             for i in prediction.outlier_idxs:
                 accuracy_weights[i] *= OUTLIER_PENALTY # Penalize outliers
             accuracy_weight_sum = np.sum(accuracy_weights)
