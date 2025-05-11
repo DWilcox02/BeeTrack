@@ -85,7 +85,7 @@ app.get("/analysis/:filename", async (req, res) => {
     // Static points for dance_15
     // points = [
     //   { x: 308.6, y: 349.6, color: "red", radius: 32 },
-    //   { x: 340.6, y: 266.6, color: "green", radius: 32 },
+    //   { x: 336.6, y: 271.1, color: "green", radius: 32 },
     //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
     //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
     // ];
