@@ -46,3 +46,7 @@ class EstimationSlice(ABC):
     @abstractmethod
     def get_video(self):
         pass
+
+    @abstractmethod
+    def get_video_for_points(self, points):
+        pass

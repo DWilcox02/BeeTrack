@@ -28,7 +28,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 2
+NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.8
 ERROR_SIGMA = 0.5
 OUTLIER_PENALTY = 0.5
@@ -288,6 +288,7 @@ class VideoProcessor():
 
                 # Process the slice
                 try:
+                    start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
@@ -306,6 +307,10 @@ class VideoProcessor():
                         resize_width=resize_width,
                         resize_height=resize_height,
                     )
+                    # slice_result: EstimationSlice = self.point_cloud_estimator.process_cached_dance_15(
+                    #     orig_frames_slice
+                    # )
+
                     final_positions = slice_result.get_points_for_frame(
                         frame=-1, 
                         num_qp=len(point_clouds), 
@@ -341,7 +346,23 @@ class VideoProcessor():
                         point_clouds=point_clouds
                     )
 
-                    video_segment = slice_result.get_video()
+                    end_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
+                    interpolated_points = []
+                    diff = end_frame - start_frame
+
+                    # Initialize three empty lists for the three query points
+                    point_trajectories = [[] for _ in range(len(start_query_points))]
+
+                    for f in range(diff):
+                        a = f / diff
+                        for i, (start_qp, end_qp) in enumerate(zip(start_query_points, end_query_points)):
+                            interpolated_qp = (1 - a) * start_qp + a * end_qp
+                            point_trajectories[i].append(interpolated_qp)
+
+                    interpolated_points = point_trajectories
+
+                    # video_segment = slice_result.get_video()
+                    video_segment = slice_result.get_video_for_points(interpolated_points)
                     if save_intermediate:
                         # Save segment to disk
                         segment_path = os.path.join(temp_dir, f"segment_{i:04d}.npy")
