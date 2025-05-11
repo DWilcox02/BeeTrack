@@ -28,7 +28,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 3
+NUM_SLICES = 6
 CONFIDENCE_THRESHOLD = 0.8
 ERROR_SIGMA = 0.5
 OUTLIER_PENALTY = 0.5
@@ -126,19 +126,59 @@ class VideoProcessor():
                 os.rmdir(temp_dir)
             return None, fps
 
+
+    def convert_to_serializable(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, list):
+            return [self.convert_to_serializable(item) for item in obj]
+        elif isinstance(obj, tuple):
+            return tuple(self.convert_to_serializable(item) for item in obj)
+        elif isinstance(obj, dict):
+            return {key: self.convert_to_serializable(value) for key, value in obj.items()}
+        else:
+            return obj
+
+
+    def combine_and_write_tracks(self, tracks, final_tracks_output_path):
+        try:
+            tracks_list = self.convert_to_serializable(tracks)
+            
+            os.makedirs(os.path.dirname(final_tracks_output_path), exist_ok=True)
+            
+            tracks_data = {
+                "num_points": len(tracks_list),
+                "num_frames": len(tracks_list[0]) if tracks_list else 0,
+                "tracks": tracks_list
+            }
+            
+            # Write to JSON file
+            with open(final_tracks_output_path, 'w') as f:
+                json.dump(tracks_data, f, indent=2)
+                
+            print(f"Tracks successfully written to {final_tracks_output_path}")
+            
+        except Exception as e:
+            print(f"Error writing tracks to file: {e}")
+            raise
+
+
     def resize_points_add_frame(self, cloud_points, query_frame, height_ratio, width_ratio):
         cloud_points = np.array(
             [[query_frame, point[1] * height_ratio, point[0] * width_ratio] for point in cloud_points],
             dtype=np.float32
         )
         return cloud_points
-    
+
+
     def flatten_point_clouds(self, point_clouds: List[PointCloud]):
         cloud_point_lists = [cloud.cloud_points for cloud in point_clouds]
         return [point for cloud_points in cloud_point_lists for point in cloud_points]
 
+
     def distances_to_predictions(self, true_query_point, predicted_query_points):
         return np.linalg.norm(predicted_query_points - true_query_point, axis=1)
+
 
     def update_weights_with_distances_outliers(self, true_query_points, point_clouds: List[PointCloud], predictions: List[CircleMovementResult]):
         for true_query_point, point_cloud, prediction in zip(true_query_points, point_clouds, predictions):
@@ -164,8 +204,6 @@ class VideoProcessor():
             #     print(f"Point with distance {d} has new weight {w}")
             # print(f"New weight sum: {np.sum(new_weights)}")
             assert(np.sum(new_weights) - 1 < 0.01)
-
-
 
 
     def validate_and_update_weights(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], path, filename, end_frame, i, segments_to_process):
@@ -200,6 +238,7 @@ class VideoProcessor():
         self.update_weights_with_distances_outliers(true_query_points=query_points, point_clouds=point_clouds, predictions=predictions)
         rotations = [p.r for p in predictions]
         return query_points, rotations, point_clouds
+
 
     def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
@@ -277,6 +316,7 @@ class VideoProcessor():
             width_ratio = resize_width / width
             
             point_clouds: List[PointCloud] = self.point_cloud_generator.generate_initial_point_clouds(query_points) # N x 2 (for N points)
+            all_tracks = [[] for _ in range(len(point_clouds))]
 
             # Process each segment
             for i in range(segments_to_process):
@@ -381,17 +421,19 @@ class VideoProcessor():
                             else:
                                 b = (diff - k) / half
                             
-                            raw_weight = 0.7 + 0.3 * b  # 70-100% weight to raw_mean_tracks
+                            raw_weight = 0.5 + 0.5 * b  # 70-100% weight to raw_mean_tracks
                             interpolated_weight = 1 - raw_weight
                             smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
                         smoothed_points.append(smoothed_tracks)
                     smoothed_points = np.array(smoothed_points)
-                    
+
                     # video_segment = slice_result.get_video()
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
                     video_segment = slice_result.get_video_for_points(smoothed_points)
+                    for j, sps in enumerate(smoothed_points):
+                        all_tracks[j].extend(sps)
 
                     if save_intermediate:
                         # Save segment to disk
@@ -413,21 +455,28 @@ class VideoProcessor():
                     self.log(traceback.format_exc())
 
             # Prepare final video
-            final_output_path = OUTPUT_DIR + "POINT_CLOUD_" + filename
+            final_video_output_path = OUTPUT_DIR + "POINT_CLOUD_" + filename
+            name, _ = filename.split(".")
+            final_tracks_output_path = OUTPUT_DIR + "TRACKS_" + name + ".txt"
 
             self.combine_and_write_video(
                 save_intermediate=save_intermediate,
                 segment_paths=segment_paths,
                 processed_segments=processed_segments,
-                final_output_path=final_output_path,
+                final_output_path=final_video_output_path,
                 fps=fps,
                 temp_dir=temp_dir,
                 start_time=start_time
             )
 
+            self.combine_and_write_tracks(
+                tracks=all_tracks,
+                final_tracks_output_path=final_tracks_output_path
+            )
+
             self.log(f"Processing completed successfully for {filename}")
 
-            return {"success": True, "output_filename": final_output_path, "fps": fps}
+            return {"success": True, "output_filename": final_video_output_path, "fps": fps}
 
         except Exception as e:
             import traceback
