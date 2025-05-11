@@ -28,7 +28,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 2
+NUM_SLICES = 3
 CONFIDENCE_THRESHOLD = 0.8
 ERROR_SIGMA = 0.5
 OUTLIER_PENALTY = 0.5
@@ -346,23 +346,52 @@ class VideoProcessor():
                         point_clouds=point_clouds
                     )
 
+                    # Get query points for interpolation
                     end_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
-                    interpolated_points = []
                     diff = end_frame - start_frame
+                    num_point_clouds = len(start_query_points)
 
-                    # Initialize three empty lists for the three query points
-                    point_trajectories = [[] for _ in range(len(start_query_points))]
+                    interpolated_points = [[] for _ in range(num_point_clouds)]
+                    mean_points = [[] for _ in range(num_point_clouds)]
 
                     for f in range(diff):
                         a = f / diff
-                        for j, (start_qp, end_qp) in enumerate(zip(start_query_points, end_query_points)):
-                            interpolated_qp = (1 - a) * start_qp + a * end_qp
-                            point_trajectories[j].append(interpolated_qp)
+                        
+                        for k, (start_qp, end_qp) in enumerate(zip(start_query_points, end_query_points)):
+                            interpolated_points[k].append((1 - a) * start_qp + a * end_qp)
+                        
+                        points_at_frame = slice_result.get_points_for_frame(
+                            frame=f, num_qp=num_point_clouds, num_cp_per_qp=len(point_clouds[0].cloud_points)
+                        )
+                        for k, points in enumerate(points_at_frame):
+                            mean_points[k].append(np.mean(points, axis=0))
 
-                    interpolated_points = point_trajectories
+                    interpolated_points = np.array(interpolated_points)
+                    mean_points = np.array(mean_points)
 
+                    # Calculate smoothed points
+                    smoothed_points = []
+                    for j, (interpolated_tracks, raw_mean_tracks) in enumerate(zip(interpolated_points, mean_points)):
+                        half = diff // 2
+                        smoothed_tracks = []
+                        
+                        for k in range(diff):
+                            if k < half:
+                                b = k / half
+                            else:
+                                b = (diff - k) / half
+                            
+                            raw_weight = 0.7 + 0.3 * b  # 70-100% weight to raw_mean_tracks
+                            interpolated_weight = 1 - raw_weight
+                            smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
+                        smoothed_points.append(smoothed_tracks)
+                    smoothed_points = np.array(smoothed_points)
+                    
                     # video_segment = slice_result.get_video()
-                    video_segment = slice_result.get_video_for_points(interpolated_points)
+                    # video_segment = slice_result.get_video_for_points(interpolated_points)
+                    # video_segment = slice_result.get_video_for_points(mean_points)
+                    # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
+                    video_segment = slice_result.get_video_for_points(smoothed_points)
 
                     if save_intermediate:
                         # Save segment to disk
