@@ -43,6 +43,7 @@ class CircularPointCloudGenerator(PointCloudGenerator):
                 query_point_array=query_point_array, 
                 previous_query_point=query_point),
             cloud_points=reconstructed_points,
+            radius=query_point["radius"],
             rotation=rotation,
             weights=point_cloud.weights,
             vectors_qp_to_cp=point_cloud.vectors_qp_to_cp,
@@ -99,4 +100,10 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         
         cloud_points = np.array(circle_points, dtype=np.float32)
         weights = np.array([1 / len(cloud_points)] * len(cloud_points), dtype=np.float32)
-        return PointCloud(query_point=center_point, cloud_points=cloud_points, rotation=0.0, weights=weights)
+        return PointCloud(
+            query_point=center_point, 
+            cloud_points=cloud_points, 
+            radius=center_point["radius"],
+            rotation=0.0, 
+            weights=weights
+        )

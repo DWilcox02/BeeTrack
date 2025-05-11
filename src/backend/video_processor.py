@@ -148,6 +148,7 @@ class VideoProcessor():
             distance_threshold = true_query_point["radius"]
 
             accuracy_weights = np.exp(-distances / distance_threshold)
+            print(f"Penalizing weights for {len(prediction.outlier_idxs)} outliers")
             for i in prediction.outlier_idxs:
                 accuracy_weights[i] *= OUTLIER_PENALTY # Penalize outliers
             accuracy_weight_sum = np.sum(accuracy_weights)
@@ -328,6 +329,10 @@ class VideoProcessor():
                         segments_to_process=segments_to_process
                     )
                     self.export_to_point_data_store(query_points)
+
+                    # TODO: Redraw all OUTLIERS and use weights to lerp between reconstructed point and final position
+                        # Therefore good weights mean the point is doing well so we keep it, 
+                        # bad weights mean the point is not doing well so we reconstruct
 
                     # Reconstruct after new query points calculated (retains weights)
                     point_clouds = self.point_cloud_generator.reconstruct_all_clouds_from_vectors(
