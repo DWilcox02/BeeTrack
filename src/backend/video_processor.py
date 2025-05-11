@@ -28,7 +28,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 1
+NUM_SLICES = 2
 CONFIDENCE_THRESHOLD = 0.8
 ERROR_SIGMA = 0.5
 OUTLIER_PENALTY = 0.5
@@ -355,14 +355,15 @@ class VideoProcessor():
 
                     for f in range(diff):
                         a = f / diff
-                        for i, (start_qp, end_qp) in enumerate(zip(start_query_points, end_query_points)):
+                        for j, (start_qp, end_qp) in enumerate(zip(start_query_points, end_query_points)):
                             interpolated_qp = (1 - a) * start_qp + a * end_qp
-                            point_trajectories[i].append(interpolated_qp)
+                            point_trajectories[j].append(interpolated_qp)
 
                     interpolated_points = point_trajectories
 
                     # video_segment = slice_result.get_video()
                     video_segment = slice_result.get_video_for_points(interpolated_points)
+
                     if save_intermediate:
                         # Save segment to disk
                         segment_path = os.path.join(temp_dir, f"segment_{i:04d}.npy")
@@ -400,6 +401,7 @@ class VideoProcessor():
             return {"success": True, "output_filename": final_output_path, "fps": fps}
 
         except Exception as e:
+            import traceback
             stack_trace = traceback.format_exc()
             error_message = f"Error processing video: {str(e)}"
             self.log(error_message)
