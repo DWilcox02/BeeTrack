@@ -330,6 +330,10 @@ class VideoProcessor():
                     )
                     self.export_to_point_data_store(query_points)
 
+                    # TODO: Redraw all OUTLIERS and use weights to lerp between reconstructed point and final position
+                        # Therefore good weights mean the point is doing well so we keep it, 
+                        # bad weights mean the point is not doing well so we reconstruct
+
                     # Reconstruct after new query points calculated (retains weights)
                     point_clouds = self.point_cloud_generator.reconstruct_all_clouds_from_vectors(
                         query_points=query_points,
