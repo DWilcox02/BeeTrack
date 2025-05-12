@@ -134,6 +134,26 @@ const api = {
       });
     });
   },
+
+  // Update all points
+  updateAllPoints: (sessionId, points) => {
+    return new Promise((resolve, reject) => {
+      socket.emit(
+        "update_all_points",
+        {
+          session_id: sessionId,
+          points: points,
+        },
+        (response) => {
+          if (response.success) {
+            resolve(response.points);
+          } else {
+            reject(new Error(response.error || "Failed to update all points"));
+          }
+        }
+      );
+    });
+  }
 };
 
 // -------------------------------------------------------------------------
@@ -185,6 +205,24 @@ socket.on("validation_request", (data, callback) => {
   // Show the validation button
   document.getElementById("validationContinue").style.display = "block";
 });
+
+
+socket.on("update_all_points_response", (result) => {
+  console.log("Socket response for all points update:", result);
+
+  if (result.success) {
+    // Update the plot using the returned plot data
+    if (result.points) {
+      updatePlot(result.points);
+    }
+
+    showStatus("All points updated successfully!", "success");
+  } else {
+    showStatus(`Error: ${result.error || "Failed to update points"}`, "error");
+  }
+});
+
+
 
 
 
