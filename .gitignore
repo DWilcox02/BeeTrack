@@ -198,3 +198,4 @@ checkpoints/tapir/*
 
 # References
 **/*.mp4
+**/references
