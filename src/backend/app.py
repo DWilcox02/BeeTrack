@@ -493,6 +493,65 @@ def handle_validation_response(data):
         validation_events[request_id]["event"].set()
 
 
+@socketio.on("update_all_points")
+def handle_update_all_points(data):
+    """Update all point positions at once and emit updated plot data through socket."""
+    try:
+        session_id = data.get("session_id")
+        points = data.get("points")
+
+        if not session_id or not isinstance(points, list):
+            emit("update_all_points_response", {"success": False, "error": "Missing session_id or invalid points data"})
+            return
+
+        if session_id not in point_data_store:
+            print(f"Session ID {session_id} not found in point_data_store")
+            emit("update_all_points_response", {"success": False, "error": "Session not found"})
+            return
+
+        session_data = point_data_store[session_id]
+
+        # Validate the number of points matches the existing session
+        if len(points) != len(session_data["points"]):
+            print(
+                f"Invalid number of points for session {session_id}: expected {len(session_data['points'])}, got {len(points)}"
+            )
+            emit("update_all_points_response", {"success": False, "error": "Invalid number of points"})
+            return
+
+        # Validate each point has required fields
+        for i, point in enumerate(points):
+            if not all(key in point for key in ["x", "y", "color", "radius"]):
+                print(f"Invalid point data at index {i}: missing required fields")
+                emit("update_all_points_response", {"success": False, "error": f"Invalid point data at index {i}"})
+                return
+
+        # Update all points
+        for i, point in enumerate(points):
+            session_data["points"][i]["x"] = float(point["x"])
+            session_data["points"][i]["y"] = float(point["y"])
+            session_data["points"][i]["color"] = point["color"]
+            session_data["points"][i]["radius"] = float(point["radius"])
+
+        # Format points for JSON response
+        points_json = []
+        for point in session_data["points"]:
+            points_json.append(
+                {
+                    "x": json.dumps(float(point["x"])),
+                    "y": json.dumps(float(point["y"])),
+                    "color": point["color"],
+                    "radius": json.dumps(float(point["radius"])),
+                }
+            )
+
+        emit("update_all_points_response", {"success": True, "points": points_json})
+    except Exception as e:
+        app.logger.error(f"Error updating all points: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        emit("update_all_points_response", {"success": False, "error": str(e)})
+        
+
 # Run the application
 if __name__ == "__main__":
     print(f"Using data directory: {DATA_FOLDER}")

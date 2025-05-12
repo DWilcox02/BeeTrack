@@ -21,6 +21,10 @@ document.addEventListener("DOMContentLoaded", function () {
   if (sendRadiusBtn) {
     sendRadiusBtn.addEventListener("click", updateRadiusForSelectedPoint);
   }
+  const importPointsBtn = document.getElementById("importPointsBtn");
+  if (importPointsBtn) {
+    importPointsBtn.addEventListener("click", importPointsFromText);
+  }
 
   // Initialize overlay and handlers
   initializePlotHandlers();
@@ -30,6 +34,58 @@ document.addEventListener("DOMContentLoaded", function () {
 
   setTimeout(initializeRadiusValues, 500);
 });
+
+function importPointsFromText() {
+  const inputText = document.getElementById("pointsDataInput").value.trim();
+
+  if (!inputText) {
+    showStatus("Please paste valid points data in the text area.", "error");
+    return;
+  }
+
+  try {
+    // Try to parse the input as JSON
+    let pointsData;
+
+    // Check if the input starts with a [ and is array-like
+    if (inputText.startsWith("[")) {
+      // Try to evaluate the JavaScript object notation (safer than eval)
+      try {
+        pointsData = JSON.parse(inputText.replace(/([{,]\s*)(\w+):/g, '$1"$2":'));
+      } catch (e) {
+        // If JSON.parse fails, try Function constructor as a safer alternative to eval
+        // This allows for JavaScript object notation with unquoted property names
+        pointsData = new Function("return " + inputText)();
+      }
+    } else {
+      throw new Error("Input does not appear to be a valid array of points");
+    }
+
+    // Validate the parsed data
+    if (!Array.isArray(pointsData)) {
+      throw new Error("Input must be an array of point objects");
+    }
+
+    // Validate each point has the required properties
+    for (let i = 0; i < pointsData.length; i++) {
+      const point = pointsData[i];
+      if (
+        typeof point.x !== "number" ||
+        typeof point.y !== "number" ||
+        typeof point.color !== "string" ||
+        typeof point.radius !== "number"
+      ) {
+        throw new Error(`Invalid point at index ${i}. Each point must have x, y, color, and radius properties.`);
+      }
+    }
+
+    // Send all points to the backend
+    updateAllPoints(pointsData);
+  } catch (error) {
+    console.error("Error parsing points data:", error);
+    showStatus(`Error: ${error.message}`, "error");
+  }
+}
 
 // Initialize plot handlers
 function initializePlotHandlers() {
@@ -341,6 +397,28 @@ async function updatePoint(pointIndex, x, y, radius) {
     showStatus(`Error: ${error.message}`, "error");
   }
 }
+
+// Function to update all points at once
+async function updateAllPoints(points) {
+  showStatus("Updating all point positions...", "processing");
+
+  try {
+    // Emit the update_all_points event with the data
+    socket.emit("update_all_points", {
+      session_id: sessionId,
+      points: points,
+    });
+
+    // Update the frontend visualization immediately
+    updatePlot(points);
+
+    showStatus("Points updated successfully!", "success");
+  } catch (error) {
+    console.error("Error updating points:", error);
+    showStatus(`Error: ${error.message}`, "error");
+  }
+}
+
 
 function ensureDataUrlFormat(imageData) {
   // If the image data doesn't start with the data URL prefix, add it

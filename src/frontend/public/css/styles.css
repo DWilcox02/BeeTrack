@@ -417,3 +417,31 @@ video {
     margin: 20px auto;
     transition: all 0.3s ease;
 }
+
+#pointsDataInput {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 14px;
+    background-color: #f9f9f9;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    font-family: monospace;
+    resize: vertical;
+}
+
+#pointsDataInput:focus {
+    border-color: #2196F3;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.import-success {
+    animation: flash-success 1s ease-out;
+}
+
+@keyframes flash-success {
+    0% { background-color: rgba(76, 175, 80, 0.2); }
+    100% { background-color: transparent; }
+}
