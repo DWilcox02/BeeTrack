@@ -26,3 +26,7 @@ class PointCloudEstimatorInterface(ABC):
         :param fps: The frames per second to process the video.
         """
         pass
+
+    @abstractmethod
+    def process_cached_dance_15(self, orig_frames):
+        pass

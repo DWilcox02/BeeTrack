@@ -76,16 +76,15 @@ app.get("/analysis/:filename", async (req, res) => {
 
     // Static points for outside_florea
     // points = [
-    //   { x: 1017.8, y: 638.1, color: "red", radius: 24 },
-    //   { x: 1067.2, y: 683.6, color: "green", radius: 24 },
-    //   { x: 1048.6, y: 665.1, color: "blue", radius: 24 },
-    //   // { x: 1057.8, y: 659.8, color: "purple" },
+    //   { x: 1017.80, y: 638.10, color: "red", radius: 24.00 },
+    //   { x: 1060.99, y: 675.88, color: "green", radius: 24.00 },
+    //   { x: 1036.30, y: 658.90, color: "blue", radius: 24.00 },
     // ];
 
     // Static points for dance_15
     // points = [
     //   { x: 308.6, y: 349.6, color: "red", radius: 32 },
-    //   { x: 340.6, y: 266.6, color: "green", radius: 32 },
+    //   { x: 336.6, y: 271.1, color: "green", radius: 32 },
     //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
     //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
     // ];

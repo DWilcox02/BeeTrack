@@ -195,3 +195,6 @@ checkpoints/tapir/*
 
 # VSCode
 .vscode
+
+# References
+**/*.mp4

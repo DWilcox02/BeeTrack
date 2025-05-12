@@ -126,19 +126,59 @@ class VideoProcessor():
                 os.rmdir(temp_dir)
             return None, fps
 
+
+    def convert_to_serializable(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, list):
+            return [self.convert_to_serializable(item) for item in obj]
+        elif isinstance(obj, tuple):
+            return tuple(self.convert_to_serializable(item) for item in obj)
+        elif isinstance(obj, dict):
+            return {key: self.convert_to_serializable(value) for key, value in obj.items()}
+        else:
+            return obj
+
+
+    def combine_and_write_tracks(self, tracks, final_tracks_output_path):
+        try:
+            tracks_list = self.convert_to_serializable(tracks)
+            
+            os.makedirs(os.path.dirname(final_tracks_output_path), exist_ok=True)
+            
+            tracks_data = {
+                "num_points": len(tracks_list),
+                "num_frames": len(tracks_list[0]) if tracks_list else 0,
+                "tracks": tracks_list
+            }
+            
+            # Write to JSON file
+            with open(final_tracks_output_path, 'w') as f:
+                json.dump(tracks_data, f, indent=2)
+                
+            print(f"Tracks successfully written to {final_tracks_output_path}")
+            
+        except Exception as e:
+            print(f"Error writing tracks to file: {e}")
+            raise
+
+
     def resize_points_add_frame(self, cloud_points, query_frame, height_ratio, width_ratio):
         cloud_points = np.array(
             [[query_frame, point[1] * height_ratio, point[0] * width_ratio] for point in cloud_points],
             dtype=np.float32
         )
         return cloud_points
-    
+
+
     def flatten_point_clouds(self, point_clouds: List[PointCloud]):
         cloud_point_lists = [cloud.cloud_points for cloud in point_clouds]
         return [point for cloud_points in cloud_point_lists for point in cloud_points]
 
+
     def distances_to_predictions(self, true_query_point, predicted_query_points):
         return np.linalg.norm(predicted_query_points - true_query_point, axis=1)
+
 
     def update_weights_with_distances_outliers(self, true_query_points, point_clouds: List[PointCloud], predictions: List[CircleMovementResult]):
         for true_query_point, point_cloud, prediction in zip(true_query_points, point_clouds, predictions):
@@ -166,8 +206,6 @@ class VideoProcessor():
             assert(np.sum(new_weights) - 1 < 0.01)
 
 
-
-
     def validate_and_update_weights(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], path, filename, end_frame, i, segments_to_process):
         x_y_points = [[p.x, p.y] for p in predictions]
         query_points = [cloud.query_point for cloud in point_clouds]
@@ -189,7 +227,7 @@ class VideoProcessor():
             request_validation=request_validation
         )
 
-        if i < segments_to_process - 1 and request_validation:
+        if request_validation:
             self.request_validation()  # Query points will have been updateds
             query_points = self.point_data_store[self.session_id]["points"]
 
@@ -200,6 +238,103 @@ class VideoProcessor():
         self.update_weights_with_distances_outliers(true_query_points=query_points, point_clouds=point_clouds, predictions=predictions)
         rotations = [p.r for p in predictions]
         return query_points, rotations, point_clouds
+
+
+    def smooth_points(self, start_frame, end_frame, start_query_points, end_query_points, slice_result, point_clouds):
+        diff = end_frame - start_frame
+        num_point_clouds = len(start_query_points)
+
+        interpolated_points = [[] for _ in range(num_point_clouds)]
+        mean_points = [[] for _ in range(num_point_clouds)]
+
+        for f in range(diff):
+            a = f / diff
+            
+            for k, (start_qp, end_qp) in enumerate(zip(start_query_points, end_query_points)):
+                interpolated_points[k].append((1 - a) * start_qp + a * end_qp)
+            
+            points_at_frame = slice_result.get_points_for_frame(
+                frame=f, num_qp=num_point_clouds, num_cp_per_qp=len(point_clouds[0].cloud_points)
+            )
+            for k, points in enumerate(points_at_frame):
+                mean_points[k].append(np.mean(points, axis=0))
+
+        interpolated_points = np.array(interpolated_points)
+        mean_points = np.array(mean_points)
+
+        # Calculate smoothed points
+        smoothed_points = []
+        for j, (interpolated_tracks, raw_mean_tracks) in enumerate(zip(interpolated_points, mean_points)):
+            half = diff // 2
+            smoothed_tracks = []
+            
+            for k in range(diff):
+                if k < half:
+                    b = k / half
+                else:
+                    b = (diff - k) / half
+                
+                raw_weight = 0.5 + 0.5 * b  # 70-100% weight to raw_mean_tracks
+                interpolated_weight = 1 - raw_weight
+                smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
+            smoothed_points.append(smoothed_tracks)
+        smoothed_points = np.array(smoothed_points)
+        return smoothed_points
+
+
+    def calc_errors(self, predictions: List[CircleMovementResult], validated_query_points: np.ndarray):
+        results = []
+        for pred, val_qp in zip(predictions, validated_query_points):
+            pred_point = np.array([pred.x, pred.y])
+            euclidean_distance = np.linalg.norm(pred_point - val_qp)
+            vector = pred_point - val_qp
+
+            results.append({
+                "euclidean_distance": euclidean_distance, 
+                "vector_true_to_pred": vector
+            })
+
+        return results
+
+
+    def write_errors(self, errors, final_errors_output_path):
+        all_distances = []
+        all_vectors = []
+
+        detailed_errors = {}
+        error_id_counter = 0
+
+        for frame_idx, error_list in enumerate(errors):
+            frame_key = f"frame_{frame_idx}"
+            detailed_errors[frame_key] = []
+
+            for error in error_list:
+                all_distances.append(error["euclidean_distance"])
+                all_vectors.append(error["vector_true_to_pred"])
+
+                detailed_errors[frame_key].append(
+                    {
+                        "error_id": error_id_counter,
+                        "euclidean_distance": float(error["euclidean_distance"]),
+                        "vector_true_to_pred": [float(error["vector_true_to_pred"][0]), float(error["vector_true_to_pred"][1])],
+                    }
+                )
+                error_id_counter += 1
+
+        all_distances = np.array(all_distances)
+
+        mean_error = float(np.mean(all_distances))
+        variance = float(np.var(all_distances))
+
+        output_json = {"mean_error": mean_error, "variance": variance, "detailed_errors": detailed_errors}
+
+        with open(final_errors_output_path, "w") as f:
+            json.dump(output_json, f, indent=2)
+
+        print(f"Errors successfully written to {final_errors_output_path}")
+
+        return {"mean_error": mean_error, "variance": variance, "all_distances": all_distances, "all_vectors": all_vectors}
+
 
     def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
@@ -277,6 +412,8 @@ class VideoProcessor():
             width_ratio = resize_width / width
             
             point_clouds: List[PointCloud] = self.point_cloud_generator.generate_initial_point_clouds(query_points) # N x 2 (for N points)
+            all_tracks = [[] for _ in range(len(point_clouds))]
+            all_errors = []
 
             # Process each segment
             for i in range(segments_to_process):
@@ -288,6 +425,7 @@ class VideoProcessor():
 
                 # Process the slice
                 try:
+                    start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
@@ -306,6 +444,10 @@ class VideoProcessor():
                         resize_width=resize_width,
                         resize_height=resize_height,
                     )
+                    # slice_result: EstimationSlice = self.point_cloud_estimator.process_cached_dance_15(
+                    #     orig_frames_slice
+                    # )
+
                     final_positions = slice_result.get_points_for_frame(
                         frame=-1, 
                         num_qp=len(point_clouds), 
@@ -330,10 +472,6 @@ class VideoProcessor():
                     )
                     self.export_to_point_data_store(query_points)
 
-                    # TODO: Redraw all OUTLIERS and use weights to lerp between reconstructed point and final position
-                        # Therefore good weights mean the point is doing well so we keep it, 
-                        # bad weights mean the point is not doing well so we reconstruct
-
                     # Reconstruct after new query points calculated (retains weights)
                     point_clouds = self.point_cloud_generator.reconstruct_all_clouds_from_vectors(
                         query_points=query_points,
@@ -341,7 +479,32 @@ class VideoProcessor():
                         point_clouds=point_clouds
                     )
 
-                    video_segment = slice_result.get_video()
+                    # Get query points for interpolation
+                    end_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
+                    
+                    smoothed_points = self.smooth_points(
+                        start_frame=start_frame,
+                        end_frame=end_frame,
+                        start_query_points=start_query_points,
+                        end_query_points=end_query_points,
+                        slice_result=slice_result,
+                        point_clouds=point_clouds
+                    )
+
+                    slice_errors = self.calc_errors(
+                        predictions=predictions,
+                        validated_query_points=end_query_points,
+                    )
+                    all_errors.append(slice_errors)
+
+                    # video_segment = slice_result.get_video()
+                    # video_segment = slice_result.get_video_for_points(interpolated_points)
+                    # video_segment = slice_result.get_video_for_points(mean_points)
+                    # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
+                    video_segment = slice_result.get_video_for_points(smoothed_points)
+                    for j, sps in enumerate(smoothed_points):
+                        all_tracks[j].extend(sps)
+
                     if save_intermediate:
                         # Save segment to disk
                         segment_path = os.path.join(temp_dir, f"segment_{i:04d}.npy")
@@ -362,23 +525,37 @@ class VideoProcessor():
                     self.log(traceback.format_exc())
 
             # Prepare final video
-            final_output_path = OUTPUT_DIR + "POINT_CLOUD_" + filename
+            final_video_output_path = OUTPUT_DIR + "POINT_CLOUD_" + filename
+            name, _ = filename.split(".")
+            final_tracks_output_path = OUTPUT_DIR + "TRACKS_" + name + ".txt"
+            final_errors_output_path = OUTPUT_DIR + "ERRORS_" + name + ".json"
 
             self.combine_and_write_video(
                 save_intermediate=save_intermediate,
                 segment_paths=segment_paths,
                 processed_segments=processed_segments,
-                final_output_path=final_output_path,
+                final_output_path=final_video_output_path,
                 fps=fps,
                 temp_dir=temp_dir,
                 start_time=start_time
             )
 
+            self.combine_and_write_tracks(
+                tracks=all_tracks,
+                final_tracks_output_path=final_tracks_output_path
+            )
+
+            self.write_errors(
+                errors=all_errors, 
+                final_errors_output_path=final_errors_output_path
+            )
+
             self.log(f"Processing completed successfully for {filename}")
 
-            return {"success": True, "output_filename": final_output_path, "fps": fps}
+            return {"success": True, "output_filename": final_video_output_path, "fps": fps}
 
         except Exception as e:
+            import traceback
             stack_trace = traceback.format_exc()
             error_message = f"Error processing video: {str(e)}"
             self.log(error_message)
