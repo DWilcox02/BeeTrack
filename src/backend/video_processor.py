@@ -282,58 +282,153 @@ class VideoProcessor():
         return smoothed_points
 
 
-    def calc_errors(self, predictions: List[CircleMovementResult], validated_query_points: np.ndarray):
-        results = []
-        for pred, val_qp in zip(predictions, validated_query_points):
-            pred_point = np.array([pred.x, pred.y])
-            euclidean_distance = np.linalg.norm(pred_point - val_qp)
-            vector = pred_point - val_qp
-
-            results.append({
-                "euclidean_distance": euclidean_distance, 
-                "vector_true_to_pred": vector
-            })
-
-        return results
+    def calc_errors(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], frame: int):
+        intra_cloud_metrics = []
+        
+        cloud_index = 0
+        # Intra-Cloud Metrics
+        for pred, cloud in zip(predictions, point_clouds):
+            p = np.array([pred.x, pred.y])  # Predicted query point
+            v = cloud.query_point_array()   # Validated query point
+            
+            c_p = np.array(pred.final_predictions)  # Predicted cloud points
+            c_v = np.array(cloud.cloud_points)      # Validated cloud points
+            
+            # 1. Query Point Distance: Euclidean distance between prediction and validation
+            euclidean_distance = np.linalg.norm(p - v)
+            
+            # 2. Query Point Vector: Direction of prediction error
+            vector = v - p
+            
+            # 3. Cloud Point Distances: Distance for each predicted vs validated cloud point
+            cloud_point_distances = np.linalg.norm(c_v - c_p, axis=1)
+            
+            # 4. Deformity: Sum of all cloud point distances
+            deformity = np.sum(cloud_point_distances)
+            
+            # 5. Deformity Median
+            deformity_median = np.median(cloud_point_distances)
+            
+            # 6. Inliers and Outliers (using a radius parameter)
+            radius = cloud.radius  # This can be made configurable
+            distances_from_validated = np.linalg.norm(c_p - v, axis=1)
+            inliers = np.sum(distances_from_validated < radius)
+            outliers = len(distances_from_validated) - inliers
+            
+            # Store individual cloud results
+            intra_cloud_metrics.append(
+                {
+                    "cloud_index": cloud_index,
+                    "euclidean_distance": euclidean_distance,
+                    "vector_true_to_pred": vector.tolist(),
+                    "cloud_point_distances": cloud_point_distances.tolist(),
+                    "deformity": deformity,
+                    "deformity_median": deformity_median,
+                    "inliers": inliers,
+                    "outliers": outliers,
+                    "inlier_ratio": inliers / len(distances_from_validated) if len(distances_from_validated) > 0 else 0,
+                }
+            )
+            cloud_index += 1
+        
+        # Inter-Cloud Metrics
+        inter_cloud_metrics = {}
+        if len(predictions) > 1:
+            p_points = np.array([[pred.x, pred.y] for pred in predictions])
+            v_points = np.array([cloud.query_point_array() for cloud in point_clouds])
+            
+            d_p = np.zeros((len(p_points), len(p_points)))
+            d_v = np.zeros((len(v_points), len(v_points)))
+            
+            # Calc normalized direction vectors
+            e_p = {}
+            e_v = {}
+            
+            for i in range(len(p_points)):
+                for j in range(i+1, len(p_points)):
+                    # Distances
+                    d_p[i, j] = d_p[j, i] = np.linalg.norm(p_points[i] - p_points[j])
+                    d_v[i, j] = d_v[j, i] = np.linalg.norm(v_points[i] - v_points[j])
+                    
+                    # Direction vectors (normalized)
+                    p_dir = p_points[i] - p_points[j]
+                    p_norm = np.linalg.norm(p_dir)
+                    e_p[(i, j)] = p_dir / p_norm if p_norm > 0 else np.zeros(2)
+                    
+                    v_dir = v_points[i] - v_points[j]
+                    v_norm = np.linalg.norm(v_dir)
+                    e_v[(i, j)] = v_dir / v_norm if v_norm > 0 else np.zeros(2)
+            
+            # 1. Change in distances
+            delta_distances = {}
+            for i in range(len(p_points)):
+                for j in range(i+1, len(p_points)):
+                    delta_distances[f"{i}-{j}"] = float(abs(d_v[i, j] - d_p[i, j]))
+            
+            # 2. Changes in directions (angle between vectors)
+            theta_changes = {}
+            for (i, j) in e_p.keys():
+                # Calculate dot product for angle
+                dot_product = np.dot(e_v[(i, j)], e_p[(i, j)])
+                # Clip to handle floating point errors
+                dot_product = np.clip(dot_product, -1.0, 1.0)
+                angle = float(np.arccos(dot_product))
+                theta_changes[f"{i}-{j}"] = angle
+                
+            inter_cloud_metrics = {
+                "delta_distances": delta_distances,
+                "theta_changes": theta_changes,
+                "mean_delta_distance": float(np.mean(list(delta_distances.values()))) if delta_distances else 0,
+                "mean_theta_change": float(np.mean(list(theta_changes.values()))) if theta_changes else 0
+            }
+        
+        return {
+            "frame": frame,
+            "intra_cloud_metrics": intra_cloud_metrics,
+            "inter_cloud_metrics": inter_cloud_metrics
+        }
 
 
     def write_errors(self, errors, final_errors_output_path):
-        all_distances = []
-        all_vectors = []
+        os.makedirs(os.path.dirname(os.path.abspath(final_errors_output_path)), exist_ok=True)
+        
+        def serialize_error(error):
+            result = {}
+            
+            result["frame"] = int(error["frame"]) if isinstance(error["frame"], np.integer) else error["frame"]
+            
+            result["intra_cloud_metrics"] = []
+            for metric in error["intra_cloud_metrics"]:
+                processed_metric = {}
+                for key, value in metric.items():
+                    if isinstance(value, np.ndarray):
+                        processed_metric[key] = value.tolist()
+                    elif isinstance(value, (np.integer, np.floating)):
+                        processed_metric[key] = float(value) if isinstance(value, np.floating) else int(value)
+                    else:
+                        processed_metric[key] = value
+                result["intra_cloud_metrics"].append(processed_metric)
+            
+            result["inter_cloud_metrics"] = {}
+            for key, value in error["inter_cloud_metrics"].items():
+                if isinstance(value, dict):
+                    processed_dict = {}
+                    for k, v in value.items():
+                        processed_dict[k] = float(v) if isinstance(v, np.floating) else v
+                    result["inter_cloud_metrics"][key] = processed_dict
+                elif isinstance(value, (np.integer, np.floating)):
+                    result["inter_cloud_metrics"][key] = float(value) if isinstance(value, np.floating) else int(value)
+                else:
+                    result["inter_cloud_metrics"][key] = value
+            
+            return result
+        
+        serializable_errors = [serialize_error(error) for error in errors]
+        
+        with open(final_errors_output_path, 'w') as f:
+            json.dump(serializable_errors, f, indent=2)
 
-        detailed_errors = {}
-        error_id_counter = 0
-
-        for frame_idx, error_list in enumerate(errors):
-            frame_key = f"frame_{frame_idx}"
-            detailed_errors[frame_key] = []
-
-            for error in error_list:
-                all_distances.append(error["euclidean_distance"])
-                all_vectors.append(error["vector_true_to_pred"])
-
-                detailed_errors[frame_key].append(
-                    {
-                        "error_id": error_id_counter,
-                        "euclidean_distance": float(error["euclidean_distance"]),
-                        "vector_true_to_pred": [float(error["vector_true_to_pred"][0]), float(error["vector_true_to_pred"][1])],
-                    }
-                )
-                error_id_counter += 1
-
-        all_distances = np.array(all_distances)
-
-        mean_error = float(np.mean(all_distances))
-        variance = float(np.var(all_distances))
-
-        output_json = {"mean_error": mean_error, "variance": variance, "detailed_errors": detailed_errors}
-
-        with open(final_errors_output_path, "w") as f:
-            json.dump(output_json, f, indent=2)
-
-        print(f"Errors successfully written to {final_errors_output_path}")
-
-        return {"mean_error": mean_error, "variance": variance, "all_distances": all_distances, "all_vectors": all_vectors}
+        self.log(f"Errors successfully written to {final_errors_output_path}")
 
 
     def process_video(self, query_points):
@@ -359,7 +454,7 @@ class VideoProcessor():
             max_segments = None
             save_intermediate=True
 
-            self.log(f"\nProcessing video from: {path}")
+            self.log(f"Processing video from: {path}")
             start_time = time.time()
 
             self.log("Reading video frames...")
@@ -493,7 +588,8 @@ class VideoProcessor():
 
                     slice_errors = self.calc_errors(
                         predictions=predictions,
-                        validated_query_points=end_query_points,
+                        point_clouds=point_clouds,
+                        frame=end_frame
                     )
                     all_errors.append(slice_errors)
 
