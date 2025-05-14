@@ -32,7 +32,7 @@ class CircleMovementPredictor:
         best_error = np.inf
         best_result = None
 
-        for r in range(-90, 90, 15):
+        for r in range(0, 360, 10):
             final_predictions = []
             for vec_qp_to_cp, pos in zip(point_cloud.vectors_qp_to_cp, final_positions):
                 # Rotate the vec_qp_to_cp by the current rotation r
