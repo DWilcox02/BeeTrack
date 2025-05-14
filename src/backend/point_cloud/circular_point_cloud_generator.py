@@ -1,56 +1,10 @@
 import numpy as np
 from .point_cloud_generator import PointCloudGenerator
-from ..models.circle_movement_predictor import CircleMovementPredictor
 from .point_cloud import PointCloud
-from typing import List
 
 class CircularPointCloudGenerator(PointCloudGenerator):
     def __init__(self):
         super().__init__()
-        self.circle_movement_predictor = CircleMovementPredictor()
-
-    def format_new_query_point(self, query_point_array, previous_query_point):
-        return {
-            "x": float(query_point_array[0]),
-            "y": float(query_point_array[1]),
-            "color": previous_query_point["color"],
-            "radius": previous_query_point["radius"],
-        }
-    
-
-    def reconstruct_all_clouds_from_vectors(self, query_points, rotations, point_clouds: List[PointCloud]):
-        # TODO: Redraw all OUTLIERS and use weights to lerp between reconstructed point and final position
-        # Therefore good weights mean the point is doing well so we keep it,
-        # bad weights mean the point is not doing well so we reconstruct
-        return [
-            self.reconstruct_with_center_rotation(qp, r, point_cloud) for qp, r, point_cloud in zip(query_points, rotations, point_clouds)
-        ]
-
-
-    def reconstruct_with_center_rotation(self, query_point, rotation, point_cloud):
-        query_point_array = np.array([query_point["x"], query_point["y"]], dtype=np.float32)
-        # Create rotation matrix
-        cos_theta = np.cos(rotation)
-        sin_theta = np.sin(rotation)
-
-        rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
-
-        # Rotate the offset vectors directly
-        rotated_vectors = np.matmul(point_cloud.vectors_qp_to_cp, rotation_matrix.T)
-
-        # Calculate final positions
-        reconstructed_points = query_point_array + rotated_vectors
-
-        return PointCloud(
-            query_point=self.format_new_query_point(
-                query_point_array=query_point_array, 
-                previous_query_point=query_point),
-            cloud_points=reconstructed_points,
-            radius=query_point["radius"],
-            rotation=rotation,
-            weights=point_cloud.weights,
-            vectors_qp_to_cp=point_cloud.vectors_qp_to_cp,
-        )
 
 
     def generate_initial_point_clouds(self, query_points):

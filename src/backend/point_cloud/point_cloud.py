@@ -18,3 +18,14 @@ class PointCloud():
 
     def query_point_array(self):
         return np.array([self.query_point["x"], self.query_point["y"]], dtype=np.float32)
+    
+    def format_new_query_point(self, query_point_array):
+        return {
+            "x": float(query_point_array[0]),
+            "y": float(query_point_array[1]),
+            "color": self.query_point["color"],
+            "radius": self.query_point["radius"],
+        }
+    
+    def confidence(self):
+        return 0.0

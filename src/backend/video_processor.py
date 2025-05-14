@@ -10,10 +10,15 @@ from typing import List
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from .server.utils.video_utils import extract_frame
 from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenerator
-from .models.circle_movement_predictor import CircleMovementPredictor
 from .point_cloud.estimation.estimation_slice import EstimationSlice
 from .point_cloud.point_cloud import PointCloud
 from src.backend.models.circle_movement_result import CircleMovementResult
+
+from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
+from src.backend.inter_cloud_alignment_predictors.inter_cloud_alignment_base import InterCloudAlignmentBase
+from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
+from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
+from src.backend.weight_calculators.weight_calculator_base import WeightCalculatorBase
 
 
 # Get paths
@@ -51,9 +56,17 @@ class VideoProcessor():
         self.video = video
         self.job_id = job_id
         self.log_message = None
-        self.point_cloud_generator = CircularPointCloudGenerator()
-        self.movement_predictor = CircleMovementPredictor()
         self.point_data_store = point_data_store
+
+        # Shape of initial point clouds
+        self.point_cloud_generator = CircularPointCloudGenerator()
+
+        # Choices for experimentation
+        self.inlier_predictor = InlierPredictorBase()
+        self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
+        self.point_cloud_reconstructor = PointCloudReconstructorBase()
+        self.query_point_reconstructor = QueryPointReconstructorBase()
+        self.weight_calculator = WeightCalculatorBase()
 
 
     def set_log_message_function(self, fn):
@@ -104,7 +117,7 @@ class VideoProcessor():
 
             self.log(f"Saved output video to: {final_output_path}")
             elapsed_time = time.time() - start_time
-            self.log(f"\nProcessing completed in {elapsed_time:.2f} seconds")
+            self.log(f"Processing completed in {elapsed_time:.2f} seconds")
 
             return None, fps  # Return None since we wrote directly to disk
 
@@ -206,38 +219,58 @@ class VideoProcessor():
             assert(np.sum(new_weights) - 1 < 0.01)
 
 
-    def validate_and_update_weights(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], path, filename, end_frame, i, segments_to_process):
-        x_y_points = [[p.x, p.y] for p in predictions]
-        query_points = [cloud.query_point for cloud in point_clouds]
+    def validate_and_update_weights(
+            self, 
+            predicted_point_clouds: List[PointCloud], 
+            true_point_clouds: List[PointCloud], 
+            inliers_rotations: List[tuple[List[int], float]],
+            path, 
+            filename, 
+            end_frame, 
+            i, 
+            segments_to_process
+        ):
+        predicted_query_points = [p.query_point for p in predicted_point_clouds]
+        true_query_points = [cloud.query_point for cloud in true_point_clouds]
 
-        confidence = min([p.confidence() for p in predictions])
+        confidence = min([p.confidence() for p in predicted_point_clouds])
         request_validation = confidence < CONFIDENCE_THRESHOLD
 
-        query_points = [
-            self.point_cloud_generator.format_new_query_point(x_y_point, previous_point)
-            for x_y_point, previous_point in zip(x_y_points, query_points)
-        ]
-
-        self.export_to_point_data_store(query_points)
+        self.export_to_point_data_store(predicted_query_points)
         self.send_current_frame_data(
-            query_points=query_points,
+            query_points=predicted_query_points,
             video_path=DATA_DIR + path + filename, 
             frame=end_frame - 1, 
             confidence=confidence, 
             request_validation=request_validation
         )
 
+        weights = [ppc.weights for ppc in predicted_point_clouds]
+
         if request_validation:
             self.request_validation()  # Query points will have been updateds
-            query_points = self.point_data_store[self.session_id]["points"]
+            true_query_points = self.point_data_store[self.session_id]["points"]
+            true_query_points_xy = np.array([[p["x"], p["y"]] for p in true_query_points], dtype=np.float32)
+            weights = self.weight_calculator.calculate_weights_errors(
+                old_point_clouds=predicted_point_clouds,
+                inliers_rotations=inliers_rotations,
+                query_point_reconstructions=true_query_points_xy,
+            )
+            true_point_clouds = self.point_cloud_reconstructor.reconstruct_point_clouds(
+                old_point_clouds=predicted_point_clouds,
+                inliers_rotations=inliers_rotations,
+                query_point_reconstructions=true_query_points_xy,
+                weights=weights,
+            )
+        else:
+            true_query_points = predicted_query_points
+            true_point_clouds = predicted_point_clouds
 
+        self.export_to_point_data_store(true_query_points)
 
-        # NEXT:
-        # Make relevant weight updates based on the provided information,
-        # Query point is either user's input or the prediction
-        self.update_weights_with_distances_outliers(true_query_points=query_points, point_clouds=point_clouds, predictions=predictions)
-        rotations = [p.r for p in predictions]
-        return query_points, rotations, point_clouds
+        # Reconstruct after new query points calculated (retains weights)
+        
+        return true_query_points, true_point_clouds
 
 
     def smooth_points(self, start_frame, end_frame, start_query_points, end_query_points, slice_result, point_clouds):
@@ -282,16 +315,16 @@ class VideoProcessor():
         return smoothed_points
 
 
-    def calc_errors(self, predictions: List[CircleMovementResult], point_clouds: List[PointCloud], frame: int):
+    def calc_errors(self, predicted_point_clouds: List[PointCloud], true_point_clouds: List[PointCloud], frame: int):
         intra_cloud_metrics = []
         
         cloud_index = 0
         # Intra-Cloud Metrics
-        for pred, cloud in zip(predictions, point_clouds):
-            p = np.array([pred.x, pred.y])  # Predicted query point
+        for pred, cloud in zip(predicted_point_clouds, true_point_clouds):
+            p = pred.query_point_array()  # Predicted query point
             v = cloud.query_point_array()   # Validated query point
             
-            c_p = np.array(pred.final_predictions)  # Predicted cloud points
+            c_p = np.array(pred.cloud_points)  # Predicted cloud points
             c_v = np.array(cloud.cloud_points)      # Validated cloud points
             
             # 1. Query Point Distance: Euclidean distance between prediction and validation
@@ -333,9 +366,9 @@ class VideoProcessor():
         
         # Inter-Cloud Metrics
         inter_cloud_metrics = {}
-        if len(predictions) > 1:
-            p_points = np.array([[pred.x, pred.y] for pred in predictions])
-            v_points = np.array([cloud.query_point_array() for cloud in point_clouds])
+        if len(predicted_point_clouds) > 1:
+            p_points = np.array([pred.query_point_array() for pred in predicted_point_clouds])
+            v_points = np.array([cloud.query_point_array() for cloud in true_point_clouds])
             
             d_p = np.zeros((len(p_points), len(p_points)))
             d_v = np.zeros((len(v_points), len(v_points)))
@@ -449,7 +482,7 @@ class VideoProcessor():
                     print(message)  # Still print to console for debugging
 
                 self.point_cloud_estimator.set_logger(custom_logger)
-                self.point_cloud_generator.set_logger(custom_logger)
+                self.point_cloud_reconstructor.set_logger(custom_logger)
 
             max_segments = None
             save_intermediate=True
@@ -507,6 +540,7 @@ class VideoProcessor():
             width_ratio = resize_width / width
             
             point_clouds: List[PointCloud] = self.point_cloud_generator.generate_initial_point_clouds(query_points) # N x 2 (for N points)
+            inter_point_cloud_matrix = np.array([])
             all_tracks = [[] for _ in range(len(point_clouds))]
             all_errors = []
 
@@ -549,29 +583,41 @@ class VideoProcessor():
                         num_cp_per_qp=len(point_clouds[0].cloud_points)
                     )
                     
-                    # Predictions based on clustering, RANSAC, weights
-                    predictions: List[CircleMovementResult] = self.movement_predictor.recalc_query_points_rotations(
-                        point_clouds=point_clouds,
-                        final_positions_lists=final_positions
+                    # Experimental Predictions
+                    inliers_rotations: List[tuple[List[int], float]] = self.inlier_predictor.predict_inliers_rotations(
+                        old_point_clouds=point_clouds, 
+                        final_positions=final_positions)
+                    query_point_reconstructions: List[np.ndarray] = self.query_point_reconstructor.reconstruct_query_points(
+                        old_point_clouds=point_clouds,
+                        final_positions=final_positions,
+                        inliers_rotations=inliers_rotations
+                    )
+                    aligned_query_point_reconstructions: List[np.ndarray] = self.inter_cloud_alignment_predictor.align_query_points(
+                        query_point_reconstructions=query_point_reconstructions,
+                        inter_point_cloud_matrix=inter_point_cloud_matrix
+                    )
+                    weights: List[np.ndarray] = self.weight_calculator.calculate_weights_errors(
+                        old_point_clouds=point_clouds,
+                        inliers_rotations=inliers_rotations,
+                        query_point_reconstructions=aligned_query_point_reconstructions,
+                    )
+                    predicted_point_clouds: List[PointCloud] = self.point_cloud_reconstructor.reconstruct_point_clouds(
+                        old_point_clouds=point_clouds,
+                        inliers_rotations=inliers_rotations,
+                        query_point_reconstructions=aligned_query_point_reconstructions,
+                        weights=weights
                     )
 
                     # Update weights and potentially request validation
-                    query_points, rotations, point_clouds = self.validate_and_update_weights(
-                        predictions=predictions, 
-                        point_clouds=point_clouds,
+                    query_points, point_clouds = self.validate_and_update_weights(
+                        predicted_point_clouds=predicted_point_clouds, 
+                        true_point_clouds=point_clouds,
+                        inliers_rotations=inliers_rotations,
                         path=path, 
                         filename=filename,
                         end_frame=end_frame,
                         i=i,
                         segments_to_process=segments_to_process
-                    )
-                    self.export_to_point_data_store(query_points)
-
-                    # Reconstruct after new query points calculated (retains weights)
-                    point_clouds = self.point_cloud_generator.reconstruct_all_clouds_from_vectors(
-                        query_points=query_points,
-                        rotations=rotations,
-                        point_clouds=point_clouds
                     )
 
                     # Get query points for interpolation
@@ -587,11 +633,12 @@ class VideoProcessor():
                     )
 
                     slice_errors = self.calc_errors(
-                        predictions=predictions,
-                        point_clouds=point_clouds,
+                        predicted_point_clouds=predicted_point_clouds, 
+                        true_point_clouds=point_clouds, 
                         frame=end_frame
                     )
                     all_errors.append(slice_errors)
+
 
                     # video_segment = slice_result.get_video()
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
