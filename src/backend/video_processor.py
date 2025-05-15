@@ -17,6 +17,7 @@ from src.backend.models.circle_movement_result import CircleMovementResult
 # Import Inlier Predictors
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
 from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPredictor
+from src.backend.inlier_predictors.hdbscan_inlier_predictor import HDBSCANInlierPredictor
 
 from src.backend.inter_cloud_alignment_predictors.inter_cloud_alignment_base import InterCloudAlignmentBase
 
@@ -42,7 +43,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 2
+NUM_SLICES = 3
 CONFIDENCE_THRESHOLD = 0.8
 ERROR_SIGMA = 0.5
 OUTLIER_PENALTY = 0.5

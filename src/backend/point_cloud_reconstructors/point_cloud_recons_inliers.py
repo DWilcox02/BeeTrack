@@ -38,6 +38,7 @@ class PointCloudReconsInliers(PointCloudReconstructorBase):
         cloud_points = final_positions
         radius = old_point_cloud.radius
         inliers, rotation = inliers_rotation
+        and_inliers = np.array([a and b for a, b in zip(inliers, old_point_cloud.inliers)], dtype=bool)
 
         return PointCloud(
             query_point=formatted_point,
@@ -45,5 +46,5 @@ class PointCloudReconsInliers(PointCloudReconstructorBase):
             radius=radius,
             rotation=rotation,
             weights=weights,
-            inliers=inliers
+            inliers=and_inliers,
         )

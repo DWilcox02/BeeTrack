@@ -16,7 +16,7 @@ class PointCloud():
         else:
             self.vectors_qp_to_cp = vectors_qp_to_cp
         if inliers is None:
-            self.inliers = [i for i in range(len(cloud_points))]
+            self.inliers = [True] * len(cloud_points)
         else:
             self.inliers = inliers
 
