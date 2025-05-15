@@ -1,7 +1,7 @@
 import numpy as np
 
 class PointCloud():
-    def __init__(self, query_point: np.ndarray, cloud_points: np.ndarray, radius: float, rotation: float, weights: np.ndarray, vectors_qp_to_cp=None):
+    def __init__(self, query_point: np.ndarray, cloud_points: np.ndarray, radius: float, rotation: float, weights: np.ndarray, vectors_qp_to_cp=None, inliers=None):
         self.query_point: np.ndarray = query_point
         self.cloud_points: np.ndarray = cloud_points
         self.radius = radius
@@ -15,6 +15,10 @@ class PointCloud():
             self.vectors_qp_to_cp = np.array(self.vectors_qp_to_cp, dtype=np.float32)
         else:
             self.vectors_qp_to_cp = vectors_qp_to_cp
+        if inliers is None:
+            self.inliers = [i for i in range(len(cloud_points))]
+        else:
+            self.inliers = inliers
 
     def query_point_array(self):
         return np.array([self.query_point["x"], self.query_point["y"]], dtype=np.float32)

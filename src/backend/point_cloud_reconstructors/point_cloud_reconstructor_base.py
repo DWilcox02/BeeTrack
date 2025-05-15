@@ -56,9 +56,10 @@ class PointCloudReconstructorBase():
     def reconstruct_point_clouds(
             self, 
             old_point_clouds: List[PointCloud], 
-            inliers_rotations=List[tuple[List[int], float]], 
-            query_point_reconstructions=List[np.ndarray],
-            weights=List[np.ndarray]
+            final_positions: np.ndarray,
+            inliers_rotations: List[tuple[np.ndarray, float]], 
+            query_point_reconstructions: List[np.ndarray],
+            weights: List[np.ndarray]
         ) -> List[PointCloud]:
         rotations = [r for _, r in inliers_rotations]
         return self.reconstruct_all_clouds_from_vectors(

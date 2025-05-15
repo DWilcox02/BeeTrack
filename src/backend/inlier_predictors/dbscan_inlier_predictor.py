@@ -8,7 +8,9 @@ from .inlier_predictor_base import InlierPredictorBase
 
 class DBSCANInlierPredictor(InlierPredictorBase):
 
-    def predict_inliers_rotations(self, old_point_clouds: List[PointCloud], final_positions: np.ndarray):
+    def predict_inliers_rotations(
+        self, old_point_clouds: List[PointCloud], final_positions: np.ndarray
+    ) -> List[tuple[np.ndarray, float]]:
         return [
             self.predict_for_point_cloud(opc, fps) for opc, fps in zip(old_point_clouds, final_positions)
         ]
@@ -42,9 +44,9 @@ class DBSCANInlierPredictor(InlierPredictorBase):
                 error = np.sum(np.linalg.norm(final_predictions - mean, axis=1))
                 if error < best_error:
                     best_error = error
-                    best_inliers = inlier_idxs
+                    best_inliers = inlier_mask
                     best_rotation = r
-
+        best_inliers = np.array(best_inliers, dtype=bool)
         # TODO: Check for when inliers and rotation is None
         print(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {best_inliers}")
         return best_inliers, best_rotation

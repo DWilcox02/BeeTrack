@@ -21,6 +21,7 @@ from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPr
 from src.backend.inter_cloud_alignment_predictors.inter_cloud_alignment_base import InterCloudAlignmentBase
 
 from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
+from src.backend.point_cloud_reconstructors.point_cloud_recons_inliers import PointCloudReconsInliers
 
 # Import Query Point Predictors
 from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
@@ -72,7 +73,7 @@ class VideoProcessor():
         # Choices for experimentation
         self.inlier_predictor = DBSCANInlierPredictor()
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
-        self.point_cloud_reconstructor = PointCloudReconstructorBase()
+        self.point_cloud_reconstructor = PointCloudReconsInliers()
         self.query_point_reconstructor = InlierWeightedAvgReconstructor()
         self.weight_calculator = WeightCalculatorBase()
 
@@ -231,7 +232,7 @@ class VideoProcessor():
             self, 
             predicted_point_clouds: List[PointCloud], 
             true_point_clouds: List[PointCloud], 
-            inliers_rotations: List[tuple[List[int], float]],
+            inliers_rotations: List[tuple[np.ndarray, float]],
             path, 
             filename, 
             end_frame, 
@@ -264,8 +265,10 @@ class VideoProcessor():
                 inliers_rotations=inliers_rotations,
                 query_point_reconstructions=true_query_points_xy,
             )
+            final_positions = [ pc.cloud_points for pc in predicted_point_clouds]
             true_point_clouds = self.point_cloud_reconstructor.reconstruct_point_clouds(
                 old_point_clouds=predicted_point_clouds,
+                final_positions=final_positions,
                 inliers_rotations=inliers_rotations,
                 query_point_reconstructions=true_query_points_xy,
                 weights=weights,
@@ -551,6 +554,7 @@ class VideoProcessor():
             inter_point_cloud_matrix = np.array([])
             all_tracks = [[] for _ in range(len(point_clouds))]
             all_errors = []
+            inliers = [True] * (len(point_clouds) * len(point_clouds[0].cloud_points))
 
             # Process each segment
             for i in range(segments_to_process):
@@ -592,7 +596,7 @@ class VideoProcessor():
                     )
                     
                     # Experimental Predictions
-                    inliers_rotations: List[tuple[List[int], float]] = self.inlier_predictor.predict_inliers_rotations(
+                    inliers_rotations: List[tuple[np.ndarray, float]] = self.inlier_predictor.predict_inliers_rotations(
                         old_point_clouds=point_clouds, 
                         final_positions=final_positions)
                     query_point_reconstructions: List[np.ndarray] = self.query_point_reconstructor.reconstruct_query_points(
@@ -611,6 +615,7 @@ class VideoProcessor():
                     )
                     predicted_point_clouds: List[PointCloud] = self.point_cloud_reconstructor.reconstruct_point_clouds(
                         old_point_clouds=point_clouds,
+                        final_positions=final_positions,
                         inliers_rotations=inliers_rotations,
                         query_point_reconstructions=aligned_query_point_reconstructions,
                         weights=weights
@@ -645,10 +650,11 @@ class VideoProcessor():
                         true_point_clouds=point_clouds, 
                         frame=end_frame
                     )
-                    all_errors.append(slice_errors)
+                    all_errors.append(slice_errors)                    
 
-
-                    video_segment = slice_result.get_video()
+                    video_segment = slice_result.get_video(inliers)
+                    inliers_masks = [b for mask, _ in inliers_rotations for b in mask]
+                    inliers = [a and b for a, b in zip(inliers, inliers_masks)]
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)

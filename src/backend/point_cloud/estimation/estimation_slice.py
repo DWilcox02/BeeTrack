@@ -44,7 +44,7 @@ class EstimationSlice(ABC):
         return new_query_points
 
     @abstractmethod
-    def get_video(self):
+    def get_video(self, inliers=None):
         pass
 
     @abstractmethod

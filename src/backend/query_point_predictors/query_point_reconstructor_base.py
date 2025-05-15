@@ -7,13 +7,13 @@ from src.backend.point_cloud.point_cloud import PointCloud
 
 class QueryPointReconstructorBase():
     
-    def reconstruct_query_points(self, old_point_clouds: List[PointCloud], final_positions: np.ndarray, inliers_rotations: List[tuple[List[int], float]]):
+    def reconstruct_query_points(self, old_point_clouds: List[PointCloud], final_positions: np.ndarray, inliers_rotations: List[tuple[np.ndarray, float]]):
         return [
             self.reconstruct_query_point(pc, fps, irs)
             for pc, fps, irs in zip(old_point_clouds, final_positions, inliers_rotations)
         ]
     
-    def reconstruct_query_point(self, point_cloud: PointCloud, final_positions: np.ndarray, inliers_rotation: tuple[List[int], float]):
+    def reconstruct_query_point(self, point_cloud: PointCloud, final_positions: np.ndarray, inliers_rotation: tuple[np.ndarray, float]):
         return np.mean(final_positions, axis=0)
     
     def rotate_vector(self, vector, angle_degrees):
