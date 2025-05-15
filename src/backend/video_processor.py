@@ -14,10 +14,18 @@ from .point_cloud.estimation.estimation_slice import EstimationSlice
 from .point_cloud.point_cloud import PointCloud
 from src.backend.models.circle_movement_result import CircleMovementResult
 
+# Import Inlier Predictors
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
+from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPredictor
+
 from src.backend.inter_cloud_alignment_predictors.inter_cloud_alignment_base import InterCloudAlignmentBase
+
 from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
+
+# Import Query Point Predictors
 from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
+from src.backend.query_point_predictors.inlier_weighted_avg_reconstructor import InlierWeightedAvgReconstructor
+
 from src.backend.weight_calculators.weight_calculator_base import WeightCalculatorBase
 
 
@@ -62,10 +70,10 @@ class VideoProcessor():
         self.point_cloud_generator = CircularPointCloudGenerator()
 
         # Choices for experimentation
-        self.inlier_predictor = InlierPredictorBase()
+        self.inlier_predictor = DBSCANInlierPredictor()
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
         self.point_cloud_reconstructor = PointCloudReconstructorBase()
-        self.query_point_reconstructor = QueryPointReconstructorBase()
+        self.query_point_reconstructor = InlierWeightedAvgReconstructor()
         self.weight_calculator = WeightCalculatorBase()
 
 
@@ -640,11 +648,11 @@ class VideoProcessor():
                     all_errors.append(slice_errors)
 
 
-                    # video_segment = slice_result.get_video()
+                    video_segment = slice_result.get_video()
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
-                    video_segment = slice_result.get_video_for_points(smoothed_points)
+                    # video_segment = slice_result.get_video_for_points(smoothed_points)
                     for j, sps in enumerate(smoothed_points):
                         all_tracks[j].extend(sps)
 
