@@ -19,11 +19,14 @@ from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorB
 from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPredictor
 from src.backend.inlier_predictors.hdbscan_inlier_predictor import HDBSCANInlierPredictor
 
+# Import Inter-Cloud Alignments
 from src.backend.inter_cloud_alignment_predictors.inter_cloud_alignment_base import InterCloudAlignmentBase
 
 # Import Point Cloud Reconstructors
 from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
 from src.backend.point_cloud_reconstructors.point_cloud_recons_inliers import PointCloudReconsInliers
+from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers import PointCloudRedrawOutliers
+from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers_random import PointCloudRedrawOutliersRandom
 
 # Import Query Point Predictors
 from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
@@ -77,7 +80,7 @@ class VideoProcessor():
         # Choices for experimentation
         self.inlier_predictor = DBSCANInlierPredictor()
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
-        self.point_cloud_reconstructor = PointCloudReconsInliers()
+        self.point_cloud_reconstructor = PointCloudRedrawOutliersRandom()
         self.query_point_reconstructor = InlierWeightedAvgReconstructor()
         self.weight_distance_calculator = WeightCalculatorDistance()
         self.weight_outlier_calculator = WeightCalculatorOutliers()
@@ -531,7 +534,7 @@ class VideoProcessor():
             inter_point_cloud_matrix = np.array([])
             all_tracks = [[] for _ in range(len(point_clouds))]
             all_errors = []
-            inliers = [True] * (len(point_clouds) * len(point_clouds[0].cloud_points))
+            # inliers = [True] * (len(point_clouds) * len(point_clouds[0].cloud_points))
 
             # Process each segment
             for i in range(segments_to_process):
@@ -576,9 +579,6 @@ class VideoProcessor():
                     inliers_rotations: List[tuple[np.ndarray, float]] = self.inlier_predictor.predict_inliers_rotations(
                         old_point_clouds=point_clouds, 
                         final_positions=final_positions)
-                    print("Inliers")
-                    for i, _ in inliers_rotations:
-                        print(i)
                     query_point_reconstructions: List[np.ndarray] = self.query_point_reconstructor.reconstruct_query_points(
                         old_point_clouds=point_clouds,
                         final_positions=final_positions,
@@ -633,9 +633,9 @@ class VideoProcessor():
                     )
                     all_errors.append(slice_errors)                    
 
-                    video_segment = slice_result.get_video(inliers)
-                    inliers_masks = [b for mask, _ in inliers_rotations for b in mask]
-                    inliers = [a and b for a, b in zip(inliers, inliers_masks)]
+                    video_segment = slice_result.get_video()
+                    # inliers_masks = [b for mask, _ in inliers_rotations for b in mask]
+                    # inliers = [a and b for a, b in zip(inliers, inliers_masks)]
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)

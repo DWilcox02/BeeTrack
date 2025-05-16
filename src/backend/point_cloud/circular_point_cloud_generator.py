@@ -57,6 +57,13 @@ class CircularPointCloudGenerator(PointCloudGenerator):
         
         cloud_points = np.array(circle_points, dtype=np.float32)
         weights = np.array([1 / len(cloud_points)] * len(cloud_points), dtype=np.float32)
+        
+        vectors_qp_to_cp = []
+        center_point_x_y = np.array([center_x, center_y], dtype=np.float32)
+        for point in cloud_points:
+            vectors_qp_to_cp.append(point - center_point_x_y)
+        vectors_qp_to_cp = np.array(vectors_qp_to_cp, dtype=np.float32)
+
         return PointCloud(
             query_point=center_point, 
             cloud_points=cloud_points, 
