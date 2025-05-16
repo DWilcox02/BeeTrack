@@ -7,7 +7,23 @@ from src.backend.point_cloud.point_cloud import PointCloud
 
 class WeightCalculatorBase():
     
-    def calculate_weights_errors(self, old_point_clouds: List[PointCloud], inliers_rotations=List[tuple[np.ndarray, float]], query_point_reconstructions=List[np.ndarray]):
+    def calculate_distance_weights(
+        self, 
+        predicted_point_clouds: List[PointCloud], 
+        inliers_rotations: List[tuple[np.ndarray, float]], 
+        true_query_points: List[np.ndarray]
+    ):
         return [
-            pc.weights for pc in old_point_clouds
+            pc.weights for pc in predicted_point_clouds
         ]
+    
+    def calculate_outlier_weights(
+        self, 
+        predicted_point_clouds: List[PointCloud], 
+        inliers_rotations: List[tuple[np.ndarray, float]], 
+        true_query_points: List[np.ndarray]            
+    ):
+        return [
+            pc.weights for pc in predicted_point_clouds
+        ]
+        

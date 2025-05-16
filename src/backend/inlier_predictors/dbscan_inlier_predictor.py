@@ -22,12 +22,17 @@ class DBSCANInlierPredictor(InlierPredictorBase):
         best_rotation = None
 
         for r in range(0, 360, 10):
-            final_predictions = []
-            for vec_qp_to_cp, pos in zip(old_point_cloud.vectors_qp_to_cp, final_positions):
-                rotated_vec = self.rotate_vector(vec_qp_to_cp, r)
-                final_predictions.append(pos - rotated_vec)
+            # final_predictions = []
+            # for vec_qp_to_cp, pos in zip(old_point_cloud.vectors_qp_to_cp, final_positions):
+            #     rotated_vec = self.rotate_vector(vec_qp_to_cp, r)
+            #     final_predictions.append(pos - rotated_vec)
 
-            final_predictions = np.array(final_predictions, dtype=np.float32)
+            # final_predictions = np.array(final_predictions, dtype=np.float32)
+
+            final_predictions = old_point_cloud.query_point_predictions(
+                final_positions=final_positions, 
+                rotation=r
+            )
             # print(f"Old Inliers: {old_point_cloud.inliers}")
             j = 0
             mapping = {}
@@ -69,15 +74,3 @@ class DBSCANInlierPredictor(InlierPredictorBase):
         # TODO: Check for when inliers and rotation is None
         print(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {best_inliers}")
         return best_inliers, best_rotation
-    
-
-    def rotate_vector(self, vector, angle_degrees):
-        """Rotate a 2D vector by the given angle in degrees"""
-        angle_rad = np.radians(angle_degrees)
-        cos_angle = np.cos(angle_rad)
-        sin_angle = np.sin(angle_rad)
-
-        # Create rotation matrix
-        rotation_matrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
-
-        return np.dot(rotation_matrix, vector)

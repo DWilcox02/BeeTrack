@@ -33,3 +33,34 @@ class PointCloud():
     
     def confidence(self):
         return 0.0
+    
+    def query_point_predictions(
+            self, 
+            vectors_qp_to_cp: np.ndarray = None,  
+            final_positions: np.ndarray = None,
+            rotation: float = None
+        ) -> np.ndarray:
+
+        if vectors_qp_to_cp is None:
+            vectors_qp_to_cp = self.vectors_qp_to_cp
+        if final_positions is None:
+            final_positions = self.cloud_points
+        if rotation is None:
+            rotation = self.rotation
+
+        final_predictions = []
+        for vec_qp_to_cp, pos in zip(vectors_qp_to_cp, final_positions):
+            rotated_vec = self.rotate_vector(vec_qp_to_cp, rotation)
+            final_predictions.append(pos - rotated_vec)
+
+        final_predictions = np.array(final_predictions, dtype=np.float32)
+        return final_predictions
+
+    def rotate_vector(self, vector: np.ndarray, angle_degrees: int) -> np.ndarray:
+        angle_rad = np.radians(angle_degrees)
+        cos_angle = np.cos(angle_rad)
+        sin_angle = np.sin(angle_rad)
+
+        rotation_matrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
+
+        return np.dot(rotation_matrix, vector)
