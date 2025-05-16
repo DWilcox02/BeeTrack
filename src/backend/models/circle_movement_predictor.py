@@ -14,17 +14,6 @@ class CircleMovementPredictor:
             for point_cloud, final_positions in zip(point_clouds, final_positions_lists)
         ]
 
-    def rotate_vector(self, vector, angle_degrees):
-        """Rotate a 2D vector by the given angle in degrees"""
-        angle_rad = np.radians(angle_degrees)
-        cos_angle = np.cos(angle_rad)
-        sin_angle = np.sin(angle_rad)
-
-        # Create rotation matrix
-        rotation_matrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
-
-        return np.dot(rotation_matrix, vector)
-
     def predict_circle_x_y_r(self, point_cloud: PointCloud, final_positions) -> CircleMovementResult:
         # NEXT:
         # Use clustering, rotations, and error minimization to determine the best cluster
