@@ -31,11 +31,13 @@ from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers_random i
 # Import Query Point Predictors
 from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
 from src.backend.query_point_predictors.inlier_weighted_avg_reconstructor import InlierWeightedAvgReconstructor
+from src.backend.query_point_predictors.incremental_nn_reconstructor import IncrementalNNReconstructor
 
 # Import Weight Calculators
 from src.backend.weight_calculators.weight_calculator_base import WeightCalculatorBase
 from src.backend.weight_calculators.weight_calculator_distance import WeightCalculatorDistance
 from src.backend.weight_calculators.weight_calculator_outliers import WeightCalculatorOutliers
+from src.backend.weight_calculators.incremental_nn_weight_updater import IncrementalNNWeightUpdater
 
 
 # Get paths
@@ -81,8 +83,10 @@ class VideoProcessor():
         self.inlier_predictor = DBSCANInlierPredictor()
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
         self.point_cloud_reconstructor = PointCloudRedrawOutliersRandom()
-        self.query_point_reconstructor = InlierWeightedAvgReconstructor()
-        self.weight_distance_calculator = WeightCalculatorDistance()
+
+        num_points = len(point_data_store[session_id]["points"])
+        self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
+        self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
         self.weight_outlier_calculator = WeightCalculatorOutliers()
 
 
