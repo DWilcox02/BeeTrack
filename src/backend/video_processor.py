@@ -50,8 +50,8 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 3
-CONFIDENCE_THRESHOLD = 0.8
+NUM_SLICES = 4
+CONFIDENCE_THRESHOLD = 0.7
 
 
 class VideoProcessor():
@@ -220,7 +220,7 @@ class VideoProcessor():
         predicted_query_points = [p.query_point for p in predicted_point_clouds]
         true_query_points = [cloud.query_point for cloud in true_point_clouds]
 
-        confidence = min([p.confidence() for p in predicted_point_clouds])
+        confidence = min([p.confidence(inliers) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
         request_validation = confidence < CONFIDENCE_THRESHOLD
 
         self.export_to_point_data_store(predicted_query_points)
@@ -547,6 +547,8 @@ class VideoProcessor():
                 # Process the slice
                 try:
                     start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
+                    for pc_i, pc in enumerate(point_clouds):
+                        print(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
@@ -601,6 +603,8 @@ class VideoProcessor():
                         query_point_reconstructions=aligned_query_point_reconstructions,
                         weights=weights
                     )
+                    for pc_i, pc in enumerate(predicted_point_clouds):
+                        print(f"Predicted cloud {pc_i} deformity pre-validation: {pc.deformity()}")
 
                     # Update weights and potentially request validation
                     query_points, point_clouds = self.validate_and_update_weights(

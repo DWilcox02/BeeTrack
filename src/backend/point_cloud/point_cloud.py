@@ -45,8 +45,11 @@ class PointCloud():
             "radius": self.query_point["radius"],
         }
     
-    def confidence(self):
-        return 0.0
+    def confidence(
+            self,
+            inliers: np.ndarray
+        ):
+        return np.sum(inliers) / len(self.cloud_points)
     
     def query_point_predictions(
             self, 
@@ -78,3 +81,17 @@ class PointCloud():
         rotation_matrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
 
         return np.dot(rotation_matrix, vector)
+    
+    def deformity(
+            self, 
+            mean: np.ndarray = None,
+            points: np.ndarray = None
+        ):
+
+        if mean is None: 
+            mean = self.query_point_array()
+        if points is None:
+            points = self.query_point_predictions()
+
+
+        return np.sum(np.linalg.norm(mean - points, axis=1))

@@ -65,12 +65,14 @@ class DBSCANInlierPredictor(InlierPredictorBase):
 
                 inlier_predictions = final_predictions[combined_mask]
                 mean = np.mean(inlier_predictions, axis=0)
-                error = np.sum(np.linalg.norm(final_predictions - mean, axis=1))
+                error = old_point_cloud.deformity(mean, inlier_predictions)
+                
                 if error < best_error:
                     best_error = error
                     best_inliers = combined_mask
                     best_rotation = r
         best_inliers = np.array(best_inliers, dtype=bool)
         # TODO: Check for when inliers and rotation is None
-        print(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {best_inliers}")
+        num_inliers = np.sum(best_inliers)
+        print(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {num_inliers}/{len(best_inliers)}")
         return best_inliers, best_rotation
