@@ -223,6 +223,7 @@ class VideoProcessor():
         ):
         predicted_query_points = [p.query_point for p in predicted_point_clouds]
         true_query_points = [cloud.query_point for cloud in true_point_clouds]
+        initial_positions = [cloud.cloud_points for cloud in true_point_clouds]
 
         confidence = min([p.confidence(inliers) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
         request_validation = confidence < CONFIDENCE_THRESHOLD
@@ -246,6 +247,7 @@ class VideoProcessor():
                 predicted_point_clouds=predicted_point_clouds,
                 inliers_rotations=inliers_rotations,
                 true_query_points=true_query_points_xy,
+                initial_positions=initial_positions
             )
             # print("Weights after validation")
             # print(weights)

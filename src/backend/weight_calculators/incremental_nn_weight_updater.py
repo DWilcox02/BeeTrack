@@ -19,9 +19,10 @@ class IncrementalNNWeightUpdater(WeightCalculatorBase):
         self, 
         predicted_point_clouds: List[PointCloud], 
         inliers_rotations: List[tuple[np.ndarray, float]], 
-        true_query_points: List[np.ndarray]
+        true_query_points: List[np.ndarray],
+        initial_positions: List[np.ndarray]
         ):
-        for prediction_model, ppc, ir, tqp in zip(self.prediction_models, predicted_point_clouds, inliers_rotations, true_query_points):
-            prediction_model.incremental_fit(ppc, ir, tqp)
+        for prediction_model, ppc, ir, tqp, ips in zip(self.prediction_models, predicted_point_clouds, inliers_rotations, true_query_points, initial_positions):
+            prediction_model.incremental_fit(ppc, ir, tqp, ips)
 
         return [ppc.weights for ppc in predicted_point_clouds]

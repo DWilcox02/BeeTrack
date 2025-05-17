@@ -35,5 +35,4 @@ class IncrementalNNReconstructor(QueryPointReconstructorBase):
             inliers_rotation: tuple[np.ndarray, float],
             prediction_model: QueryPointPredictionModel
     ):
-        inliers, rotation = inliers_rotation
-        return prediction_model.predict(old_point_cloud, final_positions, inliers, rotation)
+        return prediction_model.predict(old_point_cloud, final_positions, inliers_rotation)
