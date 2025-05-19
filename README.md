@@ -86,13 +86,25 @@ to start the frontend server, at `http://localhost:3000`
 12. Cluster-based prediction instead of RANSAC
 13. Penalize weights for outliers and based on distance
 14. Redrawing outliers
+15. Incremental NN implementation (could be improved)
+16. Confidence based on inlier ratio
 
 ### Next Steps
 (Not necessarily in order of priority)
-- Confidence definition
-- Refactor non-critical code
-    - Get loging in frontend working
-    - Get video output working
+- Confidence based on deformity + hyperparameter tuning
+- User interface wrap-up
+    - Mouse offset fix
+    - Remove button on session start
+    - Logging in frontend
+    - Video output
+    - Frame-by-frame update
+    - Normalize user interface to 15fps
+    - Arbitrary number of points
+    - Saved outputs
+    - Saved inputs
+- Explore MST possibility
+
+
 - Normalize video FPS to 15. Any higher results in unnecessarly heavy computation
     - Potential for dynamic framerate in cases of uncertainty?
 - Ensure linux compatibility
