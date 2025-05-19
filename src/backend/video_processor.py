@@ -31,11 +31,13 @@ from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers_random i
 # Import Query Point Predictors
 from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
 from src.backend.query_point_predictors.inlier_weighted_avg_reconstructor import InlierWeightedAvgReconstructor
+from src.backend.query_point_predictors.incremental_nn_reconstructor import IncrementalNNReconstructor
 
 # Import Weight Calculators
 from src.backend.weight_calculators.weight_calculator_base import WeightCalculatorBase
 from src.backend.weight_calculators.weight_calculator_distance import WeightCalculatorDistance
 from src.backend.weight_calculators.weight_calculator_outliers import WeightCalculatorOutliers
+from src.backend.weight_calculators.incremental_nn_weight_updater import IncrementalNNWeightUpdater
 
 
 # Get paths
@@ -81,6 +83,10 @@ class VideoProcessor():
         self.inlier_predictor = DBSCANInlierPredictor()
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
         self.point_cloud_reconstructor = PointCloudRedrawOutliersRandom()
+
+        # num_points = len(point_data_store[session_id]["points"])
+        # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
+        # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
         self.query_point_reconstructor = InlierWeightedAvgReconstructor()
         self.weight_distance_calculator = WeightCalculatorDistance()
         self.weight_outlier_calculator = WeightCalculatorOutliers()
@@ -219,6 +225,7 @@ class VideoProcessor():
         ):
         predicted_query_points = [p.query_point for p in predicted_point_clouds]
         true_query_points = [cloud.query_point for cloud in true_point_clouds]
+        initial_positions = [cloud.cloud_points for cloud in true_point_clouds]
 
         confidence = min([p.confidence(inliers) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
         request_validation = confidence < CONFIDENCE_THRESHOLD
@@ -242,6 +249,7 @@ class VideoProcessor():
                 predicted_point_clouds=predicted_point_clouds,
                 inliers_rotations=inliers_rotations,
                 true_query_points=true_query_points_xy,
+                initial_positions=initial_positions
             )
             # print("Weights after validation")
             # print(weights)

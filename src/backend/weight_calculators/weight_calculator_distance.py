@@ -15,7 +15,8 @@ class WeightCalculatorDistance(WeightCalculatorBase):
         self, 
         predicted_point_clouds: List[PointCloud], 
         inliers_rotations: List[tuple[np.ndarray, float]], 
-        true_query_points: List[np.ndarray]
+        true_query_points: List[np.ndarray],
+        initial_positions: List[np.ndarray]
     ):
         return [
             self.calculate_weights_errors_for_point(opc, ir, qpr) 
