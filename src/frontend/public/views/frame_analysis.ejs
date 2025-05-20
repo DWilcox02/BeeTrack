@@ -11,7 +11,13 @@
     <script src="/js/frame_analysis.js" defer></script>
 </head>
 <body>
-    <div id="app-container" data-session-id="<%= session_id %>"></div>
+    <div id="app-container" 
+        data-session-id="<%= session_id %>" 
+        data-margin-top="50" 
+        data-margin-left="50"
+        data-margin-right="50"
+        data-margin-bottom="50"
+    ></div>
     <div class="container">
         <h1>First Frame Analysis</h1>
         <h2>Video: <%= filename.split('/').pop() %></h2>
@@ -103,6 +109,10 @@
         const IMAGE_DATA = "<%= imageData %>";
         const IMAGE_WIDTH = parseInt("<%= width %>", 10);
         const IMAGE_HEIGHT = parseInt("<%= height %>", 10);
+        window.appConfig = {
+            imageWidth: IMAGE_WIDTH,
+            imageHeight: IMAGE_HEIGHT
+        };
         const decoded_points = '<%= points %>'
             .replace(/&#34;/g, '"')
             .replace(/&quot;/g, '"')
@@ -111,6 +121,7 @@
             .replace(/&gt;/g, '>')
             .replace(/&amp;/g, '&');
         const INITIAL_POINTS = JSON.parse(decoded_points) || [];
+
         
         // Create the Plotly chart when the page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -149,12 +160,20 @@
         }
 
         function createPlotlyChart() {
+            const appContainer = document.getElementById("app-container")
+            const marginTop = appContainer.dataset.marginTop;
+            const marginLeft = appContainer.dataset.marginLeft;
+            const marginRight = appContainer.dataset.marginRight;
+            const marginBottom = appContainer.dataset.marginBottom;
+
+
             const plotlyDiv = document.getElementById('plotlyDiv');
 
             // Set plot div size based on image aspect ratio
             const aspectRatio = IMAGE_WIDTH / IMAGE_HEIGHT;
             let width = 800; // pick a base width
             let height = width / aspectRatio;
+
 
             plotlyDiv.style.width = width + "px";
             plotlyDiv.style.height = height + "px";
@@ -172,8 +191,8 @@
                     yaxis: {
                         range: [IMAGE_HEIGHT, 0], // Invert y-axis for image coordinates
                         title: 'Y',
-                        scaleanchor: 'x',
-                        scaleratio: 1,
+                        // scaleanchor: 'x',
+                        // scaleratio: 1,
                         fixedrange: true,
                         showgrid: false
                     },
@@ -183,14 +202,13 @@
                         y: 0,
                         sizex: IMAGE_WIDTH,
                         sizey: IMAGE_HEIGHT,
-                        sizing: 'stretch',
                         layer: 'below',
                         xref: 'x',
                         yref: 'y',
                     }],
                     showlegend: true,
                     dragmode: 'pan',
-                    margin: {l: 50, r: 50, b: 50, t: 50},
+                    margin: {l: marginLeft, r: marginRight, b: marginBottom, t: marginTop},
                     title: 'First Frame Analysis',
                     template: 'plotly_white',
                     width: width,

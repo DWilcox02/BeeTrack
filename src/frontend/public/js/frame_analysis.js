@@ -7,7 +7,18 @@ let pointRadiusValues = [50, 50, 50, 50];
 
 const backend_url = "http://127.0.0.1:5001";
 
-const sessionId = document.getElementById("app-container").dataset.sessionId;
+const appContainer = document.getElementById("app-container")
+const sessionId = appContainer.dataset.sessionId;
+const marginTop = appContainer.dataset.marginTop;
+const marginLeft = appContainer.dataset.marginLeft;
+const marginRight = appContainer.dataset.marginRight;
+const marginBottom = appContainer.dataset.marginBottom;
+const imageWidth = window.appConfig.imageWidth;
+const imageHeight = window.appConfig.imageHeight;
+
+// console.log(imageWidth);
+// console.log(imageHeight);
+
 // Initialize once page is loaded
 document.addEventListener("DOMContentLoaded", function () {
   // Set up the point selection buttons
@@ -258,6 +269,8 @@ function handlePlotClick(event) {
 
   // Get the bounding rect of the plot
   const plotRect = plotlyDiv.getBoundingClientRect();
+  const plotWidth = plotRect.width;
+  const plotHeight = plotRect.height;
 
   // Calculate mouse position relative to the plot div
   const mouseX = event.clientX - plotRect.left;
@@ -266,36 +279,19 @@ function handlePlotClick(event) {
   // Use Plotly's internal conversion function to convert from pixel coordinates to data coordinates
   // This eliminates any issues with calculating margins manually
   try {
-    const coordData = plotlyDiv._fullLayout.clickmodeBar
-      ? plotlyDiv._fullLayout.clickmodeBar.clickData({
-          xpx: mouseX,
-          ypx: mouseY,
-        })
-      : null;
-
-    if (!coordData) {
-      // Fallback method if clickmodeBar is not available
-      // Get the axes
-      const xaxis = plotlyDiv._fullLayout.xaxis;
-      const yaxis = plotlyDiv._fullLayout.yaxis;
 
       // Convert from pixel to data coordinates
       // These are Plotly's internal conversion methods
 
       // TODO: Actually fix instead of manual forced change
-      const dataX = xaxis.p2d(mouseX) - 128.9;
-      const dataY = yaxis.p2d(mouseY) - 90.9;
+      const dataX = (mouseX - marginLeft)/(plotWidth - marginLeft - marginRight) * imageWidth;
+      const dataY = (mouseY - marginTop)/(plotHeight - marginTop - marginBottom) * imageHeight;
 
       console.log(`Mouse position on plot: (${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
       console.log(`Converted to data coordinates: (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
 
       // Update point position on the server
       updatePoint(selectedPointIndex, dataX, dataY, radius);
-    } else {
-      console.log(`Using clickmodeBar data:`, coordData);
-      // Update point position using the coordinate data from clickmodeBar
-      updatePoint(selectedPointIndex, coordData.x, coordData.y, radius);
-    }
   } catch (error) {
     console.error("Error converting coordinates:", error);
 
