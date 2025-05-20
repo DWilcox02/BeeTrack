@@ -587,6 +587,11 @@ async function processVideoWithPoints() {
   const logsContainer = document.getElementById("processingLogs");
   const logContent = document.getElementById("logContent");
 
+  const processPointCloudButton = document.getElementById("processPointCloud");
+  if (processPointCloudButton) {
+    processPointCloudButton.disabled = true;
+  }
+
   // Clear previous logs
   logContent.textContent = "";
 
@@ -597,7 +602,6 @@ async function processVideoWithPoints() {
     '<div class="loading-spinner"></div> Processing video with TAPIR (this may take several minutes)...';
   logsContainer.style.display = "block";
 
-  // console.log("Here (lowercase)");
   try {
     socket.emit("process_video_with_points", {
       session_id: sessionId,
