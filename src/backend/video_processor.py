@@ -65,7 +65,7 @@ class VideoProcessor():
         send_frame_data_callback, 
         request_validation_callback,
         video,
-        job_id=None,
+        job_id,
     ):
         self.session_id = session_id
         self.point_cloud_estimator = point_cloud_estimator
@@ -473,15 +473,6 @@ class VideoProcessor():
         self.log(f"Path: {path}")
 
         try:
-            # Set the logger if we have a self.job_id
-            if self.job_id and self.log_message:
-                # Create a custom logger function to send messages to the frontend
-                def custom_logger(message):
-                    self.log_message(self.job_id, message)
-                    print(message)  # Still print to console for debugging
-
-                self.point_cloud_estimator.set_logger(custom_logger)
-                self.point_cloud_reconstructor.set_logger(custom_logger)
 
             max_segments = None
             save_intermediate=True
@@ -556,7 +547,7 @@ class VideoProcessor():
                 try:
                     start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     for pc_i, pc in enumerate(point_clouds):
-                        print(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
+                        self.log(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
@@ -602,8 +593,8 @@ class VideoProcessor():
                         old_point_clouds=point_clouds,
                         inliers_rotations=inliers_rotations
                     )
-                    # print("Weights after updating with outliers:")
-                    # print(weights)
+                    # self.log("Weights after updating with outliers:")
+                    # self.log(weights)
                     predicted_point_clouds: List[PointCloud] = self.point_cloud_reconstructor.reconstruct_point_clouds(
                         old_point_clouds=point_clouds,
                         final_positions=final_positions,
@@ -612,7 +603,7 @@ class VideoProcessor():
                         weights=weights
                     )
                     for pc_i, pc in enumerate(predicted_point_clouds):
-                        print(f"Predicted cloud {pc_i} deformity pre-validation: {pc.deformity()}")
+                        self.log(f"Predicted cloud {pc_i} deformity pre-validation: {pc.deformity()}")
 
                     # Update weights and potentially request validation
                     query_points, point_clouds = self.validate_and_update_weights(

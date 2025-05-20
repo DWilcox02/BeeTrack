@@ -16,6 +16,80 @@ const marginBottom = appContainer.dataset.marginBottom;
 const imageWidth = window.appConfig.imageWidth;
 const imageHeight = window.appConfig.imageHeight;
 
+let currentJobId = null;
+
+// Socket event handler for job logs
+window.handleJobLog = function (jobId, message) {
+
+  // Only process logs for current job
+  if (currentJobId !== null && jobId !== currentJobId) return;
+
+  const logContent = document.getElementById("logContent");
+  if (!logContent) return;
+
+  if (message.trim() === "") return; // Skip empty messages
+
+  // Format message based on type
+  let formattedMessage = message;
+  let messageClass = "";
+
+  if (message.startsWith("ERROR:")) {
+    formattedMessage = message.substring(6);
+    messageClass = "log-error";
+  } else if (message.startsWith("DONE:")) {
+    formattedMessage = message.substring(5);
+    messageClass = "log-success";
+  } else if (message.startsWith("Processing ") || message.startsWith("Starting ")) {
+    messageClass = "log-info";
+  }
+
+  // Add the message to the log
+  const logLine = document.createElement("div");
+  logLine.textContent = formattedMessage;
+  if (messageClass) {
+    logLine.className = messageClass;
+  }
+  logContent.appendChild(logLine);
+
+  // Scroll to bottom
+  logContent.scrollTop = logContent.scrollHeight;
+
+  // Check for completion or error
+  if (message.startsWith("DONE:")) {
+    const statusElement = document.getElementById("processingStatus");
+    const statusMessageElement = document.getElementById("statusMessage");
+
+    // Update status to success
+    statusElement.className = "processing-status status-success";
+    statusMessageElement.innerHTML = "<strong>Success!</strong> Point cloud processing complete.";
+
+    // Re-enable the process button
+    const processButton = document.getElementById("processPointCloud");
+    if (processButton) {
+      processButton.disabled = false;
+    }
+
+    // Show validation button if appropriate
+    const validationButton = document.getElementById("validationContinue");
+    if (validationButton) {
+      validationButton.style.display = "block";
+    }
+  } else if (message.startsWith("ERROR:")) {
+    const statusElement = document.getElementById("processingStatus");
+    const statusMessageElement = document.getElementById("statusMessage");
+
+    // Update status to error
+    statusElement.className = "processing-status status-error";
+    statusMessageElement.textContent = "Error: " + formattedMessage;
+
+    // Re-enable the process button
+    const processButton = document.getElementById("processPointCloud");
+    if (processButton) {
+      processButton.disabled = false;
+    }
+  }
+};
+
 // console.log(imageWidth);
 // console.log(imageHeight);
 
@@ -578,12 +652,8 @@ async function savePoints() {
 }
 
 async function processVideoWithPoints() {
-  const videoPath = "{{ filename }}";
   const statusElement = document.getElementById("processingStatus");
   const statusMessageElement = document.getElementById("statusMessage");
-  const processedContainer = document.getElementById("processedVideoContainer");
-  const processedSource = document.getElementById("processedVideoSource");
-  const processedPlayer = document.getElementById("processedVideoPlayer");
   const logsContainer = document.getElementById("processingLogs");
   const logContent = document.getElementById("logContent");
 
@@ -603,8 +673,12 @@ async function processVideoWithPoints() {
   logsContainer.style.display = "block";
 
   try {
+    // Generate a unique job ID if server doesn't provide one
+    currentJobId = "pointcloud_" + new Date().getTime();
+
     socket.emit("process_video_with_points", {
       session_id: sessionId,
+      job_id: currentJobId, // Pass the job ID to the server
     });
   } catch (error) {
     statusElement.className = "processing-status status-error";
@@ -615,6 +689,11 @@ async function processVideoWithPoints() {
     logLine.textContent = "Error: " + error.message;
     logLine.className = "log-error";
     logContent.appendChild(logLine);
+
+    // Re-enable the process button
+    if (processPointCloudButton) {
+      processPointCloudButton.disabled = false;
+    }
   }
 }
 

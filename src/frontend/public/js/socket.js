@@ -162,9 +162,7 @@ const api = {
 
 // Listen for job updates
 socket.on("job_log", (data) => {
-  if (typeof window.handleJobLog === "function") {
-    window.handleJobLog(data.job_id, data.message);
-  }
+  window.handleJobLog(data.job_id, data.message);
 });
 
 // Socket event handlers for point updates

@@ -68,7 +68,10 @@ def log_message(job_id, message):
     if job_id in processing_logs:
         processing_logs[job_id].put(message)
         # Emit the message to the client via Socket.IO
-        socketio.emit(f"log_message_{job_id}", {"message": message})
+        socketio.emit("job_log", {
+            "job_id": job_id,
+            "message": message
+        })
 
 
 def cleanup_job(job_id, timeout=300):
@@ -281,6 +284,7 @@ def handle_process_video_with_points(data):
         return
 
     session_id = data.get("session_id")
+    job_id = data.get("job_id")
 
     if session_id not in point_data_store:
             print(f"Session ID {session_id} not found in point_data_store")
@@ -289,9 +293,6 @@ def handle_process_video_with_points(data):
 
     session_data = point_data_store[session_id]
     video_path = session_data.get("video_path")
-
-    # Create a unique job ID
-    job_id = str(uuid.uuid4())
 
     # Initialize logging for this job
     init_job_logging(job_id)
@@ -315,6 +316,8 @@ def handle_process_video_with_points(data):
                 video=video,
                 job_id=job_id
             )
+
+            video_processor.set_log_message_function(log_message)
             # Process the video
             init_query_points = point_data_store[session_id]["points"]
             result = video_processor.process_video(init_query_points)
