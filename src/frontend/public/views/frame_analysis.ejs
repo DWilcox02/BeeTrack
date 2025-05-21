@@ -89,6 +89,23 @@
             <button id="processPointCloud" class="btn btn-action" onclick="processVideoWithPoints()">Process Point Cloud</button>
             <button id="validationContinue" style="display: none;" class="btn btn-action" onclick="sendValidationContinue()">Validate and Continue</button>
         </div>
+
+        <div class="timeline">
+            <h2>Tracking Timeline</h2>
+            
+            <div class="slider-container">
+                <input type="range" min="0" max="4" value="0" class="slider" id="timelineSlider">
+            </div>
+            
+            <div class="image-info">
+                Frame <span id="imageNumber">0</span> of <span id="totalImages">0</span>
+            </div>
+            
+            <div class="image-container">
+                <img id="displayedImage" src="" alt="Selected image">
+            </div>
+
+        </div>
     </div>
 
     <div id="processingLogs" class="processing-logs" style="display: none;">

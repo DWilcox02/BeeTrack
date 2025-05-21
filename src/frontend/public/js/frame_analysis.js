@@ -18,6 +18,39 @@ const imageHeight = window.appConfig.imageHeight;
 
 let currentJobId = null;
 
+// List of images as data URLs
+const images = [
+    "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2ZmNTI1MiIvPjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj5JbWFnZSAxPC90ZXh0Pjwvc3ZnPg==",
+    "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzRjYWY1MCIvPjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj5JbWFnZSAyPC90ZXh0Pjwvc3ZnPg==",
+    "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzIxOTZmMyIvPjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj5JbWFnZSAzPC90ZXh0Pjwvc3ZnPg==",
+    "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2ZmOWMwMCIvPjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj5JbWFnZSA0PC90ZXh0Pjwvc3ZnPg==",
+    "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzlDMjdCMCIvPjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj5JbWFnZSA1PC90ZXh0Pjwvc3ZnPg=="
+];
+
+// const images = [];
+
+// Get DOM elements
+const timelineSlider = document.getElementById('timelineSlider');
+timelineSlider.max = images.length - 1;
+const imageNumber = document.getElementById('imageNumber');
+const totalImages = document.getElementById("totalImages");
+totalImages.textContent = images.length;
+const displayedImage = document.getElementById('displayedImage');
+
+// Initialize with the first image
+try {
+    displayedImage.src = images[0];
+} catch (error) {
+    console.log("No slider images")
+}
+
+// Update image when slider value changes
+timelineSlider.addEventListener('input', function() {
+    const index = parseInt(this.value);
+    displayedImage.src = images[index];
+    imageNumber.textContent = (index + 1);
+});
+
 // Socket event handler for job logs
 window.handleJobLog = function (jobId, message) {
   // Only process logs for current job
