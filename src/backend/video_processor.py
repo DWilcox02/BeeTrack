@@ -94,6 +94,15 @@ class VideoProcessor():
 
     def set_log_message_function(self, fn):
         self.log_message = fn
+        self.point_cloud_estimator.set_logger(self.log)
+        self.point_cloud_generator.set_logger(self.log)
+        self.inlier_predictor.set_logger(self.log)
+        self.inter_cloud_alignment_predictor.set_logger(self.log)
+        self.point_cloud_reconstructor.set_logger(self.log)
+        self.query_point_reconstructor.set_logger(self.log)
+        self.weight_distance_calculator.set_logger(self.log)
+        self.weight_outlier_calculator.set_logger(self.log)
+
 
 
     def log(self, message):
@@ -113,7 +122,7 @@ class VideoProcessor():
 
 
     def request_validation(self):
-        return self.request_validation_callback()
+        return self.request_validation_callback(self.job_id)
 
 
     def combine_and_write_video(self, save_intermediate, segment_paths, processed_segments, final_output_path, fps, temp_dir, start_time):
@@ -192,10 +201,10 @@ class VideoProcessor():
             with open(final_tracks_output_path, 'w') as f:
                 json.dump(tracks_data, f, indent=2)
                 
-            print(f"Tracks successfully written to {final_tracks_output_path}")
+            self.log(f"Tracks successfully written to {final_tracks_output_path}")
             
         except Exception as e:
-            print(f"Error writing tracks to file: {e}")
+            self.log(f"Error writing tracks to file: {e}")
             raise
 
 

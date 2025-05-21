@@ -329,6 +329,7 @@ video {
 .log-container {
     max-height: 300px;
     overflow-y: auto;
+    scroll-behavior: smooth;
     padding: 10px;
     background-color: #212529;
     border-radius: 0 0 4px 4px;

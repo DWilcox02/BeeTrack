@@ -20,7 +20,6 @@ let currentJobId = null;
 
 // Socket event handler for job logs
 window.handleJobLog = function (jobId, message) {
-
   // Only process logs for current job
   if (currentJobId !== null && jobId !== currentJobId) return;
 
@@ -51,8 +50,10 @@ window.handleJobLog = function (jobId, message) {
   }
   logContent.appendChild(logLine);
 
-  // Scroll to bottom
-  logContent.scrollTop = logContent.scrollHeight;
+  // Use requestAnimationFrame for reliable scrolling after DOM update
+  requestAnimationFrame(() => {
+    logContent.scrollTop = logContent.scrollHeight;
+  });
 
   // Check for completion or error
   if (message.startsWith("DONE:")) {
@@ -90,8 +91,6 @@ window.handleJobLog = function (jobId, message) {
   }
 };
 
-// console.log(imageWidth);
-// console.log(imageHeight);
 
 // Initialize once page is loaded
 document.addEventListener("DOMContentLoaded", function () {

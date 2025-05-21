@@ -249,7 +249,7 @@ def send_frame_data_callback(frameData, points, confidence, request_validation):
     return
 
 
-def request_validation_callback():
+def request_validation_callback(job_id):
     # Generate a unique ID for validation request
     request_id = str(uuid.uuid4())
 
@@ -260,7 +260,7 @@ def request_validation_callback():
     # Emit the event with the request ID
     socketio.emit("validation_request", {"message": "Please validate this data", "request_id": request_id})
 
-    print(f"Requesting frontend validation (ID: {request_id})")
+    log_message(job_id=job_id, message=f"Requesting frontend validation (ID: {request_id})")
 
     # Wait for the validation to be completed (with timeout)
     if validation_event.wait(timeout=300):

@@ -33,7 +33,7 @@ class DBSCANInlierPredictor(InlierPredictorBase):
                 final_positions=final_positions, 
                 rotation=r
             )
-            # print(f"Old Inliers: {old_point_cloud.inliers}")
+            # self.log(f"Old Inliers: {old_point_cloud.inliers}")
             j = 0
             mapping = {}
             for i in range(len(final_predictions)):
@@ -41,22 +41,22 @@ class DBSCANInlierPredictor(InlierPredictorBase):
                     mapping[j] = i
                     j += 1
 
-            # print(f"Mapping: {mapping}")
-            # print(f"Old inliers: {len(old_point_cloud.inliers)}")
+            # self.log(f"Mapping: {mapping}")
+            # self.log(f"Old inliers: {len(old_point_cloud.inliers)}")
             final_predictions_masked = final_predictions[old_point_cloud.inliers]
-            # print(f"Len final predictions masked: {len(final_predictions_masked)}")
+            # self.log(f"Len final predictions masked: {len(final_predictions_masked)}")
             eps = old_point_cloud.radius * 1.5
 
             min_samples = len(final_predictions_masked) // 2
             clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(final_predictions_masked)
             inlier_idxs = clustering.core_sample_indices_
-            # print(f"Inlier idxs: {len(inlier_idxs)}")
+            # self.log(f"Inlier idxs: {len(inlier_idxs)}")
 
             if len(inlier_idxs) > 0:
                 inlier_mask = np.zeros_like(clustering.labels_, dtype=bool)
                 inlier_mask[inlier_idxs] = True
 
-                # print(f"Inlier mask: {len(inlier_mask)}")
+                # self.log(f"Inlier mask: {len(inlier_mask)}")
                 combined_mask = old_point_cloud.inliers
                 for j in range(len(inlier_mask)):
                     i = mapping[j]
@@ -74,5 +74,5 @@ class DBSCANInlierPredictor(InlierPredictorBase):
         best_inliers = np.array(best_inliers, dtype=bool)
         # TODO: Check for when inliers and rotation is None
         num_inliers = np.sum(best_inliers)
-        print(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {num_inliers}/{len(best_inliers)}")
+        self.log(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {num_inliers}/{len(best_inliers)}")
         return best_inliers, best_rotation

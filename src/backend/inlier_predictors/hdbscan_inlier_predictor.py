@@ -26,7 +26,7 @@ class HDBSCANInlierPredictor(InlierPredictorBase):
                 final_predictions.append(pos - rotated_vec)
 
             final_predictions = np.array(final_predictions, dtype=np.float32)
-            # print(f"Old Inliers: {old_point_cloud.inliers}")
+            # self.log(f"Old Inliers: {old_point_cloud.inliers}")
             j = 0
             mapping = {}
             for i in range(len(final_predictions)):
@@ -34,21 +34,21 @@ class HDBSCANInlierPredictor(InlierPredictorBase):
                     mapping[j] = i
                     j += 1
 
-            # print(f"Mapping: {mapping}")
-            # print(f"Old inliers: {len(old_point_cloud.inliers)}")
+            # self.log(f"Mapping: {mapping}")
+            # self.log(f"Old inliers: {len(old_point_cloud.inliers)}")
             final_predictions_masked = final_predictions[old_point_cloud.inliers]
-            # print(f"Len final predictions masked: {len(final_predictions_masked)}")
+            # self.log(f"Len final predictions masked: {len(final_predictions_masked)}")
 
             min_cluster_size = len(final_predictions_masked) // 2
             clustering = HDBSCAN().fit(final_predictions_masked)
             inlier_idxs = [i for i in range(len(clustering.labels_)) if clustering.labels_[i] >= 0]
-            print(f"Cluster labels: {clustering.labels_}")
+            self.log(f"Cluster labels: {clustering.labels_}")
 
             if len(inlier_idxs) > 0:
                 inlier_mask = np.zeros_like(clustering.labels_, dtype=bool)
                 inlier_mask[inlier_idxs] = True
 
-                # print(f"Inlier mask: {len(inlier_mask)}")
+                # self.log(f"Inlier mask: {len(inlier_mask)}")
                 combined_mask = old_point_cloud.inliers
                 for j in range(len(inlier_mask)):
                     i = mapping[j]
@@ -63,7 +63,7 @@ class HDBSCANInlierPredictor(InlierPredictorBase):
                     best_rotation = r
         best_inliers = np.array(best_inliers, dtype=bool)
         # TODO: Check for when inliers and rotation is None
-        print(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {best_inliers}")
+        self.log(f"Best error and rotation: {best_error}, rotation: {best_rotation}, inliers: {best_inliers}")
         return best_inliers, best_rotation
 
     def rotate_vector(self, vector, angle_degrees):
