@@ -276,6 +276,15 @@ def request_validation_callback(job_id):
         return None
 
 
+def send_timeline_frame_callback(frame, frameIndex):
+    socketio.emit(
+        "add_timeline_frame",
+        {
+            "frame": frame,
+            "frame_index": frameIndex
+        }
+    )
+
 @socketio.on("process_video_with_points")
 def handle_process_video_with_points(data):
     """Process video with predefined points."""
@@ -313,6 +322,7 @@ def handle_process_video_with_points(data):
                 point_cloud_estimator=point_cloud_estimator,
                 send_frame_data_callback=send_frame_data_callback,
                 request_validation_callback=request_validation_callback,
+                send_timeline_frame_callback=send_timeline_frame_callback,
                 video=video,
                 job_id=job_id
             )

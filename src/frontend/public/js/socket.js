@@ -220,7 +220,14 @@ socket.on("update_all_points_response", (result) => {
   }
 });
 
-
+socket.on("add_timeline_frame", (data) => {
+  if (data.frame && data.frame_index) {
+    console.log(data)
+    addTimelineFrame(data);
+  } else {
+    console.error("Error with data: " + data)
+  }
+});
 
 
 

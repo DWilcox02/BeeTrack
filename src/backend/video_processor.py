@@ -5,6 +5,9 @@ import mediapy as media
 import tempfile
 import numpy as np
 import gc
+import cv2
+import base64
+
 from typing import List
 
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
@@ -64,6 +67,7 @@ class VideoProcessor():
         point_cloud_estimator: PointCloudEstimatorInterface,
         send_frame_data_callback, 
         request_validation_callback,
+        send_timeline_frame_callback,
         video,
         job_id,
     ):
@@ -71,6 +75,7 @@ class VideoProcessor():
         self.point_cloud_estimator = point_cloud_estimator
         self.send_frame_data_callback = send_frame_data_callback
         self.request_validation_callback = request_validation_callback
+        self.send_timeline_frame_callback = send_timeline_frame_callback
         self.video = video
         self.job_id = job_id
         self.log_message = None
@@ -124,6 +129,30 @@ class VideoProcessor():
     def request_validation(self):
         return self.request_validation_callback(self.job_id)
 
+
+    def send_timeline_frames(self, video_segment):
+        # video_segment: [num_frames, height, width, 3], np.uint8, [0, 255]
+        # base64_frames = []
+
+        for i, frame in enumerate(video_segment):
+            try:
+                # Convert RGB to BGR for OpenCV JPEG encoding
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                # Encode to JPEG
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                success, buffer = cv2.imencode(".jpg", frame_bgr, encode_param)
+                if not success:
+                    self.log(f"Failed to encode frame {i}")
+                    continue
+
+                # Convert to base64
+                frame_base64 = base64.b64encode(buffer).decode("utf-8")
+                self.send_timeline_frame_callback(frame_base64, i)
+            except Exception as e:
+                self.log(f"Error encoding frame {i}: {e}")
+
+        # return base64_frames
 
     def combine_and_write_video(self, save_intermediate, segment_paths, processed_segments, final_output_path, fps, temp_dir, start_time):
         if save_intermediate and segment_paths:
@@ -651,9 +680,11 @@ class VideoProcessor():
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
-                    # video_segment = slice_result.get_video_for_points(smoothed_points)
+                    smoothed_video_segment = slice_result.get_video_for_points(smoothed_points)
                     for j, sps in enumerate(smoothed_points):
                         all_tracks[j].extend(sps)
+
+                    self.send_timeline_frames(smoothed_video_segment)
 
                     if save_intermediate:
                         # Save segment to disk
