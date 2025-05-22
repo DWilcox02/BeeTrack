@@ -55,7 +55,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 4
+NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -310,7 +310,16 @@ class VideoProcessor():
         return true_query_points, true_point_clouds
 
 
-    def smooth_points(self, start_frame, end_frame, start_query_points, end_query_points, slice_result, point_clouds):
+    def smooth_points(
+            self, 
+            start_frame, 
+            end_frame, 
+            start_query_points, 
+            end_query_points, 
+            slice_result, 
+            point_clouds
+        ):
+
         diff = end_frame - start_frame
         num_point_clouds = len(start_query_points)
 
@@ -340,12 +349,11 @@ class VideoProcessor():
             
             for k in range(diff):
                 if k < half:
-                    b = k / half
+                    interpolated_weight = -1/(diff - 1)*k + 1
                 else:
-                    b = (diff - k) / half
+                    interpolated_weight =  1/(diff - 1)*k
                 
-                raw_weight = 0.5 + 0.5 * b  # 70-100% weight to raw_mean_tracks
-                interpolated_weight = 1 - raw_weight
+                raw_weight = 1 - interpolated_weight
                 smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
             smoothed_points.append(smoothed_tracks)
         smoothed_points = np.array(smoothed_points)
