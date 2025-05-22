@@ -313,7 +313,7 @@ class VideoProcessor():
         return true_query_points, true_point_clouds
 
 
-    def smooth_points(
+    def generate_segment_tracks(
             self, 
             start_frame, 
             end_frame, 
@@ -360,7 +360,7 @@ class VideoProcessor():
                 smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
             smoothed_points.append(smoothed_tracks)
         smoothed_points = np.array(smoothed_points)
-        return smoothed_points
+        return interpolated_points, mean_points, smoothed_points
 
 
     def calc_errors(self, predicted_point_clouds: List[PointCloud], true_point_clouds: List[PointCloud], frame: int):
@@ -701,7 +701,7 @@ class VideoProcessor():
                     # Get query points for interpolation
                     end_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     
-                    smoothed_tracks = self.smooth_points(
+                    interpolated_tracks, raw_mean_tracks, smoothed_tracks = self.generate_segment_tracks(
                         start_frame=start_frame,
                         end_frame=end_frame,
                         start_query_points=start_query_points,
@@ -727,6 +727,12 @@ class VideoProcessor():
                     for j, sps in enumerate(smoothed_tracks):
                         all_tracks[j].extend(sps)
 
+                    self.add_tracks(
+                        start_frame=start_frame,
+                        interpolated_tracks=interpolated_tracks,
+                        raw_mean_tracks=raw_mean_tracks, 
+                        smoothed_tracks=smoothed_tracks
+                    )
                     self.send_timeline_frames(smoothed_video_segment)
 
                     if save_intermediate:

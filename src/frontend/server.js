@@ -76,11 +76,11 @@ app.get("/analysis/:filename", async (req, res) => {
       ];
 
       // Static points for outside_florea
-      points = [
-        { x: 1017.80, y: 638.10, color: "red", radius: 24.00 },
-        { x: 1060.99, y: 675.88, color: "green", radius: 24.00 },
-        { x: 1036.30, y: 658.90, color: "blue", radius: 24.00 },
-      ];
+      // points = [
+      //   { x: 1017.80, y: 638.10, color: "red", radius: 24.00 },
+      //   { x: 1060.99, y: 675.88, color: "green", radius: 24.00 },
+      //   { x: 1036.30, y: 658.90, color: "blue", radius: 24.00 },
+      // ];
 
       // Static points for dance_15
       // points = [
@@ -89,11 +89,11 @@ app.get("/analysis/:filename", async (req, res) => {
       //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
       //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
       // ];
-      // points = [
-      //   { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
-      //   { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
-      //   { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
-      // ];
+      points = [
+        { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
+        { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
+        { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
+      ];
 
       // Static points for round_dance
       // points = [
