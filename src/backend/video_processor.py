@@ -30,6 +30,7 @@ from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base impor
 from src.backend.point_cloud_reconstructors.point_cloud_recons_inliers import PointCloudReconsInliers
 from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers import PointCloudRedrawOutliers
 from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers_random import PointCloudRedrawOutliersRandom
+from src.backend.point_cloud_reconstructors.point_cloud_cluster_recovery import PointCloudClusterRecovery
 
 # Import Query Point Predictors
 from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
@@ -87,8 +88,8 @@ class VideoProcessor():
         # Choices for experimentation
         self.inlier_predictor = DBSCANInlierPredictor()
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
-        self.point_cloud_reconstructor = PointCloudRedrawOutliersRandom()
-
+        self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
+        self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
         # num_points = len(point_data_store[session_id]["points"])
         # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
         # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
@@ -103,11 +104,10 @@ class VideoProcessor():
         self.point_cloud_generator.set_logger(self.log)
         self.inlier_predictor.set_logger(self.log)
         self.inter_cloud_alignment_predictor.set_logger(self.log)
-        self.point_cloud_reconstructor.set_logger(self.log)
+        self.point_cloud_non_validated_reconstructor.set_logger(self.log)
         self.query_point_reconstructor.set_logger(self.log)
         self.weight_distance_calculator.set_logger(self.log)
         self.weight_outlier_calculator.set_logger(self.log)
-
 
 
     def log(self, message):
@@ -153,6 +153,7 @@ class VideoProcessor():
                 self.log(f"Error encoding frame {i}: {e}")
 
         # return base64_frames
+
 
     def combine_and_write_video(self, save_intermediate, segment_paths, processed_segments, final_output_path, fps, temp_dir, start_time):
         if save_intermediate and segment_paths:
@@ -292,7 +293,7 @@ class VideoProcessor():
             # print("Weights after validation")
             # print(weights)
             final_positions = [ pc.cloud_points for pc in predicted_point_clouds]
-            true_point_clouds = self.point_cloud_reconstructor.reconstruct_point_clouds(
+            true_point_clouds = self.point_cloud_validated_reconstructor.reconstruct_point_clouds(
                 old_point_clouds=predicted_point_clouds,
                 final_positions=final_positions,
                 inliers_rotations=inliers_rotations,
@@ -641,7 +642,7 @@ class VideoProcessor():
                     )
                     # self.log("Weights after updating with outliers:")
                     # self.log(weights)
-                    predicted_point_clouds: List[PointCloud] = self.point_cloud_reconstructor.reconstruct_point_clouds(
+                    predicted_point_clouds: List[PointCloud] = self.point_cloud_non_validated_reconstructor.reconstruct_point_clouds(
                         old_point_clouds=point_clouds,
                         final_positions=final_positions,
                         inliers_rotations=inliers_rotations,
