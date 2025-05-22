@@ -236,5 +236,11 @@ socket.on("add_tracks", (data) => {
 })
 
 
+socket.on("add_validation", (data) => {
+  if (data.validation_point) {
+    addValidation(data.validation_point);
+  }
+})
+
 // Export the API for use in other scripts
 window.api = api;

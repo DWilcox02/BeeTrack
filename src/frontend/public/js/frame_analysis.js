@@ -580,6 +580,7 @@ function updatePlot(newPoints, frameData=null) {
       
       // Update the image in the layout if frameData is provided
       if (frameData && frameData.frame) {
+        currentLayout.title = `Validating frame: ${frameData.frame_idx}`;
         imageData = ensureDataUrlFormat(frameData.frame);
         
         // If we have a new image, update it in the layout
@@ -614,10 +615,7 @@ function updatePlot(newPoints, frameData=null) {
             xref: 'x',
             yref: 'y',
           });
-        }
-        
-        // Update title to show current frame
-        currentLayout.title = `Frame Analysis`;
+        }        
       }
 
       console.log(currentLayout.shapes)
@@ -827,4 +825,21 @@ function addTracks(new_tracks) {
   new_tracks.forEach((track) => {
     tbody.innerHTML += trackJSONtoTableRow(track);
   });
+}
+
+function validationToTableRow(validation) {
+  return `
+  <tr>
+    <td>
+      ${JSON.stringify(validation)}
+    </td>
+  </tr>
+  `
+}
+
+function addValidation(new_validation) {
+  const validationTable = document.getElementById("validationTable");
+  const tbody = validationTable.querySelector("tbody");
+
+  tbody.innerHTML += validationToTableRow(new_validation);
 }

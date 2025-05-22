@@ -119,25 +119,42 @@
         <span id="statusMessage"></span>
     </div>    
 
-    <div id="tracksAnnotation" class="">
-        <div style="display: flex;">
-            <h2>Annotation Tracks</h2>
-            <button class="btn btn-primary" onclick="downloadTracksCSV()">Download CSV</button>
+    <div id="tracksData" style="display: flex;">
+        <div id="validationData">
+            <h2>Validated Points</h2>
+            <div id="table-scroll">
+                <table id="validationTable">
+                    <thead>
+                        <tr>
+                            <th><span class="text">Validated Points JSON</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>blah</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div id="table-scroll">
-            <table id="tracksTable">
-                <thead>
-                    <tr>
-                        <th><span class="text">frame</span></th>
-                        <th><span class="text">x</span></th>
-                        <th><span class="text">y</span></th>
-                        <th><span class="text">bodypart</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- <tr> <td>blah</td> <td>blah</td> <td>blah</td> <td>blah</td> </tr> -->
-                </tbody>
-            </table>
+        <div id="tracksAnnotation">
+            <div style="display: flex;">
+                <h2>Annotation Tracks</h2>
+                <button class="btn btn-primary" onclick="downloadTracksCSV()">Download CSV</button>
+            </div>
+            <div id="table-scroll">
+                <table id="tracksTable">
+                    <thead>
+                        <tr>
+                            <th><span class="text">frame</span></th>
+                            <th><span class="text">x</span></th>
+                            <th><span class="text">y</span></th>
+                            <th><span class="text">bodypart</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- <tr> <td>blah</td> <td>blah</td> <td>blah</td> <td>blah</td> </tr> -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
