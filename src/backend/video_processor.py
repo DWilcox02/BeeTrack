@@ -69,6 +69,7 @@ class VideoProcessor():
         send_frame_data_callback, 
         request_validation_callback,
         send_timeline_frame_callback,
+        add_tracks_callback,
         video,
         job_id,
     ):
@@ -77,6 +78,7 @@ class VideoProcessor():
         self.send_frame_data_callback = send_frame_data_callback
         self.request_validation_callback = request_validation_callback
         self.send_timeline_frame_callback = send_timeline_frame_callback
+        self.add_tracks_callback = add_tracks_callback
         self.video = video
         self.job_id = job_id
         self.log_message = None
@@ -510,6 +512,38 @@ class VideoProcessor():
         self.log(f"Errors successfully written to {final_errors_output_path}")
 
 
+    def add_tracks(
+        self, 
+        start_frame: int,
+        interpolated_tracks: np.ndarray, 
+        raw_mean_tracks: np.ndarray, 
+        smoothed_tracks: np.ndarray
+    ):
+        new_tracks = []
+        
+        num_qp, segment_size, _ = interpolated_tracks.shape
+        
+        track_data = [
+            (interpolated_tracks, "interpolated"),
+            (raw_mean_tracks, "raw_mean"), 
+            (smoothed_tracks, "smoothed")
+        ]
+        
+        for tracks, track_type in track_data:
+            for point_idx in range(num_qp):
+                for frame_idx in range(segment_size):
+                    x, y = tracks[point_idx, frame_idx]
+                    
+                    track_dict = {
+                        "frame": start_frame + frame_idx,
+                        "x": float(x),
+                        "y": float(y),
+                        "bodypart": f"point_{point_idx}_{track_type}"
+                    }
+                    new_tracks.append(track_dict)
+        
+        self.add_tracks_callback(new_tracks)
+
     def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
         filename = self.video["filename"]
@@ -667,7 +701,7 @@ class VideoProcessor():
                     # Get query points for interpolation
                     end_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     
-                    smoothed_points = self.smooth_points(
+                    smoothed_tracks = self.smooth_points(
                         start_frame=start_frame,
                         end_frame=end_frame,
                         start_query_points=start_query_points,
@@ -689,8 +723,8 @@ class VideoProcessor():
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
-                    smoothed_video_segment = slice_result.get_video_for_points(smoothed_points)
-                    for j, sps in enumerate(smoothed_points):
+                    smoothed_video_segment = slice_result.get_video_for_points(smoothed_tracks)
+                    for j, sps in enumerate(smoothed_tracks):
                         all_tracks[j].extend(sps)
 
                     self.send_timeline_frames(smoothed_video_segment)
