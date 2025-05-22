@@ -30,6 +30,8 @@ const totalImages = document.getElementById("totalImages");
 totalImages.textContent = images.length;
 const displayedImage = document.getElementById('displayedImage');
 
+const tracks = [];
+
 // Initialize with the first image
 try {
     displayedImage.src = images[0];
@@ -753,4 +755,47 @@ async function sendValidationContinue() {
   } else {
     console.warn("No pending validation request ID found");
   }
+}
+
+
+async function downloadTracksCSV() {
+  console.log("Downloading CSV Tracks")
+}
+
+function trackJSONtoTableRow(track) {
+  /*
+  track: {
+    "frame": int,
+    "x": float,
+    "y": float,
+    "bodypart": string
+  }
+  */
+
+  return `<tr>
+    <td>${track.frame}</td>
+    <td>${track.x}</td>
+    <td>${track.y}</td>
+    <td>${track.bodypart}</td>
+  </tr>`;
+}
+
+function addTracks(new_tracks) {
+  /* 
+  new_tracks: [
+    {
+      "frame": int,
+      "x": float,
+      "y": float,
+      "bodypart": string
+    }
+  ]
+  */
+  Array.prototype.push.apply(tracks, new_tracks);
+  const tracksTable = document.getElementById("tracksTable");
+  const tbody = tracksTable.querySelector("tbody");
+
+  new_tracks.forEach((track) => {
+    tbody.innerHTML += trackJSONtoTableRow(track);
+  });
 }

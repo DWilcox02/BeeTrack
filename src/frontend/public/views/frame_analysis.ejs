@@ -119,6 +119,28 @@
         <span id="statusMessage"></span>
     </div>    
 
+    <div id="tracksAnnotation" class="">
+        <div style="display: flex;">
+            <h2>Annotation Tracks</h2>
+            <button class="btn btn-primary" onclick="downloadTracksCSV()">Download CSV</button>
+        </div>
+        <div id="table-scroll">
+            <table id="tracksTable">
+                <thead>
+                    <tr>
+                        <th><span class="text">frame</span></th>
+                        <th><span class="text">x</span></th>
+                        <th><span class="text">y</span></th>
+                        <th><span class="text">bodypart</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- <tr> <td>blah</td> <td>blah</td> <td>blah</td> <td>blah</td> </tr> -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Session data for JavaScript -->
     <script>
         const SESSION_ID = "<%= session_id %>";

@@ -446,3 +446,54 @@ video {
     0% { background-color: rgba(76, 175, 80, 0.2); }
     100% { background-color: transparent; }
 }
+#tracksAnnotation {
+    width: 100%;
+    margin-top: 20px;
+}
+
+#tracksAnnotation #table-scroll {
+    width: 100%;
+    height: 150px;
+    overflow: auto;
+    margin-top: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#tracksAnnotation table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* This ensures consistent column widths */
+}
+
+#tracksAnnotation table th,
+#tracksAnnotation table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    word-wrap: break-word;
+}
+
+#tracksAnnotation table thead th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#tracksAnnotation table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Override the existing styles that set background to yellow */
+#tracksAnnotation table *,
+#tracksAnnotation table thead th .text {
+    background: transparent !important;
+    color: inherit !important;
+    position: static !important;
+    border: none !important;
+    height: auto !important;
+    width: auto !important;
+}

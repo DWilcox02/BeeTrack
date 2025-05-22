@@ -222,13 +222,18 @@ socket.on("update_all_points_response", (result) => {
 
 socket.on("add_timeline_frame", (data) => {
   if (data.frame && data.frame_index) {
-    console.log(data)
     addTimelineFrame(data);
   } else {
     console.error("Error with data: " + data)
   }
 });
 
+
+socket.on("add_tracks", (data) => {
+  if (data.new_tracks) {
+    addTracks(data.new_tracks)
+  }
+})
 
 
 // Export the API for use in other scripts
