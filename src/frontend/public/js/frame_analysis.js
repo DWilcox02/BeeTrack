@@ -759,7 +759,36 @@ async function sendValidationContinue() {
 
 
 async function downloadTracksCSV() {
-  console.log("Downloading CSV Tracks")
+  console.log("Downloading CSV Tracks");
+
+  if (!tracks || tracks.length === 0) {
+    alert("No tracks data available to download.");
+    return;
+  }
+
+  const headers = ["frame", "x", "y", "bodypart"];
+  let csvContent = headers.join(",") + "\n";
+
+  tracks.forEach((track) => {
+    const row = [track.frame, track.x, track.y, track.bodypart].join(",");
+    csvContent += row + "\n";
+  });
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", "annotations.csv");
+  link.style.visibility = "hidden";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+
+  console.log(`Downloaded ${tracks.length} tracks to annotations.csv`);
 }
 
 function trackJSONtoTableRow(track) {
