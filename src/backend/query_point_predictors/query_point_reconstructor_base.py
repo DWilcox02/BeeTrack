@@ -6,6 +6,15 @@ from src.backend.point_cloud.point_cloud import PointCloud
 
 
 class QueryPointReconstructorBase():
+
+    def __init__(self):
+        self.log_fn = print
+
+    def set_logger(self, log_fn):
+        self.log_fn = log_fn
+
+    def log(self, message):
+        self.log_fn(message)
     
     def reconstruct_query_points(self, old_point_clouds: List[PointCloud], final_positions: np.ndarray, inliers_rotations: List[tuple[np.ndarray, float]]):
         return [

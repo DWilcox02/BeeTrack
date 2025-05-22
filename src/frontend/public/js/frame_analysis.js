@@ -7,7 +7,126 @@ let pointRadiusValues = [50, 50, 50, 50];
 
 const backend_url = "http://127.0.0.1:5001";
 
-const sessionId = document.getElementById("app-container").dataset.sessionId;
+const appContainer = document.getElementById("app-container")
+const sessionId = appContainer.dataset.sessionId;
+const marginTop = appContainer.dataset.marginTop;
+const marginLeft = appContainer.dataset.marginLeft;
+const marginRight = appContainer.dataset.marginRight;
+const marginBottom = appContainer.dataset.marginBottom;
+const imageWidth = window.appConfig.imageWidth;
+const imageHeight = window.appConfig.imageHeight;
+
+let currentJobId = null;
+
+// List of images as data URLs
+
+const images = [];
+
+// Get DOM elements
+const timelineSlider = document.getElementById('timelineSlider');
+timelineSlider.max = images.length - 1;
+const imageNumber = document.getElementById('imageNumber');
+const totalImages = document.getElementById("totalImages");
+totalImages.textContent = images.length;
+const displayedImage = document.getElementById('displayedImage');
+
+// Initialize with the first image
+try {
+    displayedImage.src = images[0];
+} catch (error) {
+    console.log("No slider images")
+}
+
+// Update image when slider value changes
+timelineSlider.addEventListener('input', function() {
+    const index = parseInt(this.value);
+    displayedImage.src = images[index];
+    imageNumber.textContent = index;
+});
+
+function addTimelineFrame(data) {
+  let imageData = data.frame;
+  imageData = ensureDataUrlFormat(imageData);
+  const frameIndex = data.frame_index;
+  images.push(imageData);
+  timelineSlider.max = images.length - 1;
+  totalImages.textContent = images.length - 1;
+}
+
+// Socket event handler for job logs
+window.handleJobLog = function (jobId, message) {
+  // Only process logs for current job
+  if (currentJobId !== null && jobId !== currentJobId) return;
+
+  const logContent = document.getElementById("logContent");
+  if (!logContent) return;
+
+  if (message.trim() === "") return; // Skip empty messages
+
+  // Format message based on type
+  let formattedMessage = message;
+  let messageClass = "";
+
+  if (message.startsWith("ERROR:")) {
+    formattedMessage = message.substring(6);
+    messageClass = "log-error";
+  } else if (message.startsWith("DONE:")) {
+    formattedMessage = message.substring(5);
+    messageClass = "log-success";
+  } else if (message.startsWith("Processing ") || message.startsWith("Starting ")) {
+    messageClass = "log-info";
+  }
+
+  // Add the message to the log
+  const logLine = document.createElement("div");
+  logLine.textContent = formattedMessage;
+  if (messageClass) {
+    logLine.className = messageClass;
+  }
+  logContent.appendChild(logLine);
+
+  // Use requestAnimationFrame for reliable scrolling after DOM update
+  requestAnimationFrame(() => {
+    logContent.scrollTop = logContent.scrollHeight;
+  });
+
+  // Check for completion or error
+  if (message.startsWith("DONE:")) {
+    const statusElement = document.getElementById("processingStatus");
+    const statusMessageElement = document.getElementById("statusMessage");
+
+    // Update status to success
+    statusElement.className = "processing-status status-success";
+    statusMessageElement.innerHTML = "<strong>Success!</strong> Point cloud processing complete.";
+
+    // Re-enable the process button
+    const processButton = document.getElementById("processPointCloud");
+    if (processButton) {
+      processButton.disabled = false;
+    }
+
+    // Show validation button if appropriate
+    const validationButton = document.getElementById("validationContinue");
+    if (validationButton) {
+      validationButton.style.display = "block";
+    }
+  } else if (message.startsWith("ERROR:")) {
+    const statusElement = document.getElementById("processingStatus");
+    const statusMessageElement = document.getElementById("statusMessage");
+
+    // Update status to error
+    statusElement.className = "processing-status status-error";
+    statusMessageElement.textContent = "Error: " + formattedMessage;
+
+    // Re-enable the process button
+    const processButton = document.getElementById("processPointCloud");
+    if (processButton) {
+      processButton.disabled = false;
+    }
+  }
+};
+
+
 // Initialize once page is loaded
 document.addEventListener("DOMContentLoaded", function () {
   // Set up the point selection buttons
@@ -258,6 +377,8 @@ function handlePlotClick(event) {
 
   // Get the bounding rect of the plot
   const plotRect = plotlyDiv.getBoundingClientRect();
+  const plotWidth = plotRect.width;
+  const plotHeight = plotRect.height;
 
   // Calculate mouse position relative to the plot div
   const mouseX = event.clientX - plotRect.left;
@@ -266,36 +387,19 @@ function handlePlotClick(event) {
   // Use Plotly's internal conversion function to convert from pixel coordinates to data coordinates
   // This eliminates any issues with calculating margins manually
   try {
-    const coordData = plotlyDiv._fullLayout.clickmodeBar
-      ? plotlyDiv._fullLayout.clickmodeBar.clickData({
-          xpx: mouseX,
-          ypx: mouseY,
-        })
-      : null;
-
-    if (!coordData) {
-      // Fallback method if clickmodeBar is not available
-      // Get the axes
-      const xaxis = plotlyDiv._fullLayout.xaxis;
-      const yaxis = plotlyDiv._fullLayout.yaxis;
 
       // Convert from pixel to data coordinates
       // These are Plotly's internal conversion methods
 
       // TODO: Actually fix instead of manual forced change
-      const dataX = xaxis.p2d(mouseX) - 128.9;
-      const dataY = yaxis.p2d(mouseY) - 90.9;
+      const dataX = (mouseX - marginLeft)/(plotWidth - marginLeft - marginRight) * imageWidth;
+      const dataY = (mouseY - marginTop)/(plotHeight - marginTop - marginBottom) * imageHeight;
 
       console.log(`Mouse position on plot: (${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
       console.log(`Converted to data coordinates: (${dataX.toFixed(1)}, ${dataY.toFixed(1)})`);
 
       // Update point position on the server
       updatePoint(selectedPointIndex, dataX, dataY, radius);
-    } else {
-      console.log(`Using clickmodeBar data:`, coordData);
-      // Update point position using the coordinate data from clickmodeBar
-      updatePoint(selectedPointIndex, coordData.x, coordData.y, radius);
-    }
   } catch (error) {
     console.error("Error converting coordinates:", error);
 
@@ -582,14 +686,15 @@ async function savePoints() {
 }
 
 async function processVideoWithPoints() {
-  const videoPath = "{{ filename }}";
   const statusElement = document.getElementById("processingStatus");
   const statusMessageElement = document.getElementById("statusMessage");
-  const processedContainer = document.getElementById("processedVideoContainer");
-  const processedSource = document.getElementById("processedVideoSource");
-  const processedPlayer = document.getElementById("processedVideoPlayer");
   const logsContainer = document.getElementById("processingLogs");
   const logContent = document.getElementById("logContent");
+
+  const processPointCloudButton = document.getElementById("processPointCloud");
+  if (processPointCloudButton) {
+    processPointCloudButton.disabled = true;
+  }
 
   // Clear previous logs
   logContent.textContent = "";
@@ -601,10 +706,13 @@ async function processVideoWithPoints() {
     '<div class="loading-spinner"></div> Processing video with TAPIR (this may take several minutes)...';
   logsContainer.style.display = "block";
 
-  // console.log("Here (lowercase)");
   try {
+    // Generate a unique job ID if server doesn't provide one
+    currentJobId = "pointcloud_" + new Date().getTime();
+
     socket.emit("process_video_with_points", {
       session_id: sessionId,
+      job_id: currentJobId, // Pass the job ID to the server
     });
   } catch (error) {
     statusElement.className = "processing-status status-error";
@@ -615,6 +723,11 @@ async function processVideoWithPoints() {
     logLine.textContent = "Error: " + error.message;
     logLine.className = "log-error";
     logContent.appendChild(logLine);
+
+    // Re-enable the process button
+    if (processPointCloudButton) {
+      processPointCloudButton.disabled = false;
+    }
   }
 }
 

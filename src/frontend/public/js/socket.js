@@ -162,9 +162,7 @@ const api = {
 
 // Listen for job updates
 socket.on("job_log", (data) => {
-  if (typeof window.handleJobLog === "function") {
-    window.handleJobLog(data.job_id, data.message);
-  }
+  window.handleJobLog(data.job_id, data.message);
 });
 
 // Socket event handlers for point updates
@@ -222,7 +220,14 @@ socket.on("update_all_points_response", (result) => {
   }
 });
 
-
+socket.on("add_timeline_frame", (data) => {
+  if (data.frame && data.frame_index) {
+    console.log(data)
+    addTimelineFrame(data);
+  } else {
+    console.error("Error with data: " + data)
+  }
+});
 
 
 

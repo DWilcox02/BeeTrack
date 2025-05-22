@@ -68,7 +68,10 @@ def log_message(job_id, message):
     if job_id in processing_logs:
         processing_logs[job_id].put(message)
         # Emit the message to the client via Socket.IO
-        socketio.emit(f"log_message_{job_id}", {"message": message})
+        socketio.emit("job_log", {
+            "job_id": job_id,
+            "message": message
+        })
 
 
 def cleanup_job(job_id, timeout=300):
@@ -246,7 +249,7 @@ def send_frame_data_callback(frameData, points, confidence, request_validation):
     return
 
 
-def request_validation_callback():
+def request_validation_callback(job_id):
     # Generate a unique ID for validation request
     request_id = str(uuid.uuid4())
 
@@ -257,7 +260,7 @@ def request_validation_callback():
     # Emit the event with the request ID
     socketio.emit("validation_request", {"message": "Please validate this data", "request_id": request_id})
 
-    print(f"Requesting frontend validation (ID: {request_id})")
+    log_message(job_id=job_id, message=f"Requesting frontend validation (ID: {request_id})")
 
     # Wait for the validation to be completed (with timeout)
     if validation_event.wait(timeout=300):
@@ -273,6 +276,15 @@ def request_validation_callback():
         return None
 
 
+def send_timeline_frame_callback(frame, frameIndex):
+    socketio.emit(
+        "add_timeline_frame",
+        {
+            "frame": frame,
+            "frame_index": frameIndex
+        }
+    )
+
 @socketio.on("process_video_with_points")
 def handle_process_video_with_points(data):
     """Process video with predefined points."""
@@ -281,6 +293,7 @@ def handle_process_video_with_points(data):
         return
 
     session_id = data.get("session_id")
+    job_id = data.get("job_id")
 
     if session_id not in point_data_store:
             print(f"Session ID {session_id} not found in point_data_store")
@@ -289,9 +302,6 @@ def handle_process_video_with_points(data):
 
     session_data = point_data_store[session_id]
     video_path = session_data.get("video_path")
-
-    # Create a unique job ID
-    job_id = str(uuid.uuid4())
 
     # Initialize logging for this job
     init_job_logging(job_id)
@@ -312,9 +322,12 @@ def handle_process_video_with_points(data):
                 point_cloud_estimator=point_cloud_estimator,
                 send_frame_data_callback=send_frame_data_callback,
                 request_validation_callback=request_validation_callback,
+                send_timeline_frame_callback=send_timeline_frame_callback,
                 video=video,
                 job_id=job_id
             )
+
+            video_processor.set_log_message_function(log_message)
             # Process the video
             init_query_points = point_data_store[session_id]["points"]
             result = video_processor.process_video(init_query_points)

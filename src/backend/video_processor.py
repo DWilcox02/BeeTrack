@@ -5,6 +5,9 @@ import mediapy as media
 import tempfile
 import numpy as np
 import gc
+import cv2
+import base64
+
 from typing import List
 
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
@@ -52,7 +55,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 4
+NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -64,13 +67,15 @@ class VideoProcessor():
         point_cloud_estimator: PointCloudEstimatorInterface,
         send_frame_data_callback, 
         request_validation_callback,
+        send_timeline_frame_callback,
         video,
-        job_id=None,
+        job_id,
     ):
         self.session_id = session_id
         self.point_cloud_estimator = point_cloud_estimator
         self.send_frame_data_callback = send_frame_data_callback
         self.request_validation_callback = request_validation_callback
+        self.send_timeline_frame_callback = send_timeline_frame_callback
         self.video = video
         self.job_id = job_id
         self.log_message = None
@@ -94,6 +99,15 @@ class VideoProcessor():
 
     def set_log_message_function(self, fn):
         self.log_message = fn
+        self.point_cloud_estimator.set_logger(self.log)
+        self.point_cloud_generator.set_logger(self.log)
+        self.inlier_predictor.set_logger(self.log)
+        self.inter_cloud_alignment_predictor.set_logger(self.log)
+        self.point_cloud_reconstructor.set_logger(self.log)
+        self.query_point_reconstructor.set_logger(self.log)
+        self.weight_distance_calculator.set_logger(self.log)
+        self.weight_outlier_calculator.set_logger(self.log)
+
 
 
     def log(self, message):
@@ -113,8 +127,32 @@ class VideoProcessor():
 
 
     def request_validation(self):
-        return self.request_validation_callback()
+        return self.request_validation_callback(self.job_id)
 
+
+    def send_timeline_frames(self, video_segment):
+        # video_segment: [num_frames, height, width, 3], np.uint8, [0, 255]
+        # base64_frames = []
+
+        for i, frame in enumerate(video_segment):
+            try:
+                # Convert RGB to BGR for OpenCV JPEG encoding
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                # Encode to JPEG
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                success, buffer = cv2.imencode(".jpg", frame_bgr, encode_param)
+                if not success:
+                    self.log(f"Failed to encode frame {i}")
+                    continue
+
+                # Convert to base64
+                frame_base64 = base64.b64encode(buffer).decode("utf-8")
+                self.send_timeline_frame_callback(frame_base64, i)
+            except Exception as e:
+                self.log(f"Error encoding frame {i}: {e}")
+
+        # return base64_frames
 
     def combine_and_write_video(self, save_intermediate, segment_paths, processed_segments, final_output_path, fps, temp_dir, start_time):
         if save_intermediate and segment_paths:
@@ -192,10 +230,10 @@ class VideoProcessor():
             with open(final_tracks_output_path, 'w') as f:
                 json.dump(tracks_data, f, indent=2)
                 
-            print(f"Tracks successfully written to {final_tracks_output_path}")
+            self.log(f"Tracks successfully written to {final_tracks_output_path}")
             
         except Exception as e:
-            print(f"Error writing tracks to file: {e}")
+            self.log(f"Error writing tracks to file: {e}")
             raise
 
 
@@ -272,7 +310,16 @@ class VideoProcessor():
         return true_query_points, true_point_clouds
 
 
-    def smooth_points(self, start_frame, end_frame, start_query_points, end_query_points, slice_result, point_clouds):
+    def smooth_points(
+            self, 
+            start_frame, 
+            end_frame, 
+            start_query_points, 
+            end_query_points, 
+            slice_result, 
+            point_clouds
+        ):
+
         diff = end_frame - start_frame
         num_point_clouds = len(start_query_points)
 
@@ -302,12 +349,11 @@ class VideoProcessor():
             
             for k in range(diff):
                 if k < half:
-                    b = k / half
+                    interpolated_weight = -1/(diff - 1)*k + 1
                 else:
-                    b = (diff - k) / half
+                    interpolated_weight =  1/(diff - 1)*k
                 
-                raw_weight = 0.5 + 0.5 * b  # 70-100% weight to raw_mean_tracks
-                interpolated_weight = 1 - raw_weight
+                raw_weight = 1 - interpolated_weight
                 smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
             smoothed_points.append(smoothed_tracks)
         smoothed_points = np.array(smoothed_points)
@@ -473,15 +519,6 @@ class VideoProcessor():
         self.log(f"Path: {path}")
 
         try:
-            # Set the logger if we have a self.job_id
-            if self.job_id and self.log_message:
-                # Create a custom logger function to send messages to the frontend
-                def custom_logger(message):
-                    self.log_message(self.job_id, message)
-                    print(message)  # Still print to console for debugging
-
-                self.point_cloud_estimator.set_logger(custom_logger)
-                self.point_cloud_reconstructor.set_logger(custom_logger)
 
             max_segments = None
             save_intermediate=True
@@ -556,7 +593,7 @@ class VideoProcessor():
                 try:
                     start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     for pc_i, pc in enumerate(point_clouds):
-                        print(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
+                        self.log(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
@@ -602,8 +639,8 @@ class VideoProcessor():
                         old_point_clouds=point_clouds,
                         inliers_rotations=inliers_rotations
                     )
-                    # print("Weights after updating with outliers:")
-                    # print(weights)
+                    # self.log("Weights after updating with outliers:")
+                    # self.log(weights)
                     predicted_point_clouds: List[PointCloud] = self.point_cloud_reconstructor.reconstruct_point_clouds(
                         old_point_clouds=point_clouds,
                         final_positions=final_positions,
@@ -612,7 +649,7 @@ class VideoProcessor():
                         weights=weights
                     )
                     for pc_i, pc in enumerate(predicted_point_clouds):
-                        print(f"Predicted cloud {pc_i} deformity pre-validation: {pc.deformity()}")
+                        self.log(f"Predicted cloud {pc_i} deformity pre-validation: {pc.deformity()}")
 
                     # Update weights and potentially request validation
                     query_points, point_clouds = self.validate_and_update_weights(
@@ -651,9 +688,11 @@ class VideoProcessor():
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
-                    # video_segment = slice_result.get_video_for_points(smoothed_points)
+                    smoothed_video_segment = slice_result.get_video_for_points(smoothed_points)
                     for j, sps in enumerate(smoothed_points):
                         all_tracks[j].extend(sps)
+
+                    self.send_timeline_frames(smoothed_video_segment)
 
                     if save_intermediate:
                         # Save segment to disk

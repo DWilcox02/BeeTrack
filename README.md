@@ -88,16 +88,17 @@ to start the frontend server, at `http://localhost:3000`
 14. Redrawing outliers
 15. Incremental NN implementation (could be improved)
 16. Confidence based on inlier ratio
+17. Packaging:
+    - Mouse offset fix
+    - Remove button on session start
+    - Logging in frontend
+    - Frame-by-frame update
 
 ### Next Steps
 (Not necessarily in order of priority)
 - Confidence based on deformity + hyperparameter tuning
 - User interface wrap-up
-    - Mouse offset fix
-    - Remove button on session start
-    - Logging in frontend
     - Video output
-    - Frame-by-frame update
     - Normalize user interface to 15fps
     - Arbitrary number of points
     - Saved outputs
