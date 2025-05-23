@@ -15,6 +15,7 @@ const marginRight = appContainer.dataset.marginRight;
 const marginBottom = appContainer.dataset.marginBottom;
 const imageWidth = window.appConfig.imageWidth;
 const imageHeight = window.appConfig.imageHeight;
+const videoTitle = window.appConfig.videoTitle;
 
 let currentJobId = null;
 
@@ -774,10 +775,12 @@ async function downloadTracksCSV() {
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
 
+  const title = "ANNOTATIONS_" + videoTitle + ".csv";
+
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
-  link.setAttribute("download", "annotations.csv");
+  link.setAttribute("download", title);
   link.style.visibility = "hidden";
 
   document.body.appendChild(link);
@@ -786,7 +789,7 @@ async function downloadTracksCSV() {
 
   URL.revokeObjectURL(url);
 
-  console.log(`Downloaded ${tracks.length} tracks to annotations.csv`);
+  console.log(`Downloaded ${tracks.length} tracks to ${title}`);
 }
 
 function trackJSONtoTableRow(track) {

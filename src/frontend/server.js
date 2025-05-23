@@ -89,33 +89,33 @@ app.get("/analysis/:filename", async (req, res) => {
       //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
       //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
       // ];
-      points = [
-        { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
-        { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
-        { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
-      ];
+      // points = [
+      //   { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
+      //   { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
+      //   { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
+      // ];
 
       // Static points for round_dance
-      // points = [
-      //   {
-      //     x: 312.8571428571429,
-      //     y: 221.37723214285714,
-      //     color: "red",
-      //     radius: 20.0,
-      //   },
-      //   {
-      //     x: 283.7142857142857,
-      //     y: 237.66294642857144,
-      //     color: "green",
-      //     radius: 22.0,
-      //   },
-      //   {
-      //     x: 256.2857142857143,
-      //     y: 253.94866071428572,
-      //     color: "blue",
-      //     radius: 22.0,
-      //   },
-      // ];
+      points = [
+        {
+          x: 301,
+          y: 227,
+          color: "red",
+          radius: 18.0,
+        },
+        {
+          x: 283.7142857142857,
+          y: 237.66294642857144,
+          color: "green",
+          radius: 20.0,
+        },
+        {
+          x: 251,
+          y: 260,
+          color: "blue",
+          radius: 18.0,
+        },
+      ];
 
       // Generate Plotly HTML using Plotly.js
       // Note: We'll create a client-side solution instead of server-side rendering

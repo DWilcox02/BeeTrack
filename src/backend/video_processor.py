@@ -58,7 +58,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 1
+NUM_SLICES = 10
 CONFIDENCE_THRESHOLD = 0.7
 
 
