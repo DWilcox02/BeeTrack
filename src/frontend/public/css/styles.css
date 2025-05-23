@@ -3,7 +3,7 @@
 /* Base styles */
 body {
     font-family: Arial, sans-serif;
-    max-width: 950px;
+    /* max-width: 950px; */
     margin: 0 auto;
     padding: 20px;
     background-color: #f5f5f5;
@@ -36,6 +36,7 @@ h1, h2, h3 {
 
 .plotly-container {
     background-color: #fff;
+    width: 950px;
 }
 
 video {
