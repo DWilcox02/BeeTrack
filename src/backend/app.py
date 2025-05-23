@@ -1,18 +1,17 @@
 import os
 import sys
-import uuid
 import json
 import queue
 import threading
 import time
 import traceback
-from threading import Event
 from flask import Flask, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from .server.utils.video_utils import extract_frame
 from .video_processor import VideoProcessor
 from .point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator import TapirEstimator
+from .frontend_communicator import FrontendCommunicator
 
 POINT_CLOUD_AVAILABLE = True
 POINT_CLOUD_TYPE = "TAPIR"
@@ -116,63 +115,6 @@ def get_video_info(filename):
     return video
 
 
-def send_frame_data_callback(frameData, points, confidence, request_validation):
-    # Serialize points to JSON
-    points_json = []
-    for point in points:
-        points_json.append(
-            {
-                "x": json.dumps(float(point["x"])),
-                "y": json.dumps(float(point["y"])),
-                "color": point["color"],
-                "radius": json.dumps(float(point["radius"])),
-            }
-        )
-
-    socketio.emit(
-        "update_points_with_frame",
-        {
-            "success": True,
-            "points": points_json,
-            "frameData": frameData,
-            "confidence": json.dumps(float(confidence)),
-            "request_validation": json.dumps(str(request_validation)),
-        },
-    )
-    return
-
-
-def request_validation_callback(job_id):
-    # Generate a unique ID for validation request
-    request_id = str(uuid.uuid4())
-
-    # Create an event to wait on
-    validation_event = Event()
-    validation_events[request_id] = {"event": validation_event, "response": None}
-
-    # Emit the event with the request ID
-    socketio.emit("validation_request", {"message": "Please validate this data", "request_id": request_id})
-
-    log_message(job_id=job_id, message=f"Requesting frontend validation (ID: {request_id})")
-
-    # Wait for the validation to be completed (with timeout)
-    if validation_event.wait(timeout=300):
-        response = validation_events[request_id]["response"]
-        # Clean up
-        del validation_events[request_id]
-        print("Validation received, recalc query points")
-        return response
-    else:
-        # Timeout occurred
-        del validation_events[request_id]
-        print("Validation request timed out")
-        return None
-
-
-def send_timeline_frame_callback(frame, frameIndex):
-    socketio.emit("add_timeline_frame", {"frame": frame, "frame_index": frameIndex})
-
-
 def parse_points(points: str):
     """Parse points from a string to a list of dictionaries."""
     try:
@@ -191,23 +133,6 @@ def parse_points(points: str):
         app.logger.error(f"Error parsing points: {str(e)}")
         return []
 
-
-def add_tracks_callback(new_tracks): 
-    # new_tracks: [
-    #   {
-    #       "frame": int, 
-    #       "x": float, 
-    #       "y": float, 
-    #       "bodypart": string
-    #   }
-    # ]
-
-    socketio.emit(
-        "add_tracks",
-        {
-            "new_tracks": new_tracks
-        }
-    )
 
 # -------------------------------------------------------------------------
 # Routes
@@ -350,14 +275,17 @@ def handle_process_video_with_points(data):
     # Function to run the processing in a background thread
     def run_processing():
         try:
+            frontend_communicator = FrontendCommunicator(
+                socketio=socketio,
+                session_id=session_id,
+                log_message=log_message,
+                validation_events=validation_events
+            )
             video_processor = VideoProcessor(
                 session_id=session_id, 
                 point_data_store=point_data_store,
                 point_cloud_estimator=point_cloud_estimator,
-                send_frame_data_callback=send_frame_data_callback,
-                request_validation_callback=request_validation_callback,
-                send_timeline_frame_callback=send_timeline_frame_callback,
-                add_tracks_callback=add_tracks_callback,
+                frontend_communicator=frontend_communicator,
                 video=video,
                 job_id=job_id
             )

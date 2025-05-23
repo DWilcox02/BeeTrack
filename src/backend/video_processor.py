@@ -17,6 +17,8 @@ from .point_cloud.estimation.estimation_slice import EstimationSlice
 from .point_cloud.point_cloud import PointCloud
 from src.backend.models.circle_movement_result import CircleMovementResult
 
+from src.backend.frontend_communicator import FrontendCommunicator
+
 # Import Inlier Predictors
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
 from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPredictor
@@ -66,19 +68,13 @@ class VideoProcessor():
         session_id,
         point_data_store,
         point_cloud_estimator: PointCloudEstimatorInterface,
-        send_frame_data_callback, 
-        request_validation_callback,
-        send_timeline_frame_callback,
-        add_tracks_callback,
+        frontend_communicator: FrontendCommunicator,
         video,
         job_id,
     ):
         self.session_id = session_id
         self.point_cloud_estimator = point_cloud_estimator
-        self.send_frame_data_callback = send_frame_data_callback
-        self.request_validation_callback = request_validation_callback
-        self.send_timeline_frame_callback = send_timeline_frame_callback
-        self.add_tracks_callback = add_tracks_callback
+        self.frontend_communicator = frontend_communicator
         self.video = video
         self.job_id = job_id
         self.log_message = None
@@ -125,11 +121,11 @@ class VideoProcessor():
     def send_current_frame_data(self, query_points, video_path, frame, confidence, request_validation):
         frame_base64, error, width, height = extract_frame(video_path, frame)
         frameData = {"frame": frame_base64, "width": width, "height": height, "frame_idx": frame}
-        self.send_frame_data_callback(frameData, query_points, confidence, request_validation)
+        self.frontend_communicator.send_frame_data_callback(frameData, query_points, confidence, request_validation)
 
 
     def request_validation(self):
-        return self.request_validation_callback(self.job_id)
+        return self.frontend_communicator.request_validation_callback(self.job_id)
 
 
     def send_timeline_frames(self, video_segment):
@@ -150,7 +146,7 @@ class VideoProcessor():
 
                 # Convert to base64
                 frame_base64 = base64.b64encode(buffer).decode("utf-8")
-                self.send_timeline_frame_callback(frame_base64, i)
+                self.frontend_communicator.send_timeline_frame_callback(frame_base64, i)
             except Exception as e:
                 self.log(f"Error encoding frame {i}: {e}")
 
@@ -542,7 +538,7 @@ class VideoProcessor():
                     }
                     new_tracks.append(track_dict)
         
-        self.add_tracks_callback(new_tracks)
+        self.frontend_communicator.add_tracks_callback(new_tracks)
 
     def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
