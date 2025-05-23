@@ -843,3 +843,35 @@ function addValidation(new_validation) {
 
   tbody.innerHTML += validationToTableRow(new_validation);
 }
+
+function copyValidationsToClipboard() {
+  const table = document.getElementById("validationTable");
+  const tbody = table.querySelector("tbody");
+  const rows = tbody.querySelectorAll("tr");
+
+  if (rows.length === 0) {
+    alert("No validation data to copy");
+    return;
+  }
+
+  // Extract raw text data
+  let textContent = "";
+
+  rows.forEach((row, index) => {
+    const cells = row.querySelectorAll("td");
+    cells.forEach((cell) => {
+      textContent += cell.textContent.trim() + "\n";
+    });
+  });
+
+  // Copy to clipboard
+  navigator.clipboard
+    .writeText(textContent)
+    .then(() => {
+      alert("Validation data copied to clipboard!");
+    })
+    .catch((err) => {
+      console.error("Failed to copy: ", err);
+      alert("Failed to copy to clipboard");
+    });
+}

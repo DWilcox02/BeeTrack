@@ -121,7 +121,10 @@
 
     <div id="tracksData" style="display: flex;">
         <div id="validationData">
-            <h2>Validated Points</h2>
+            <div style="display: flex;">
+                <h2>Validated Points</h2>
+                <button class="btn btn-primary" onclick="copyValidationsToClipboard()">Copy Validations to Clipboard</button>
+            </div>
             <div id="table-scroll">
                 <table id="validationTable">
                     <thead>
@@ -130,7 +133,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>blah</td></tr>
+                        <!-- <tr><td>blah</td></tr> -->
                     </tbody>
                 </table>
             </div>

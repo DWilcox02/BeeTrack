@@ -93,6 +93,7 @@ to start the frontend server, at `http://localhost:3000`
     - Remove button on session start
     - Logging in frontend
     - Frame-by-frame update
+    - Saved inputs
     - Saved outputs
 
 ### Next Steps
@@ -102,7 +103,6 @@ to start the frontend server, at `http://localhost:3000`
     - Video output
     - Normalize user interface to 15fps
     - Arbitrary number of points
-    - Saved inputs
 - Explore MST possibility
 
 

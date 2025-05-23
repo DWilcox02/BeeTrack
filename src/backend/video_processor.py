@@ -303,6 +303,7 @@ class VideoProcessor():
             true_point_clouds = predicted_point_clouds
 
         self.export_to_point_data_store(true_query_points)
+        self.add_validation()
 
         # Reconstruct after new query points calculated (retains weights)
         
@@ -540,6 +541,12 @@ class VideoProcessor():
         
         self.frontend_communicator.add_tracks_callback(new_tracks)
 
+
+    def add_validation(self):
+        validated_points = self.point_data_store[self.session_id]["points"]
+        self.frontend_communicator.add_validation_callback(validation=validated_points)
+
+
     def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
         filename = self.video["filename"]
@@ -611,7 +618,7 @@ class VideoProcessor():
             all_tracks = [[] for _ in range(len(point_clouds))]
             all_errors = []
             # inliers = [True] * (len(point_clouds) * len(point_clouds[0].cloud_points))
-
+            self.add_validation()
             # Process each segment
             for i in range(segments_to_process):
                 start_frame = i * fps
