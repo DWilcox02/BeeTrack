@@ -19,6 +19,7 @@ from .point_cloud.point_cloud import PointCloud
 from src.backend.models.circle_movement_result import CircleMovementResult
 
 from src.backend.frontend_communicator import FrontendCommunicator
+from src.backend.processing_configuration import ProcessingConfiguration
 
 # Import Inlier Predictors
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
@@ -59,7 +60,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 5
+NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -72,6 +73,7 @@ class VideoProcessor():
         frontend_communicator: FrontendCommunicator,
         video,
         job_id,
+        processing_configuration: ProcessingConfiguration
     ):
         self.session_id = session_id
         self.point_cloud_estimator = point_cloud_estimator
@@ -80,12 +82,14 @@ class VideoProcessor():
         self.job_id = job_id
         self.log_message = None
         self.point_data_store = point_data_store
+        self.smoothing_alpha = processing_configuration.smoothing_alpha
+        self.deformity_delta = processing_configuration.deformity_delta
 
         # Shape of initial point clouds
         self.point_cloud_generator = CircularPointCloudGenerator()
 
         # Choices for experimentation
-        self.inlier_predictor = DBSCANInlierPredictor()
+        self.inlier_predictor = DBSCANInlierPredictor(processing_configuration.dbscan_epsilon)
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
         self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
         self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
@@ -265,7 +269,7 @@ class VideoProcessor():
         current_query_points = [cloud.query_point for cloud in current_point_clouds]
         initial_positions = [cloud.cloud_points for cloud in current_point_clouds]
 
-        confidence = min([p.confidence(inliers) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
+        confidence = min([p.confidence(inliers, self.deformity_delta) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
         request_validation = confidence < CONFIDENCE_THRESHOLD
 
         self.export_to_point_data_store(predicted_query_points)
@@ -351,9 +355,9 @@ class VideoProcessor():
             
             for k in range(diff):
                 if k < half:
-                    interpolated_weight = -1/(diff - 1)*k + 1
+                    interpolated_weight = (-2/(diff - 1)*k + 1)**self.smoothing_alpha
                 else:
-                    interpolated_weight =  1/(diff - 1)*k
+                    interpolated_weight =  (2/(diff - 1)*k - 1)**self.smoothing_alpha
                 
                 raw_weight = 1 - interpolated_weight
                 smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])

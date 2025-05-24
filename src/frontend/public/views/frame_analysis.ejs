@@ -24,58 +24,113 @@
         <h2>Video: <%= filename.split('/').pop() %></h2>
         
         
-        <div style="display: flex;">
-            <div class="instructions">
-                <h3>Instructions:</h3>
-                <p>1. Select a colored point from the buttons below.</p>
-                <p>2. Click on the image where you want to place the point.</p>
-                <p>3. Once all points are placed, click "Save Point Positions".</p>
-            </div>
-            <div class="point-controls">
-                <h3>Select Point Cloud Estimator:</h3>
-                <form>
-                    <input type="radio" id="TAPIR" name="point_cloud_type" value="TAPIR" checked>
-                    <label for="TAPIR">TAPIR</label> <br>
-                    <input type="radio" id="Other" name="point_cloud_type" value="Other" disabled>
-                    <label for="Other">Other</label>
-                </form>
-            </div>
-            <div class="point-controls">
-                <h3>Select point to place:</h3>
-                <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>
-                <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Circle 2</div>
-                <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Circle 3</div>
-                <!-- <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div> -->
-            </div>
-            <div class="point-controls">
-                <h3>Import Points:</h3>
-                <textarea id="pointsDataInput" rows="5" style="width: 100%; font-family: monospace;" placeholder="Paste points data in JSON format here..."></textarea>
-                <div class="controls" style="margin-top: 10px;">
-                    <button id="importPointsBtn" class="btn btn-action">Import Points</button>
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <p>1. Select a colored point from the buttons below.</p>
+            <p>2. Click on the image where you want to place the point.</p>
+            <p>3. Once all points are placed, click "Save Point Positions".</p>
+        </div>
+        <div class="point-controls">
+            <h3>Select Point Cloud Estimator:</h3>
+            <form>
+                <input type="radio" id="TAPIR" name="point_cloud_type" value="TAPIR" checked>
+                <label for="TAPIR">TAPIR</label> <br>
+                <input type="radio" id="Other" name="point_cloud_type" value="Other" disabled>
+                <label for="Other">Other</label>
+            </form>
+        </div>
+        <div class="point-controls">
+            <h2>Parameter Adjustment</h2>
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Smoothing Alpha &#x03B1; = </h4>
+                    <input type="number" value="1" id="smoothing-alpha">
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Smoothing is used to balance between raw TAPIR calculations and interpolation. 
+                    <br>
+                    <ul>
+                        <li>&#x03B1; = 1 will result in a roughly 50-50 split between raw mean tracks and interpolation.</li> 
+                        <li>&#x03B1; &gt; 1 will give more weight to the raw mean than to the interpolation.</li>
+                        <li>&#x03B1; &lt; 1 will give more weight to interpolation than the raw mean.</li>
+                    </ul>
+                    (<b>Note</b>: This is not the final output. All tracks and annotations (raw TAPIR mean, interpolations, and smoothed tracks) will be available in the CSV file.)    
+                    </p>
                 </div>
             </div>
             <div>
-                Circle Radius
-                <div class="slider-container">
-                    <input type="range" min="0" max="500" value="50" class="slider" id="radiusRange">
-                    <button id="sendRadiusBtn" class="btn btn-action">Send Radius</button>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">DBScan (Clustering) Epsilon &#x03B5; = </h4>
+                    <input type="number" value="1.5" id="dbscan-epsilon">
                 </div>
-                <div class="value-display">
-                    Value: <span id="radiusValue"></span> pixels
+                <div style="margin-left: 20px;">
+                    <p>
+                        Clustering helps determine confidence in the TAPIR predictions by predicting outliers. &#x03B5; is used to decribe how dense a cluster should be.
+                        <br>
+                        &#x03B5; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud during clustering. The default is &#x03B5; = 1.5.
+                    <br>
+                    <ul>
+                        <li><b>Higher &#x03B5;</b> will result in larger (more confident) clusters and <b>fewer outliers</b>.</li> 
+                        <li><b>Lower &#x03B5;</b> will result in smaller (less confident) clusters and <b>more outliers</b>.</li> 
+                    </ul>
+                    (Recommended to change in very small increments (e.g. by steps of 0.1 or 0.25))
+                    </p>
+                </div>            
+            </div>
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Deformity Delta &#x03B4; = </h4>
+                    <input type="number" value="2.5" id="deformity-delta">
                 </div>
-
-                <script>
-                    var slider = document.getElementById("radiusRange")
-                    var output = document.getElementById("radiusValue")
-                    output.innerHTML = slider.value
-
-                    slider.oninput = function() {
-                        output.innerHTML = this.value
-                    }
-                </script>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Used to calculate deformity ratio. Because deformity has no upper bound, a manual input is required.
+                        <br>
+                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 2.5.
+                        Deformity Ratio = &#x03B4; / Deformity.
+                    <br>
+                    <ul>
+                        <li><b>Higher &#x03B4;</b> will result in lower deformity ratio (more confident) and will be <b>less likely</b> to trigger validations.</li> 
+                        <li><b>Lower &#x03B4;</b> will result in higher deformity ratio (less confident) and will be <b>more likely</b> to trigger validations.</li> 
+                    </ul>
+                    </p>
+                </div>            
+            </div>            
+        </div>        <div class="point-controls">
+            <h3>Select point to place:</h3>
+            <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>
+            <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Circle 2</div>
+            <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Circle 3</div>
+            <!-- <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div> -->
+        </div>
+        <div class="point-controls">
+            <h3>Import Points:</h3>
+            <textarea id="pointsDataInput" rows="5" style="width: 100%; font-family: monospace;" placeholder="Paste points data in JSON format here..."></textarea>
+            <div class="controls" style="margin-top: 10px;">
+                <button id="importPointsBtn" class="btn btn-action">Import Points</button>
             </div>
         </div>
-        
+        <div>
+            Circle Radius
+            <div class="slider-container">
+                <input type="range" min="0" max="500" value="50" class="slider" id="radiusRange">
+                <button id="sendRadiusBtn" class="btn btn-action">Set Radius</button>
+            </div>
+            <div class="value-display">
+                Value: <span id="radiusValue"></span> pixels
+            </div>
+
+            <script>
+                var slider = document.getElementById("radiusRange")
+                var output = document.getElementById("radiusValue")
+                output.innerHTML = slider.value
+
+                slider.oninput = function() {
+                    output.innerHTML = this.value
+                }
+            </script>
+        </div>        
         
         
         <div class="plotly-container" id="plotly-container">

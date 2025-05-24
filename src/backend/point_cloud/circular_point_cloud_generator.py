@@ -69,5 +69,6 @@ class CircularPointCloudGenerator(PointCloudGenerator):
             cloud_points=cloud_points, 
             radius=center_point["radius"],
             rotation=0.0, 
-            weights=weights
+            weights=weights,
+            log_fn=self.log
         )

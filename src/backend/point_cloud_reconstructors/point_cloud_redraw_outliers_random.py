@@ -55,4 +55,5 @@ class PointCloudRedrawOutliersRandom(PointCloudReconstructorBase):
             rotation=rotation,
             weights=weights,
             orig_vectors=old_point_cloud.orig_vectors,
+            log_fn=old_point_cloud.log_fn,
         )

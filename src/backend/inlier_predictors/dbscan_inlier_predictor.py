@@ -8,6 +8,9 @@ from .inlier_predictor_base import InlierPredictorBase
 
 class DBSCANInlierPredictor(InlierPredictorBase):
 
+    def __init__(self, dbscan_epsilon: float):
+        self.dbscan_epsilon = dbscan_epsilon
+
     def predict_inliers_rotations(
         self, old_point_clouds: List[PointCloud], final_positions: np.ndarray
     ) -> List[tuple[np.ndarray, float]]:
@@ -45,7 +48,7 @@ class DBSCANInlierPredictor(InlierPredictorBase):
             # self.log(f"Old inliers: {len(old_point_cloud.inliers)}")
             final_predictions_masked = final_predictions[old_point_cloud.inliers]
             # self.log(f"Len final predictions masked: {len(final_predictions_masked)}")
-            eps = old_point_cloud.radius * 1.5
+            eps = old_point_cloud.radius * self.dbscan_epsilon
 
             min_samples = len(final_predictions_masked) // 2
             clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(final_predictions_masked)
