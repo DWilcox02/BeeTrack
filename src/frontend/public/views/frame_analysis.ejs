@@ -71,22 +71,23 @@
                         &#x03B5; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud during clustering. The default is &#x03B5; = 1.5.
                     <br>
                     <ul>
-                        <li><b>Higher &#x03B5;</b> will result in smaller (less confident) clusters and <b>more outliers</b>.</li> 
-                        <li><b>Lower &#x03B5;</b> will result in higher (more confident) clusters and <b>fewer outliers</b>.</li> 
+                        <li><b>Higher &#x03B5;</b> will result in larger (more confident) clusters and <b>fewer outliers</b>.</li> 
+                        <li><b>Lower &#x03B5;</b> will result in smaller (less confident) clusters and <b>more outliers</b>.</li> 
                     </ul>
+                    (Recommended to change in very small increments (e.g. by steps of 0.1 or 0.25))
                     </p>
                 </div>            
             </div>
             <div>
                 <div style="display: flex;">
                     <h4 style="margin-inline: 10px;">Deformity Delta &#x03B4; = </h4>
-                    <input type="number" value="10" id="deformity-delta">
+                    <input type="number" value="2.5" id="deformity-delta">
                 </div>
                 <div style="margin-left: 20px;">
                     <p>
                         Used to calculate deformity ratio. Because deformity has no upper bound, a manual input is required.
                         <br>
-                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 10.
+                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 2.5.
                         Deformity Ratio = &#x03B4; / Deformity.
                     <br>
                     <ul>

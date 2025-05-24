@@ -60,7 +60,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 5
+NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -84,10 +84,6 @@ class VideoProcessor():
         self.point_data_store = point_data_store
         self.smoothing_alpha = processing_configuration.smoothing_alpha
         self.deformity_delta = processing_configuration.deformity_delta
-
-        print((self.smoothing_alpha))
-        print((processing_configuration.dbscan_epsilon))
-        print((self.deformity_delta))
 
         # Shape of initial point clouds
         self.point_cloud_generator = CircularPointCloudGenerator()

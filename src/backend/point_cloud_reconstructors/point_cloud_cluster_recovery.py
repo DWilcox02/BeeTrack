@@ -38,7 +38,7 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
             return self.reconstruct_with_center_rotation(
                 query_point=true_query_point,
                 rotation=rotation,
-                point_cloud=predicted_point_cloud,
+                old_point_cloud=predicted_point_cloud,
                 weights=weights
             )
         else:
@@ -51,7 +51,7 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
             )
 
     def reconstruct_with_center_rotation(
-        self, query_point: np.ndarray, rotation: float, point_cloud: PointCloud, weights: np.ndarray
+        self, query_point: np.ndarray, rotation: float, old_point_cloud: PointCloud, weights: np.ndarray
     ) -> PointCloud:
         # Create rotation matrix
         cos_theta = np.cos(rotation)
@@ -60,21 +60,22 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
         rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
 
         # Rotate the offset vectors directly
-        rotated_vectors = np.matmul(point_cloud.vectors_qp_to_cp, rotation_matrix.T)
+        rotated_vectors = np.matmul(old_point_cloud.vectors_qp_to_cp, rotation_matrix.T)
 
         # Calculate final positions
         reconstructed_points = query_point + rotated_vectors
 
-        formatted_new_query_point = point_cloud.format_new_query_point(query_point)
+        formatted_new_query_point = old_point_cloud.format_new_query_point(query_point)
 
         return PointCloud(
             query_point=formatted_new_query_point,
             cloud_points=reconstructed_points,
-            radius=point_cloud.radius,
+            radius=old_point_cloud.radius,
             rotation=rotation,
             weights=weights,
-            vectors_qp_to_cp=point_cloud.vectors_qp_to_cp,
-            orig_vectors=point_cloud.orig_vectors,
+            vectors_qp_to_cp=old_point_cloud.vectors_qp_to_cp,
+            orig_vectors=old_point_cloud.orig_vectors,
+            log_fn=old_point_cloud.log_fn
         )
 
     def reconstruct_inliers(
@@ -107,4 +108,5 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
             rotation=rotation,
             weights=weights,
             orig_vectors=old_point_cloud.orig_vectors,
+            log_fn=old_point_cloud.log_fn,
         )
