@@ -71,8 +71,8 @@ class PointCloud():
         inlier_ratio = np.sum(inliers) / len(self.cloud_points)
 
         label = self.query_point["color"]
-        self.log(f"{label} Deformity Ratio: {deformity_ratio}")
-        self.log(f"{label} Inlier Ratio: {inlier_ratio}")
+        # self.log(f"{label} Deformity Ratio: {deformity_ratio}")
+        # self.log(f"{label} Inlier Ratio: {inlier_ratio}")
         self.log(f"{label} Confidence: {(inlier_ratio + deformity_ratio) / 2}")
 
         return (inlier_ratio + deformity_ratio) / 2
