@@ -3,7 +3,7 @@ import numpy as np
 class PointCloud():
     def __init__(
             self, 
-            query_point: np.ndarray, 
+            query_point: dict, 
             cloud_points: np.ndarray, 
             radius: float, 
             rotation: float, 
@@ -12,7 +12,7 @@ class PointCloud():
             inliers=None,
             orig_vectors=None
         ):
-        self.query_point: np.ndarray = query_point
+        self.query_point: dict = query_point
         self.cloud_points: np.ndarray = cloud_points
         self.radius = radius
         self.rotation: np.ndarray = rotation

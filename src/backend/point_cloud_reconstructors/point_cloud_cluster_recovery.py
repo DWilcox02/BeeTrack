@@ -16,7 +16,7 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
         weights: List[np.ndarray],
     ) -> List[PointCloud]:
         return [
-            self.reconstruct_inliers(opc, fps, irs, qp, ws)
+            self.recover_cluster(opc, fps, irs, qp, ws)
             for opc, fps, irs, qp, ws in zip(
                 old_point_clouds, final_positions, inliers_rotations, query_point_reconstructions, weights
             )

@@ -252,7 +252,7 @@ class VideoProcessor():
     def validate_and_update_weights(
             self, 
             predicted_point_clouds: List[PointCloud], 
-            true_point_clouds: List[PointCloud], 
+            current_point_clouds: List[PointCloud], 
             inliers_rotations: List[tuple[np.ndarray, float]],
             path, 
             filename, 
@@ -261,8 +261,8 @@ class VideoProcessor():
             segments_to_process
         ):
         predicted_query_points = [p.query_point for p in predicted_point_clouds]
-        true_query_points = [cloud.query_point for cloud in true_point_clouds]
-        initial_positions = [cloud.cloud_points for cloud in true_point_clouds]
+        current_query_points = [cloud.query_point for cloud in current_point_clouds]
+        initial_positions = [cloud.cloud_points for cloud in current_point_clouds]
 
         confidence = min([p.confidence(inliers) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
         request_validation = confidence < CONFIDENCE_THRESHOLD
@@ -280,34 +280,35 @@ class VideoProcessor():
 
         if request_validation:
             self.request_validation()  # Query points will have been updateds
-            true_query_points = self.point_data_store[self.session_id]["points"]
-            true_query_points_xy = np.array([[p["x"], p["y"]] for p in true_query_points], dtype=np.float32)
+            current_query_points = self.point_data_store[self.session_id]["points"]
+            current_query_points_xy = np.array([[p["x"], p["y"]] for p in current_query_points], dtype=np.float32)
+
             weights = self.weight_distance_calculator.calculate_distance_weights(
                 predicted_point_clouds=predicted_point_clouds,
                 inliers_rotations=inliers_rotations,
-                true_query_points=true_query_points_xy,
+                true_query_points=current_query_points_xy,
                 initial_positions=initial_positions
             )
             # print("Weights after validation")
             # print(weights)
             final_positions = [ pc.cloud_points for pc in predicted_point_clouds]
-            true_point_clouds = self.point_cloud_validated_reconstructor.reconstruct_point_clouds(
+            current_point_clouds = self.point_cloud_validated_reconstructor.reconstruct_point_clouds(
                 old_point_clouds=predicted_point_clouds,
                 final_positions=final_positions,
                 inliers_rotations=inliers_rotations,
-                query_point_reconstructions=true_query_points_xy,
+                query_point_reconstructions=current_query_points_xy,
                 weights=weights,
             )
         else:
-            true_query_points = predicted_query_points
-            true_point_clouds = predicted_point_clouds
+            current_query_points = predicted_query_points
+            current_point_clouds = predicted_point_clouds
 
-        self.export_to_point_data_store(true_query_points)
+        self.export_to_point_data_store(current_query_points)
         self.add_validation()
 
         # Reconstruct after new query points calculated (retains weights)
         
-        return true_query_points, true_point_clouds
+        return current_query_points, current_point_clouds
 
 
     def generate_segment_tracks(
@@ -692,7 +693,7 @@ class VideoProcessor():
                     # Update weights and potentially request validation
                     query_points, point_clouds = self.validate_and_update_weights(
                         predicted_point_clouds=predicted_point_clouds, 
-                        true_point_clouds=point_clouds,
+                        current_point_clouds=point_clouds,
                         inliers_rotations=inliers_rotations,
                         path=path, 
                         filename=filename,

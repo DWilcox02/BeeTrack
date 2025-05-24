@@ -96,25 +96,32 @@ app.get("/analysis/:filename", async (req, res) => {
       // ];
 
       // Static points for round_dance
+      // points = [
+      //   {
+      //     x: 301,
+      //     y: 227,
+      //     color: "red",
+      //     radius: 18.0,
+      //   },
+      //   {
+      //     x: 283.7142857142857,
+      //     y: 237.66294642857144,
+      //     color: "green",
+      //     radius: 20.0,
+      //   },
+      //   {
+      //     x: 251,
+      //     y: 260,
+      //     color: "blue",
+      //     radius: 18.0,
+      //   },
+      // ];
+
+      // Static points for round_dance_cropped
       points = [
-        {
-          x: 301,
-          y: 227,
-          color: "red",
-          radius: 18.0,
-        },
-        {
-          x: 283.7142857142857,
-          y: 237.66294642857144,
-          color: "green",
-          radius: 20.0,
-        },
-        {
-          x: 251,
-          y: 260,
-          color: "blue",
-          radius: 18.0,
-        },
+        { x: 456, y: 293, color: "red", radius: 18 },
+        { x: 442, y: 265, color: "green", radius: 20.0 },
+        { x: 418, y: 236, color: "blue", radius: 18 },
       ];
 
       // Generate Plotly HTML using Plotly.js
