@@ -76,11 +76,11 @@ app.get("/analysis/:filename", async (req, res) => {
       ];
 
       // Static points for outside_florea
-      points = [
-        { x: 1017.80, y: 638.10, color: "red", radius: 24.00 },
-        { x: 1060.99, y: 675.88, color: "green", radius: 24.00 },
-        { x: 1036.30, y: 658.90, color: "blue", radius: 24.00 },
-      ];
+      // points = [
+      //   { x: 1017.80, y: 638.10, color: "red", radius: 24.00 },
+      //   { x: 1060.99, y: 675.88, color: "green", radius: 24.00 },
+      //   { x: 1036.30, y: 658.90, color: "blue", radius: 24.00 },
+      // ];
 
       // Static points for dance_15
       // points = [
@@ -98,24 +98,31 @@ app.get("/analysis/:filename", async (req, res) => {
       // Static points for round_dance
       // points = [
       //   {
-      //     x: 312.8571428571429,
-      //     y: 221.37723214285714,
+      //     x: 301,
+      //     y: 227,
       //     color: "red",
-      //     radius: 20.0,
+      //     radius: 18.0,
       //   },
       //   {
       //     x: 283.7142857142857,
       //     y: 237.66294642857144,
       //     color: "green",
-      //     radius: 22.0,
+      //     radius: 20.0,
       //   },
       //   {
-      //     x: 256.2857142857143,
-      //     y: 253.94866071428572,
+      //     x: 251,
+      //     y: 260,
       //     color: "blue",
-      //     radius: 22.0,
+      //     radius: 18.0,
       //   },
       // ];
+
+      // Static points for round_dance_cropped
+      points = [
+        { x: 456, y: 293, color: "red", radius: 18 },
+        { x: 442, y: 265, color: "green", radius: 20.0 },
+        { x: 418, y: 236, color: "blue", radius: 18 },
+      ];
 
       // Generate Plotly HTML using Plotly.js
       // Note: We'll create a client-side solution instead of server-side rendering

@@ -17,6 +17,8 @@ from .point_cloud.estimation.estimation_slice import EstimationSlice
 from .point_cloud.point_cloud import PointCloud
 from src.backend.models.circle_movement_result import CircleMovementResult
 
+from src.backend.frontend_communicator import FrontendCommunicator
+
 # Import Inlier Predictors
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
 from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPredictor
@@ -56,7 +58,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 1
+NUM_SLICES = 10
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -66,17 +68,13 @@ class VideoProcessor():
         session_id,
         point_data_store,
         point_cloud_estimator: PointCloudEstimatorInterface,
-        send_frame_data_callback, 
-        request_validation_callback,
-        send_timeline_frame_callback,
+        frontend_communicator: FrontendCommunicator,
         video,
         job_id,
     ):
         self.session_id = session_id
         self.point_cloud_estimator = point_cloud_estimator
-        self.send_frame_data_callback = send_frame_data_callback
-        self.request_validation_callback = request_validation_callback
-        self.send_timeline_frame_callback = send_timeline_frame_callback
+        self.frontend_communicator = frontend_communicator
         self.video = video
         self.job_id = job_id
         self.log_message = None
@@ -123,11 +121,11 @@ class VideoProcessor():
     def send_current_frame_data(self, query_points, video_path, frame, confidence, request_validation):
         frame_base64, error, width, height = extract_frame(video_path, frame)
         frameData = {"frame": frame_base64, "width": width, "height": height, "frame_idx": frame}
-        self.send_frame_data_callback(frameData, query_points, confidence, request_validation)
+        self.frontend_communicator.send_frame_data_callback(frameData, query_points, confidence, request_validation)
 
 
     def request_validation(self):
-        return self.request_validation_callback(self.job_id)
+        return self.frontend_communicator.request_validation_callback(self.job_id)
 
 
     def send_timeline_frames(self, video_segment):
@@ -148,7 +146,7 @@ class VideoProcessor():
 
                 # Convert to base64
                 frame_base64 = base64.b64encode(buffer).decode("utf-8")
-                self.send_timeline_frame_callback(frame_base64, i)
+                self.frontend_communicator.send_timeline_frame_callback(frame_base64, i)
             except Exception as e:
                 self.log(f"Error encoding frame {i}: {e}")
 
@@ -254,7 +252,7 @@ class VideoProcessor():
     def validate_and_update_weights(
             self, 
             predicted_point_clouds: List[PointCloud], 
-            true_point_clouds: List[PointCloud], 
+            current_point_clouds: List[PointCloud], 
             inliers_rotations: List[tuple[np.ndarray, float]],
             path, 
             filename, 
@@ -263,8 +261,8 @@ class VideoProcessor():
             segments_to_process
         ):
         predicted_query_points = [p.query_point for p in predicted_point_clouds]
-        true_query_points = [cloud.query_point for cloud in true_point_clouds]
-        initial_positions = [cloud.cloud_points for cloud in true_point_clouds]
+        current_query_points = [cloud.query_point for cloud in current_point_clouds]
+        initial_positions = [cloud.cloud_points for cloud in current_point_clouds]
 
         confidence = min([p.confidence(inliers) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
         request_validation = confidence < CONFIDENCE_THRESHOLD
@@ -282,36 +280,38 @@ class VideoProcessor():
 
         if request_validation:
             self.request_validation()  # Query points will have been updateds
-            true_query_points = self.point_data_store[self.session_id]["points"]
-            true_query_points_xy = np.array([[p["x"], p["y"]] for p in true_query_points], dtype=np.float32)
+            current_query_points = self.point_data_store[self.session_id]["points"]
+            current_query_points_xy = np.array([[p["x"], p["y"]] for p in current_query_points], dtype=np.float32)
+
             weights = self.weight_distance_calculator.calculate_distance_weights(
                 predicted_point_clouds=predicted_point_clouds,
                 inliers_rotations=inliers_rotations,
-                true_query_points=true_query_points_xy,
+                true_query_points=current_query_points_xy,
                 initial_positions=initial_positions
             )
             # print("Weights after validation")
             # print(weights)
             final_positions = [ pc.cloud_points for pc in predicted_point_clouds]
-            true_point_clouds = self.point_cloud_validated_reconstructor.reconstruct_point_clouds(
+            current_point_clouds = self.point_cloud_validated_reconstructor.reconstruct_point_clouds(
                 old_point_clouds=predicted_point_clouds,
                 final_positions=final_positions,
                 inliers_rotations=inliers_rotations,
-                query_point_reconstructions=true_query_points_xy,
+                query_point_reconstructions=current_query_points_xy,
                 weights=weights,
             )
         else:
-            true_query_points = predicted_query_points
-            true_point_clouds = predicted_point_clouds
+            current_query_points = predicted_query_points
+            current_point_clouds = predicted_point_clouds
 
-        self.export_to_point_data_store(true_query_points)
+        self.export_to_point_data_store(current_query_points)
+        self.add_validation()
 
         # Reconstruct after new query points calculated (retains weights)
         
-        return true_query_points, true_point_clouds
+        return current_query_points, current_point_clouds
 
 
-    def smooth_points(
+    def generate_segment_tracks(
             self, 
             start_frame, 
             end_frame, 
@@ -358,7 +358,7 @@ class VideoProcessor():
                 smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
             smoothed_points.append(smoothed_tracks)
         smoothed_points = np.array(smoothed_points)
-        return smoothed_points
+        return interpolated_points, mean_points, smoothed_points
 
 
     def calc_errors(self, predicted_point_clouds: List[PointCloud], true_point_clouds: List[PointCloud], frame: int):
@@ -510,6 +510,44 @@ class VideoProcessor():
         self.log(f"Errors successfully written to {final_errors_output_path}")
 
 
+    def add_tracks(
+        self, 
+        start_frame: int,
+        interpolated_tracks: np.ndarray, 
+        raw_mean_tracks: np.ndarray, 
+        smoothed_tracks: np.ndarray
+    ):
+        new_tracks = []
+        
+        num_qp, segment_size, _ = interpolated_tracks.shape
+        
+        track_data = [
+            (interpolated_tracks, "interpolated"),
+            (raw_mean_tracks, "raw_mean"), 
+            (smoothed_tracks, "smoothed")
+        ]
+        
+        for tracks, track_type in track_data:
+            for point_idx in range(num_qp):
+                for frame_idx in range(segment_size):
+                    x, y = tracks[point_idx, frame_idx]
+                    
+                    track_dict = {
+                        "frame": start_frame + frame_idx,
+                        "x": float(x),
+                        "y": float(y),
+                        "bodypart": f"point_{point_idx}_{track_type}"
+                    }
+                    new_tracks.append(track_dict)
+        
+        self.frontend_communicator.add_tracks_callback(new_tracks)
+
+
+    def add_validation(self):
+        validated_points = self.point_data_store[self.session_id]["points"]
+        self.frontend_communicator.add_validation_callback(validation=validated_points)
+
+
     def process_video(self, query_points):
         # Determine FPS from our lookup, default to 30 if not found
         filename = self.video["filename"]
@@ -581,7 +619,7 @@ class VideoProcessor():
             all_tracks = [[] for _ in range(len(point_clouds))]
             all_errors = []
             # inliers = [True] * (len(point_clouds) * len(point_clouds[0].cloud_points))
-
+            self.add_validation()
             # Process each segment
             for i in range(segments_to_process):
                 start_frame = i * fps
@@ -655,7 +693,7 @@ class VideoProcessor():
                     # Update weights and potentially request validation
                     query_points, point_clouds = self.validate_and_update_weights(
                         predicted_point_clouds=predicted_point_clouds, 
-                        true_point_clouds=point_clouds,
+                        current_point_clouds=point_clouds,
                         inliers_rotations=inliers_rotations,
                         path=path, 
                         filename=filename,
@@ -667,7 +705,7 @@ class VideoProcessor():
                     # Get query points for interpolation
                     end_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     
-                    smoothed_points = self.smooth_points(
+                    interpolated_tracks, raw_mean_tracks, smoothed_tracks = self.generate_segment_tracks(
                         start_frame=start_frame,
                         end_frame=end_frame,
                         start_query_points=start_query_points,
@@ -689,10 +727,16 @@ class VideoProcessor():
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
-                    smoothed_video_segment = slice_result.get_video_for_points(smoothed_points)
-                    for j, sps in enumerate(smoothed_points):
+                    smoothed_video_segment = slice_result.get_video_for_points(smoothed_tracks)
+                    for j, sps in enumerate(smoothed_tracks):
                         all_tracks[j].extend(sps)
 
+                    self.add_tracks(
+                        start_frame=start_frame,
+                        interpolated_tracks=interpolated_tracks,
+                        raw_mean_tracks=raw_mean_tracks, 
+                        smoothed_tracks=smoothed_tracks
+                    )
                     self.send_timeline_frames(smoothed_video_segment)
 
                     if save_intermediate:

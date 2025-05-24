@@ -17,60 +17,66 @@
         data-margin-left="50"
         data-margin-right="50"
         data-margin-bottom="50"
+        data-video-title="<%= filename.split('/').pop() %>"
     ></div>
     <div class="container">
         <h1>First Frame Analysis</h1>
         <h2>Video: <%= filename.split('/').pop() %></h2>
         
-        <div class="instructions">
-            <h3>Instructions:</h3>
-            <p>1. Select a colored point from the buttons below.</p>
-            <p>2. Click on the image where you want to place the point.</p>
-            <p>3. Once all points are placed, click "Save Point Positions".</p>
-        </div>
-        <div class="point-controls">
-            <h3>Select Point Cloud Estimator:</h3>
-            <form>
-                <input type="radio" id="TAPIR" name="point_cloud_type" value="TAPIR" checked>
-                <label for="TAPIR">TAPIR</label> <br>
-                <input type="radio" id="Other" name="point_cloud_type" value="Other" disabled>
-                <label for="Other">Other</label>
-            </form>
-        </div>
-        <div class="point-controls">
-            <h3>Select point to place:</h3>
-            <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>
-            <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Circle 2</div>
-            <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Circle 3</div>
-            <!-- <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div> -->
-        </div>
-        <div class="point-controls">
-            <h3>Import Points:</h3>
-            <textarea id="pointsDataInput" rows="5" style="width: 100%; font-family: monospace;" placeholder="Paste points data in JSON format here..."></textarea>
-            <div class="controls" style="margin-top: 10px;">
-                <button id="importPointsBtn" class="btn btn-action">Import Points</button>
+        
+        <div style="display: flex;">
+            <div class="instructions">
+                <h3>Instructions:</h3>
+                <p>1. Select a colored point from the buttons below.</p>
+                <p>2. Click on the image where you want to place the point.</p>
+                <p>3. Once all points are placed, click "Save Point Positions".</p>
             </div>
-        </div>
-        <div>
-            Circle Radius
-            <div class="slider-container">
-                <input type="range" min="0" max="500" value="50" class="slider" id="radiusRange">
-                <button id="sendRadiusBtn" class="btn btn-action">Send Radius</button>
+            <div class="point-controls">
+                <h3>Select Point Cloud Estimator:</h3>
+                <form>
+                    <input type="radio" id="TAPIR" name="point_cloud_type" value="TAPIR" checked>
+                    <label for="TAPIR">TAPIR</label> <br>
+                    <input type="radio" id="Other" name="point_cloud_type" value="Other" disabled>
+                    <label for="Other">Other</label>
+                </form>
             </div>
-            <div class="value-display">
-                Value: <span id="radiusValue"></span> pixels
+            <div class="point-controls">
+                <h3>Select point to place:</h3>
+                <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>
+                <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Circle 2</div>
+                <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Circle 3</div>
+                <!-- <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div> -->
             </div>
+            <div class="point-controls">
+                <h3>Import Points:</h3>
+                <textarea id="pointsDataInput" rows="5" style="width: 100%; font-family: monospace;" placeholder="Paste points data in JSON format here..."></textarea>
+                <div class="controls" style="margin-top: 10px;">
+                    <button id="importPointsBtn" class="btn btn-action">Import Points</button>
+                </div>
+            </div>
+            <div>
+                Circle Radius
+                <div class="slider-container">
+                    <input type="range" min="0" max="500" value="50" class="slider" id="radiusRange">
+                    <button id="sendRadiusBtn" class="btn btn-action">Send Radius</button>
+                </div>
+                <div class="value-display">
+                    Value: <span id="radiusValue"></span> pixels
+                </div>
 
-            <script>
-                var slider = document.getElementById("radiusRange")
-                var output = document.getElementById("radiusValue")
-                output.innerHTML = slider.value
+                <script>
+                    var slider = document.getElementById("radiusRange")
+                    var output = document.getElementById("radiusValue")
+                    output.innerHTML = slider.value
 
-                slider.oninput = function() {
-                    output.innerHTML = this.value
-                }
-            </script>
+                    slider.oninput = function() {
+                        output.innerHTML = this.value
+                    }
+                </script>
+            </div>
         </div>
+        
+        
         
         <div class="plotly-container" id="plotly-container">
             <!-- Plotly plot will be generated here by JavaScript -->
@@ -118,6 +124,48 @@
     <div id="processingStatus" class="processing-status">
         <span id="statusMessage"></span>
     </div>    
+
+    <div id="tracksData" style="display: flex;">
+        <div id="validationData">
+            <div style="display: flex;">
+                <h2>Validated Points</h2>
+                <button class="btn btn-primary" onclick="copyValidationsToClipboard()">Copy Validations to Clipboard</button>
+            </div>
+            <div id="table-scroll">
+                <table id="validationTable">
+                    <thead>
+                        <tr>
+                            <th><span class="text">Validated Points JSON</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- <tr><td>blah</td></tr> -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id="tracksAnnotation">
+            <div style="display: flex;">
+                <h2>Annotation Tracks</h2>
+                <button class="btn btn-primary" onclick="downloadTracksCSV()">Download CSV</button>
+            </div>
+            <div id="table-scroll">
+                <table id="tracksTable">
+                    <thead>
+                        <tr>
+                            <th><span class="text">frame</span></th>
+                            <th><span class="text">x</span></th>
+                            <th><span class="text">y</span></th>
+                            <th><span class="text">bodypart</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- <tr> <td>blah</td> <td>blah</td> <td>blah</td> <td>blah</td> </tr> -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <!-- Session data for JavaScript -->
     <script>

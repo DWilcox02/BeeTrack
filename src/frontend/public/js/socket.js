@@ -222,7 +222,6 @@ socket.on("update_all_points_response", (result) => {
 
 socket.on("add_timeline_frame", (data) => {
   if (data.frame && data.frame_index) {
-    console.log(data)
     addTimelineFrame(data);
   } else {
     console.error("Error with data: " + data)
@@ -230,6 +229,18 @@ socket.on("add_timeline_frame", (data) => {
 });
 
 
+socket.on("add_tracks", (data) => {
+  if (data.new_tracks) {
+    addTracks(data.new_tracks)
+  }
+})
+
+
+socket.on("add_validation", (data) => {
+  if (data.validation_point) {
+    addValidation(data.validation_point);
+  }
+})
 
 // Export the API for use in other scripts
 window.api = api;

@@ -15,6 +15,7 @@ const marginRight = appContainer.dataset.marginRight;
 const marginBottom = appContainer.dataset.marginBottom;
 const imageWidth = window.appConfig.imageWidth;
 const imageHeight = window.appConfig.imageHeight;
+const videoTitle = window.appConfig.videoTitle;
 
 let currentJobId = null;
 
@@ -29,6 +30,8 @@ const imageNumber = document.getElementById('imageNumber');
 const totalImages = document.getElementById("totalImages");
 totalImages.textContent = images.length;
 const displayedImage = document.getElementById('displayedImage');
+
+const tracks = [];
 
 // Initialize with the first image
 try {
@@ -578,6 +581,7 @@ function updatePlot(newPoints, frameData=null) {
       
       // Update the image in the layout if frameData is provided
       if (frameData && frameData.frame) {
+        currentLayout.title = `Validating frame: ${frameData.frame_idx}`;
         imageData = ensureDataUrlFormat(frameData.frame);
         
         // If we have a new image, update it in the layout
@@ -612,10 +616,7 @@ function updatePlot(newPoints, frameData=null) {
             xref: 'x',
             yref: 'y',
           });
-        }
-        
-        // Update title to show current frame
-        currentLayout.title = `Frame Analysis`;
+        }        
       }
 
       console.log(currentLayout.shapes)
@@ -753,4 +754,127 @@ async function sendValidationContinue() {
   } else {
     console.warn("No pending validation request ID found");
   }
+}
+
+
+async function downloadTracksCSV() {
+  console.log("Downloading CSV Tracks");
+
+  if (!tracks || tracks.length === 0) {
+    alert("No tracks data available to download.");
+    return;
+  }
+
+  const headers = ["frame", "x", "y", "bodypart"];
+  let csvContent = headers.join(",") + "\n";
+
+  tracks.forEach((track) => {
+    const row = [track.frame, track.x, track.y, track.bodypart].join(",");
+    csvContent += row + "\n";
+  });
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+  const title = "ANNOTATIONS_" + videoTitle + ".csv";
+
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", title);
+  link.style.visibility = "hidden";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+
+  console.log(`Downloaded ${tracks.length} tracks to ${title}`);
+}
+
+function trackJSONtoTableRow(track) {
+  /*
+  track: {
+    "frame": int,
+    "x": float,
+    "y": float,
+    "bodypart": string
+  }
+  */
+
+  return `<tr>
+    <td>${track.frame}</td>
+    <td>${track.x}</td>
+    <td>${track.y}</td>
+    <td>${track.bodypart}</td>
+  </tr>`;
+}
+
+function addTracks(new_tracks) {
+  /* 
+  new_tracks: [
+    {
+      "frame": int,
+      "x": float,
+      "y": float,
+      "bodypart": string
+    }
+  ]
+  */
+  Array.prototype.push.apply(tracks, new_tracks);
+  const tracksTable = document.getElementById("tracksTable");
+  const tbody = tracksTable.querySelector("tbody");
+
+  new_tracks.forEach((track) => {
+    tbody.innerHTML += trackJSONtoTableRow(track);
+  });
+}
+
+function validationToTableRow(validation) {
+  return `
+  <tr>
+    <td>
+      ${JSON.stringify(validation)}
+    </td>
+  </tr>
+  `
+}
+
+function addValidation(new_validation) {
+  const validationTable = document.getElementById("validationTable");
+  const tbody = validationTable.querySelector("tbody");
+
+  tbody.innerHTML += validationToTableRow(new_validation);
+}
+
+function copyValidationsToClipboard() {
+  const table = document.getElementById("validationTable");
+  const tbody = table.querySelector("tbody");
+  const rows = tbody.querySelectorAll("tr");
+
+  if (rows.length === 0) {
+    alert("No validation data to copy");
+    return;
+  }
+
+  // Extract raw text data
+  let textContent = "";
+
+  rows.forEach((row, index) => {
+    const cells = row.querySelectorAll("td");
+    cells.forEach((cell) => {
+      textContent += cell.textContent.trim() + "\n";
+    });
+  });
+
+  // Copy to clipboard
+  navigator.clipboard
+    .writeText(textContent)
+    .then(() => {
+      alert("Validation data copied to clipboard!");
+    })
+    .catch((err) => {
+      console.error("Failed to copy: ", err);
+      alert("Failed to copy to clipboard");
+    });
 }
