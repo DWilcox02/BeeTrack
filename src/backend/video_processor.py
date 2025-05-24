@@ -7,6 +7,7 @@ import numpy as np
 import gc
 import cv2
 import base64
+import copy
 
 from typing import List
 
@@ -58,7 +59,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 10
+NUM_SLICES = 5
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -115,7 +116,7 @@ class VideoProcessor():
     
     
     def export_to_point_data_store(self, points):
-        self.point_data_store[self.session_id]["points"] = points
+        self.point_data_store[self.session_id]["points"] = copy.deepcopy(points)
 
 
     def send_current_frame_data(self, query_points, video_path, frame, confidence, request_validation):
@@ -260,7 +261,7 @@ class VideoProcessor():
             i, 
             segments_to_process
         ):
-        predicted_query_points = [p.query_point for p in predicted_point_clouds]
+        predicted_query_points = [copy.deepcopy(p.query_point) for p in predicted_point_clouds]
         current_query_points = [cloud.query_point for cloud in current_point_clouds]
         initial_positions = [cloud.cloud_points for cloud in current_point_clouds]
 

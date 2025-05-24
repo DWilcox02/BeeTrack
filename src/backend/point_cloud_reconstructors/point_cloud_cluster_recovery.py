@@ -34,6 +34,7 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
         validation_distance = np.linalg.norm(predicted_query_point - true_query_point)
         if validation_distance > predicted_point_cloud.radius:
             _, rotation = inliers_rotation
+            weights = np.array([1 / len(predicted_point_cloud.cloud_points)] * len(predicted_point_cloud.cloud_points), dtype=np.float32)
             return self.reconstruct_with_center_rotation(
                 query_point=true_query_point,
                 rotation=rotation,
@@ -48,6 +49,33 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
                 query_point=true_query_point,
                 weights=weights
             )
+
+    def reconstruct_with_center_rotation(
+        self, query_point: np.ndarray, rotation: float, point_cloud: PointCloud, weights: np.ndarray
+    ) -> PointCloud:
+        # Create rotation matrix
+        cos_theta = np.cos(rotation)
+        sin_theta = np.sin(rotation)
+
+        rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
+
+        # Rotate the offset vectors directly
+        rotated_vectors = np.matmul(point_cloud.vectors_qp_to_cp, rotation_matrix.T)
+
+        # Calculate final positions
+        reconstructed_points = query_point + rotated_vectors
+
+        formatted_new_query_point = point_cloud.format_new_query_point(query_point)
+
+        return PointCloud(
+            query_point=formatted_new_query_point,
+            cloud_points=reconstructed_points,
+            radius=point_cloud.radius,
+            rotation=rotation,
+            weights=weights,
+            vectors_qp_to_cp=point_cloud.vectors_qp_to_cp,
+            orig_vectors=point_cloud.orig_vectors,
+        )
 
     def reconstruct_inliers(
         self,
