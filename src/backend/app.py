@@ -12,6 +12,7 @@ from .server.utils.video_utils import extract_frame
 from .video_processor import VideoProcessor
 from .point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator import TapirEstimator
 from .frontend_communicator import FrontendCommunicator
+from .processing_configuration import ProcessingConfiguration
 
 POINT_CLOUD_AVAILABLE = True
 POINT_CLOUD_TYPE = "TAPIR"
@@ -253,6 +254,9 @@ def handle_process_video_with_points(data):
 
     session_id = data.get("session_id")
     job_id = data.get("job_id")
+    smoothing_alpha = float(data.get("smoothing_alpha"))
+    dbscan_epsilon = float(data.get("dbscan_epsilon"))
+    deformity_delta = float(data.get("deformity_delta"))
 
     if session_id not in point_data_store:
             print(f"Session ID {session_id} not found in point_data_store")
@@ -275,6 +279,11 @@ def handle_process_video_with_points(data):
     # Function to run the processing in a background thread
     def run_processing():
         try:
+            processing_configuration = ProcessingConfiguration(
+                smoothing_alpha=smoothing_alpha,
+                dbscan_epsilon=dbscan_epsilon,
+                deformity_delta=deformity_delta
+            )
             frontend_communicator = FrontendCommunicator(
                 socketio=socketio,
                 session_id=session_id,
@@ -287,7 +296,8 @@ def handle_process_video_with_points(data):
                 point_cloud_estimator=point_cloud_estimator,
                 frontend_communicator=frontend_communicator,
                 video=video,
-                job_id=job_id
+                job_id=job_id,
+                processing_configuration=processing_configuration
             )
 
             video_processor.set_log_message_function(log_message)

@@ -47,7 +47,8 @@ class PointCloud():
     
     def confidence(
             self,
-            inliers: np.ndarray
+            inliers: np.ndarray, 
+            deformity_delta: float
         ):
         return np.sum(inliers) / len(self.cloud_points)
     
