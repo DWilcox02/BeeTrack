@@ -33,13 +33,6 @@ const displayedImage = document.getElementById('displayedImage');
 
 const tracks = [];
 
-// Initialize with the first image
-try {
-    displayedImage.src = images[0];
-} catch (error) {
-    console.log("No slider images")
-}
-
 // Update image when slider value changes
 timelineSlider.addEventListener('input', function() {
     const index = parseInt(this.value);
@@ -253,7 +246,6 @@ function initializeRadiusValues() {
       }
     });
   }
-  console.log("Initialized radius values:", pointRadiusValues);
 }
 
 // Resize the overlay to match the plot
