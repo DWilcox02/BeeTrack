@@ -61,7 +61,6 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -86,6 +85,7 @@ class VideoProcessor():
         self.point_data_store = point_data_store
         self.smoothing_alpha = processing_configuration.smoothing_alpha
         self.deformity_delta = processing_configuration.deformity_delta
+        self.num_slices = processing_configuration.processing_seconds
         self.stop_event = stop_event
 
         # Shape of initial point clouds
@@ -602,8 +602,8 @@ class VideoProcessor():
                 segments_to_process = min(total_segments, max_segments)
             else:
                 segments_to_process = total_segments
-            # TODO: Remove
-            segments_to_process = NUM_SLICES
+
+            segments_to_process = self.num_slices
 
             self.log(f"Video will be processed in {segments_to_process} segments")
 

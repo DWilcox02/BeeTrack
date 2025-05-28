@@ -706,6 +706,21 @@ async function processVideoWithPoints() {
   const dbscanEpsilon = document.getElementById("dbscan-epsilon").value;
   const deformityDelta = document.getElementById("deformity-delta").value;
 
+  const fullVideoRadio = document.getElementById("full-video");
+  const specificSecondsRadio = document.getElementById("specific-seconds");
+  const processingTimeInput = document.getElementById("processing-time");
+
+  let processingSeconds;
+  if (fullVideoRadio.checked) {
+    // Use maximum integer value for full video processing
+    processingSeconds = Number.MAX_SAFE_INTEGER;
+  } else if (specificSecondsRadio.checked) {
+    processingSeconds = parseInt(processingTimeInput.value) || 5; // Default to 5 if invalid
+  } else {
+    // Fallback default
+    processingSeconds = 5;
+  }
+
   const processPointCloudButton = document.getElementById("processPointCloud");
   const stopButton = document.getElementById("stopProcessing");
   
@@ -737,7 +752,8 @@ async function processVideoWithPoints() {
       job_id: currentJobId, // Pass the job ID to the server
       smoothing_alpha: smoothingAlpha,
       dbscan_epsilon: dbscanEpsilon,
-      deformity_delta: deformityDelta
+      deformity_delta: deformityDelta,
+      processing_seconds: processingSeconds
     });
   } catch (error) {
     statusElement.className = "processing-status status-error";

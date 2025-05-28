@@ -261,11 +261,12 @@ def handle_process_video_with_points(data):
     smoothing_alpha = float(data.get("smoothing_alpha"))
     dbscan_epsilon = float(data.get("dbscan_epsilon"))
     deformity_delta = float(data.get("deformity_delta"))
+    processing_seconds = int(data.get("processing_seconds"))
 
     if session_id not in point_data_store:
-            print(f"Session ID {session_id} not found in point_data_store")
-            emit('update_point_error', {"error": "Session not found"})
-            return
+        print(f"Session ID {session_id} not found in point_data_store")
+        emit('update_point_error', {"error": "Session not found"})
+        return
 
     session_data = point_data_store[session_id]
     video_path = session_data.get("video_path")
@@ -290,7 +291,8 @@ def handle_process_video_with_points(data):
             processing_configuration = ProcessingConfiguration(
                 smoothing_alpha=smoothing_alpha,
                 dbscan_epsilon=dbscan_epsilon,
-                deformity_delta=deformity_delta
+                deformity_delta=deformity_delta,
+                processing_seconds=processing_seconds
             )
             frontend_communicator = FrontendCommunicator(
                 socketio=socketio,
