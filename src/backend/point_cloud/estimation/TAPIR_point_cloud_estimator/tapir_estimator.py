@@ -124,7 +124,7 @@ class TapirEstimator(PointCloudEstimatorInterface):
                 for item in self.iterable:
 
                     if stop_event is not None and stop_event.is_set():
-                        self.log("TAPIR processing stopped by user request")
+                        self.log_fn("TAPIR processing stopped by user request")
                         return None
                     
                     self.current += 1
