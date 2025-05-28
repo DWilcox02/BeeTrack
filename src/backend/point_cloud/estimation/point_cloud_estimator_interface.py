@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+from threading import Event
 
 class PointCloudEstimatorInterface(ABC):
     def set_logger(self, log_fn):
@@ -15,6 +15,7 @@ class PointCloudEstimatorInterface(ABC):
         width,
         height,
         query_points,
+        stop_event: Event,
         resize_width=256,
         resize_height=256,
     ):

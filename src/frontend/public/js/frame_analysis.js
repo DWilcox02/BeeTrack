@@ -102,6 +102,8 @@ window.handleJobLog = function (jobId, message) {
     statusElement.className = "processing-status status-success";
     statusMessageElement.innerHTML = "<strong>Success!</strong> Point cloud processing complete.";
 
+    resetProcessingButtons();
+
     // Re-enable the process button
     const processButton = document.getElementById("processPointCloud");
     if (processButton) {
@@ -686,6 +688,22 @@ async function savePoints() {
   }
 }
 
+function resetProcessingButtons() {
+  const processPointCloudButton = document.getElementById("processPointCloud");
+  const stopButton = document.getElementById("stopProcessing");
+
+  if (processPointCloudButton) {
+    processPointCloudButton.disabled = false;
+    processPointCloudButton.style.display = "inline-block";
+  }
+
+  if (stopButton) {
+    stopButton.style.display = "none";
+    stopButton.disabled = false;
+    stopButton.textContent = "Stop Processing";
+  }
+}
+
 async function processVideoWithPoints() {
   const statusElement = document.getElementById("processingStatus");
   const statusMessageElement = document.getElementById("statusMessage");
@@ -697,6 +715,13 @@ async function processVideoWithPoints() {
   const deformityDelta = document.getElementById("deformity-delta").value;
 
   const processPointCloudButton = document.getElementById("processPointCloud");
+  const stopButton = document.getElementById("stopProcessing");
+  
+  if (stopButton) {
+    stopButton.style.display = "inline-block";
+    stopButton.disabled = false;
+    stopButton.textContent = "Stop Processing";
+  }
   if (processPointCloudButton) {
     processPointCloudButton.disabled = true;
   }
@@ -736,6 +761,8 @@ async function processVideoWithPoints() {
     if (processPointCloudButton) {
       processPointCloudButton.disabled = false;
     }
+
+    resetProcessingButtons();
   }
 }
 
@@ -884,4 +911,40 @@ function copyValidationsToClipboard() {
       console.error("Failed to copy: ", err);
       alert("Failed to copy to clipboard");
     });
+}
+
+
+async function stopProcessing() {
+  if (!currentJobId) {
+    showStatus("No processing job is currently running.", "error");
+    return;
+  }
+
+  const stopButton = document.getElementById("stopProcessing");
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+
+  // Disable the stop button to prevent multiple clicks
+  stopButton.disabled = true;
+  stopButton.textContent = "Stopping...";
+
+  try {
+    // Send stop signal via socket
+    socket.emit("stop_job", {
+      job_id: currentJobId,
+    });
+
+    // Update UI to show stopping status
+    statusElement.className = "processing-status status-processing";
+    statusMessageElement.innerHTML = '<div class="loading-spinner"></div> Stopping processing...';
+
+    showStatus("Stop signal sent. Processing will stop at the next checkpoint.", "processing");
+  } catch (error) {
+    console.error("Error stopping processing:", error);
+    showStatus(`Error stopping processing: ${error.message}`, "error");
+
+    // Re-enable the stop button if there's an error
+    stopButton.disabled = false;
+    stopButton.textContent = "Stop Processing";
+  }
 }

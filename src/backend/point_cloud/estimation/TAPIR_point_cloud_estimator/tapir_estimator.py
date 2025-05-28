@@ -7,9 +7,11 @@ import haiku as hk  # noqa: F401
 import os
 import matplotlib
 matplotlib.use("Agg")  # Use non-interactive backend
+
 from tapnet.models import tapir_model
 from tapnet.utils import model_utils, transforms
 from tqdm import tqdm
+from threading import Event
 from src.backend.point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator_slice import TapirEstimatorSlice
 from src.backend.point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 
@@ -59,10 +61,15 @@ class TapirEstimator(PointCloudEstimatorInterface):
         width,
         height,
         query_points,
+        stop_event: Event,
         resize_width=256,
         resize_height=256,
     ):
         """Process a slice of video frames and return the processed segment."""
+
+        if stop_event is not None and stop_event.is_set():
+            self.log("TAPIR processing stopped by user request")
+            return None
 
         self.log("Preprocessing frames...")
         frames = media.resize_video(orig_frames, (resize_height, resize_width))
@@ -70,6 +77,11 @@ class TapirEstimator(PointCloudEstimatorInterface):
         self.log("Generating feature grids...")
         feature_grids = self.tapir.get_feature_grids(frames, is_training=False)
         chunk_size = 64
+
+        # Stop check after preprocessing
+        if stop_event is not None and stop_event.is_set():
+            self.log("TAPIR processing stopped by user request")
+            return None
 
         def chunk_inference(query_points):
             query_points = query_points.astype(np.float32)[None]
@@ -110,6 +122,11 @@ class TapirEstimator(PointCloudEstimatorInterface):
 
             def __iter__(self):
                 for item in self.iterable:
+
+                    if stop_event is not None and stop_event.is_set():
+                        self.log("TAPIR processing stopped by user request")
+                        return None
+                    
                     self.current += 1
                     # Log progress at 10% intervals
                     progress_pct = int((self.current / self.total) * 10)
@@ -125,6 +142,10 @@ class TapirEstimator(PointCloudEstimatorInterface):
             (query_points.shape[0] + chunk_size - 1) // chunk_size,
             self.log,
         ):
+            if stop_event is not None and stop_event.is_set():
+                self.log("TAPIR processing stopped by user request")
+                return None
+            
             query_points_chunk = query_points[i : i + chunk_size]
             num_extra = chunk_size - query_points_chunk.shape[0]
             if num_extra > 0:
@@ -136,6 +157,10 @@ class TapirEstimator(PointCloudEstimatorInterface):
             tracks.append(tracks2)
             visibles.append(visibles2)
 
+        if stop_event is not None and stop_event.is_set():
+            self.log("TAPIR processing stopped by user request")
+            return None
+        
         self.log("Concatenating results...")
         tracks = jnp.concatenate(tracks, axis=0)
         # visibles = jnp.concatenate(visibles, axis=0)

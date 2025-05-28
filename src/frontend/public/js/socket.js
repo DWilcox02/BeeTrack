@@ -179,6 +179,7 @@ socket.on('update_point_response', (result) => {
   }
 });
 
+
 socket.on("update_points_with_frame", (result) => {
   console.log("Updating points after interval");
   console.log("New points: " + result.points);
@@ -193,6 +194,7 @@ socket.on("update_points_with_frame", (result) => {
     showStatus("success");
   }
 })
+
 
 socket.on("validation_request", (data, callback) => {
   console.log("Validation requested by server:", data);
@@ -220,6 +222,7 @@ socket.on("update_all_points_response", (result) => {
   }
 });
 
+
 socket.on("add_timeline_frame", (data) => {
   if (data.frame && data.frame_index) {
     addTimelineFrame(data);
@@ -241,6 +244,26 @@ socket.on("add_validation", (data) => {
     addValidation(data.validation_point);
   }
 })
+
+
+socket.on("stop_job_success", (data) => {
+  console.log("Stop job success:", data);
+  showStatus(`Stop signal sent successfully for job ${data.job_id}`, "processing");
+  resetProcessingButtons();
+});
+
+
+socket.on("stop_job_error", (data) => {
+  console.error("Stop job error:", data);
+  showStatus(`Error stopping job: ${data.error}`, "error");
+
+  // Re-enable the stop button if there's an error
+  const stopButton = document.getElementById("stopProcessing");
+  if (stopButton) {
+    stopButton.disabled = false;
+    stopButton.textContent = "Stop Processing";
+  }
+});
 
 // Export the API for use in other scripts
 window.api = api;

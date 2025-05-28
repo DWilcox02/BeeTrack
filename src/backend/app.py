@@ -50,6 +50,10 @@ processing_locks = {}
 point_data_store = {}
 validation_events = {}
 
+# Job control
+running_jobs = {}  # job_id -> {"thread": thread_obj, "stop_event": threading.Event()}
+job_stop_events = {}  # job_id -> threading.Event()
+
 # Load video metadata
 try:
     videos = json.load(open(os.path.join(DATA_FOLDER, "video_meta.json")))
@@ -269,6 +273,10 @@ def handle_process_video_with_points(data):
     # Initialize logging for this job
     init_job_logging(job_id)
 
+    # Initialize stop event
+    stop_event = threading.Event()
+    job_stop_events[job_id] = stop_event
+
     video = get_video_info(video_path)
 
     # Choose point cloud estimator
@@ -297,13 +305,19 @@ def handle_process_video_with_points(data):
                 frontend_communicator=frontend_communicator,
                 video=video,
                 job_id=job_id,
-                processing_configuration=processing_configuration
+                processing_configuration=processing_configuration,
+                stop_event=stop_event
             )
 
             video_processor.set_log_message_function(log_message)
             # Process the video
             init_query_points = point_data_store[session_id]["points"]
             result = video_processor.process_video(init_query_points)
+
+            if stop_event.is_set():
+                log_message(job_id, "STOPPED: Processing was stopped by user")
+                socketio.emit(f"process_stopped_{job_id}", {"message": "Processing stopped by user"})
+                return
 
             if result.get("success", False):
                 # Create URL for the processed video
@@ -329,6 +343,12 @@ def handle_process_video_with_points(data):
             app.logger.error(f"{error_msg}\n{stack_trace}")
             log_message(job_id, f"ERROR: {error_msg}")
             socketio.emit(f"process_error_{job_id}", {"error": error_msg})
+        
+        finally:
+            if job_id in job_stop_events:
+                del job_stop_events[job_id]
+            if job_id in running_jobs:
+                del running_jobs[job_id]
 
         # Clean up eventually
         cleanup_thread = threading.Thread(target=cleanup_job, args=(job_id,))
@@ -518,6 +538,26 @@ def handle_update_all_points(data):
         app.logger.error(traceback.format_exc())
         emit("update_all_points_response", {"success": False, "error": str(e)})
         
+
+@socketio.on("stop_job")
+def handle_stop_job(data):
+    """Handle stop job request via socket."""
+    job_id = data.get("job_id")
+
+    if not job_id:
+        emit("stop_job_error", {"error": "No job ID provided"})
+        return
+
+    if job_id not in job_stop_events:
+        emit("stop_job_error", {"error": "Job not found or already completed"})
+        return
+
+    # Signal the job to stop
+    job_stop_events[job_id].set()
+    log_message(job_id, "STOP: Job stop requested by user")
+
+    emit("stop_job_success", {"job_id": job_id, "message": "Stop signal sent"})
+
 
 # Run the application
 if __name__ == "__main__":
