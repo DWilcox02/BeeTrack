@@ -98,19 +98,14 @@ to start the frontend server, at `http://localhost:3000`
 18. Workflow Smoothing:
     - Fix refresh error (frontend render)
     - Ability to stop and restart processing (without shutting down backend server)
+    - Video output
+19. Confidence based on deformity + hyperparameter tuning
 
 ### Next Steps
 (Not necessarily in order of priority)
-- Confidence based on deformity + hyperparameter tuning
 - User interface wrap-up
-    - Video output
-    - Normalize user interface to 15fps
     - Arbitrary number of points
 - Explore Geometric Alignment Possibilities
-
-
-- Normalize video FPS to 15. Any higher results in unnecessarly heavy computation
-    - Potential for dynamic framerate in cases of uncertainty?
 - Ensure linux compatibility
 
 ### DoC GPU Cluster Guide
