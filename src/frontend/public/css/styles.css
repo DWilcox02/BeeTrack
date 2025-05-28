@@ -554,3 +554,22 @@ video {
         gap: 10px;
     }
 }
+
+.status-validation {
+    background-color: #e1bee7; /* Light purple background */
+    color: #4a148c; /* Dark purple text */
+}
+
+.btn-validation {
+    background-color: #9c27b0; /* Purple background */
+    color: white;
+}
+
+.btn-validation:hover {
+    background-color: #7b1fa2; /* Darker purple on hover */
+}
+
+.btn-validation:disabled {
+    background-color: #ce93d8; /* Light purple when disabled */
+    cursor: not-allowed;
+}

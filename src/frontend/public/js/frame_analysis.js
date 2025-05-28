@@ -33,13 +33,6 @@ const displayedImage = document.getElementById('displayedImage');
 
 const tracks = [];
 
-// Initialize with the first image
-try {
-    displayedImage.src = images[0];
-} catch (error) {
-    console.log("No slider images")
-}
-
 // Update image when slider value changes
 timelineSlider.addEventListener('input', function() {
     const index = parseInt(this.value);
@@ -94,26 +87,7 @@ window.handleJobLog = function (jobId, message) {
   });
 
   // Check for completion or error
-  if (message.startsWith("DONE:")) {
-    const statusElement = document.getElementById("processingStatus");
-    const statusMessageElement = document.getElementById("statusMessage");
-
-    // Update status to success
-    statusElement.className = "processing-status status-success";
-    statusMessageElement.innerHTML = "<strong>Success!</strong> Point cloud processing complete.";
-
-    // Re-enable the process button
-    const processButton = document.getElementById("processPointCloud");
-    if (processButton) {
-      processButton.disabled = false;
-    }
-
-    // Show validation button if appropriate
-    const validationButton = document.getElementById("validationContinue");
-    if (validationButton) {
-      validationButton.style.display = "block";
-    }
-  } else if (message.startsWith("ERROR:")) {
+  if (message.startsWith("ERROR:")) {
     const statusElement = document.getElementById("processingStatus");
     const statusMessageElement = document.getElementById("statusMessage");
 
@@ -251,7 +225,6 @@ function initializeRadiusValues() {
       }
     });
   }
-  console.log("Initialized radius values:", pointRadiusValues);
 }
 
 // Resize the overlay to match the plot
@@ -686,6 +659,22 @@ async function savePoints() {
   }
 }
 
+function resetProcessingButtons() {
+  const processPointCloudButton = document.getElementById("processPointCloud");
+  const stopButton = document.getElementById("stopProcessing");
+
+  if (processPointCloudButton) {
+    processPointCloudButton.disabled = false;
+    processPointCloudButton.style.display = "inline-block";
+  }
+
+  if (stopButton) {
+    stopButton.style.display = "none";
+    stopButton.disabled = false;
+    stopButton.textContent = "Stop Processing";
+  }
+}
+
 async function processVideoWithPoints() {
   const statusElement = document.getElementById("processingStatus");
   const statusMessageElement = document.getElementById("statusMessage");
@@ -696,7 +685,29 @@ async function processVideoWithPoints() {
   const dbscanEpsilon = document.getElementById("dbscan-epsilon").value;
   const deformityDelta = document.getElementById("deformity-delta").value;
 
+  const fullVideoRadio = document.getElementById("full-video");
+  const specificSecondsRadio = document.getElementById("specific-seconds");
+  const processingTimeInput = document.getElementById("processing-time");
+
+  let processingSeconds;
+  if (fullVideoRadio.checked) {
+    // Use maximum integer value for full video processing
+    processingSeconds = Number.MAX_SAFE_INTEGER;
+  } else if (specificSecondsRadio.checked) {
+    processingSeconds = parseInt(processingTimeInput.value) || 5; // Default to 5 if invalid
+  } else {
+    // Fallback default
+    processingSeconds = 5;
+  }
+
   const processPointCloudButton = document.getElementById("processPointCloud");
+  const stopButton = document.getElementById("stopProcessing");
+  
+  if (stopButton) {
+    stopButton.style.display = "inline-block";
+    stopButton.disabled = false;
+    stopButton.textContent = "Stop Processing";
+  }
   if (processPointCloudButton) {
     processPointCloudButton.disabled = true;
   }
@@ -720,7 +731,8 @@ async function processVideoWithPoints() {
       job_id: currentJobId, // Pass the job ID to the server
       smoothing_alpha: smoothingAlpha,
       dbscan_epsilon: dbscanEpsilon,
-      deformity_delta: deformityDelta
+      deformity_delta: deformityDelta,
+      processing_seconds: processingSeconds
     });
   } catch (error) {
     statusElement.className = "processing-status status-error";
@@ -736,6 +748,8 @@ async function processVideoWithPoints() {
     if (processPointCloudButton) {
       processPointCloudButton.disabled = false;
     }
+
+    resetProcessingButtons();
   }
 }
 
@@ -747,6 +761,13 @@ async function sendValidationContinue() {
 
   // Get the request ID
   const requestId = window.pendingValidationRequestId;
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+  
+  statusElement.className = "processing-status status-processing";
+  statusElement.style.display = "block";
+  statusMessageElement.innerHTML =
+    '<div class="loading-spinner"></div> Processing video with TAPIR (this may take several minutes)...';
 
   if (requestId) {
     // Send the response back as a new event
@@ -884,4 +905,56 @@ function copyValidationsToClipboard() {
       console.error("Failed to copy: ", err);
       alert("Failed to copy to clipboard");
     });
+}
+
+
+async function stopProcessing() {
+  if (!currentJobId) {
+    showStatus("No processing job is currently running.", "error");
+    return;
+  }
+
+  const stopButton = document.getElementById("stopProcessing");
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+
+  // Disable the stop button to prevent multiple clicks
+  stopButton.disabled = true;
+  stopButton.textContent = "Stopping...";
+
+  try {
+    // Send stop signal via socket
+    socket.emit("stop_job", {
+      job_id: currentJobId,
+    });
+
+    // Update UI to show stopping status
+    statusElement.className = "processing-status status-processing";
+    statusMessageElement.innerHTML = '<div class="loading-spinner"></div> Stopping processing...';
+
+    showStatus("Stop signal sent. Processing will stop at the next checkpoint.", "processing");
+  } catch (error) {
+    console.error("Error stopping processing:", error);
+    showStatus(`Error stopping processing: ${error.message}`, "error");
+
+    // Re-enable the stop button if there's an error
+    stopButton.disabled = false;
+    stopButton.textContent = "Stop Processing";
+  }
+}
+
+function requestValidation(data) {
+  console.log("Validation requested by server:", data);
+
+  // Store the request ID
+  window.pendingValidationRequestId = data.request_id;
+
+  // Show the validation button
+  document.getElementById("validationContinue").style.display = "block";
+
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+
+  statusElement.className = "processing-status status-validation";
+  statusMessageElement.textContent = "Please Validate";
 }

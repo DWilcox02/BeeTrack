@@ -42,6 +42,60 @@
         <div class="point-controls">
             <h2>Parameter Adjustment</h2>
             <div>
+                <h4 style="margin-inline: 10px;">Video Processing Duration</h4>
+                <div style="margin-left: 20px;">
+                    <div style="margin-bottom: 10px;">
+                        <label>
+                            <input type="radio" name="processing-option" value="seconds" id="specific-seconds" checked>
+                            Process specific number of seconds
+                        </label>
+                    </div>
+
+                    <div style="margin-left: 20px; margin-top: 10px;">
+                        <input type="number" value="5" id="processing-time" disabled>
+                        <span style="margin-left: 5px;">seconds</span>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <label>
+                            <input type="radio" name="processing-option" value="full" id="full-video">
+                            Process full video
+                        </label>
+                    </div>
+                    
+                    
+                </div>
+                
+                <div style="margin-left: 20px; margin-top: 15px;">
+                    <p style="font-size: 14px; color: #666;">
+                        Choose to process the entire video or specify how many seconds to process at once
+                    </p>
+                </div>
+                <script>
+                    const fullVideoRadio = document.getElementById('full-video');
+                    const specificSecondsRadio = document.getElementById('specific-seconds');
+                    const processingTimeInput = document.getElementById('processing-time');
+
+                    function updateInputState() {
+                        if (fullVideoRadio.checked) {
+                            processingTimeInput.disabled = true;
+                            processingTimeInput.style.opacity = '0.5';
+                        } else {
+                            processingTimeInput.disabled = false;
+                            processingTimeInput.style.opacity = '1';
+                            processingTimeInput.focus();
+                        }
+                    }
+
+                    fullVideoRadio.addEventListener('change', updateInputState);
+                    specificSecondsRadio.addEventListener('change', updateInputState);
+
+                    // Initialize the state
+                    updateInputState();
+                </script>
+            </div>
+
+            <div>
                 <div style="display: flex;">
                     <h4 style="margin-inline: 10px;">Smoothing Alpha &#x03B1; = </h4>
                     <input type="number" value="1" id="smoothing-alpha">
@@ -51,9 +105,9 @@
                         Smoothing is used to balance between raw TAPIR calculations and interpolation. 
                     <br>
                     <ul>
-                        <li>&#x03B1; = 1 will result in a roughly 50-50 split between raw mean tracks and interpolation.</li> 
-                        <li>&#x03B1; &gt; 1 will give more weight to the raw mean than to the interpolation.</li>
-                        <li>&#x03B1; &lt; 1 will give more weight to interpolation than the raw mean.</li>
+                        <li><b>&#x03B1; = 1</b> will result in a roughly <b>50-50 split</b> between raw mean tracks and interpolation.</li> 
+                        <li><b>&#x03B1; &gt; 1</b> will give more weight to the <b>raw mean</b> than to the interpolation.</li>
+                        <li><b>&#x03B1; &lt; 1</b> will give more weight to <b>interpolation</b> than the raw mean.</li>
                     </ul>
                     (<b>Note</b>: This is not the final output. All tracks and annotations (raw TAPIR mean, interpolations, and smoothed tracks) will be available in the CSV file.)    
                     </p>
@@ -148,7 +202,8 @@
             <a href="/" class="btn btn-secondary">Back to Video Library</a>
             <!-- <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button> -->
             <button id="processPointCloud" class="btn btn-action" onclick="processVideoWithPoints()">Process Point Cloud</button>
-            <button id="validationContinue" style="display: none;" class="btn btn-action" onclick="sendValidationContinue()">Validate and Continue</button>
+            <button id="stopProcessing" class="btn btn-secondary" onclick="stopProcessing()" style="display: none; background-color: #dc3545; color: white;">Stop Processing</button>
+            <button id="validationContinue" style="display: none;" class="btn btn-validation" onclick="sendValidationContinue()">Validate and Continue</button>        
         </div>
 
         <div class="timeline">
@@ -169,16 +224,17 @@
         </div>
     </div>
 
+    <div id="processingStatus" class="processing-status">
+        <span id="statusMessage"></span>
+    </div>
+
     <div id="processingLogs" class="processing-logs" style="display: none;">
         <h3>Processing Logs</h3>
         <div class="log-container">
             <pre id="logContent" class="log-content"></pre>
         </div>
     </div>
-    
-    <div id="processingStatus" class="processing-status">
-        <span id="statusMessage"></span>
-    </div>    
+     
 
     <div id="tracksData" style="display: flex;">
         <div id="validationData">

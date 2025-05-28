@@ -51,94 +51,92 @@ app.get("/video/:filename", (req, res) => {
 
 app.get("/analysis/:filename", async (req, res) => {
   try {
-    if (req.params.filename != "undefined") {
-      // Get the first frame from the Flask backend
-      const frameResponse = await fetch(`${backend_url}/api/extract_first_frame/${req.params.filename}`);
+    // Get the first frame from the Flask backend
+    const frameResponse = await fetch(`${backend_url}/api/extract_first_frame/${req.params.filename}`);
 
-      if (!frameResponse.ok) {
-        throw new Error(`Failed to fetch frame: ${frameResponse.statusText}`);
-      }
-
-      const frameData = await frameResponse.json();
-
-      // Generate a unique session ID
-      const session_id = Math.random().toString(36).substring(2, 15);
-
-      // Initial points in a rectangle shape (similar to Flask implementation)
-      const width = frameData.width;
-      const height = frameData.height;
-
-      let points = [
-        { x: width * 0.25, y: height * 0.25, color: "red", radius: 50 },
-        { x: width * 0.75, y: height * 0.25, color: "green", radius: 50 },
-        { x: width * 0.75, y: height * 0.75, color: "blue", radius: 50 },
-        // { x: width * 0.25, y: height * 0.75, color: "purple", radius: 50 },
-      ];
-
-      // Static points for outside_florea
-      points = [
-        { x: 1017.80, y: 638.10, color: "red", radius: 24.00 },
-        { x: 1060.99, y: 675.88, color: "green", radius: 24.00 },
-        { x: 1036.30, y: 658.90, color: "blue", radius: 24.00 },
-      ];
-
-      // Static points for dance_15
-      // points = [
-      //   { x: 308.6, y: 349.6, color: "red", radius: 32 },
-      //   { x: 336.6, y: 271.1, color: "green", radius: 32 },
-      //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
-      //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
-      // ];
-      // points = [
-      //   { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
-      //   { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
-      //   { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
-      // ];
-
-      // Static points for round_dance
-      // points = [
-      //   {
-      //     x: 301,
-      //     y: 227,
-      //     color: "red",
-      //     radius: 18.0,
-      //   },
-      //   {
-      //     x: 283.7142857142857,
-      //     y: 237.66294642857144,
-      //     color: "green",
-      //     radius: 20.0,
-      //   },
-      //   {
-      //     x: 251,
-      //     y: 260,
-      //     color: "blue",
-      //     radius: 18.0,
-      //   },
-      // ];
-
-      // Static points for round_dance_cropped
-      // points = [
-      //   { x: 456, y: 293, color: "red", radius: 18 },
-      //   { x: 442, y: 265, color: "green", radius: 20.0 },
-      //   { x: 418, y: 236, color: "blue", radius: 18 },
-      // ];
-
-      // Generate Plotly HTML using Plotly.js
-      // Note: We'll create a client-side solution instead of server-side rendering
-        
-      const data = {
-        filename: req.params.filename,
-        session_id: session_id,
-        imageData: frameData.image,
-        width: frameData.width,
-        height: frameData.height,
-        points: JSON.stringify(points),
-        plot_html: "", // We'll generate this on client-side
-      };
-
-      res.render("frame_analysis", data);
+    if (!frameResponse.ok) {
+      throw new Error(`Failed to fetch frame: ${frameResponse.statusText}`);
     }
+
+    const frameData = await frameResponse.json();
+
+    // Generate a unique session ID
+    const session_id = Math.random().toString(36).substring(2, 15);
+
+    // Initial points in a rectangle shape (similar to Flask implementation)
+    const width = frameData.width;
+    const height = frameData.height;
+
+    let points = [
+      { x: width * 0.25, y: height * 0.25, color: "red", radius: 50 },
+      { x: width * 0.75, y: height * 0.25, color: "green", radius: 50 },
+      { x: width * 0.75, y: height * 0.75, color: "blue", radius: 50 },
+      // { x: width * 0.25, y: height * 0.75, color: "purple", radius: 50 },
+    ];
+
+    // Static points for outside_florea
+    // points = [
+    //   { x: 1017.80, y: 638.10, color: "red", radius: 24.00 },
+    //   { x: 1060.99, y: 675.88, color: "green", radius: 24.00 },
+    //   { x: 1036.30, y: 658.90, color: "blue", radius: 24.00 },
+    // ];
+
+    // Static points for dance_15
+    // points = [
+    //   { x: 308.6, y: 349.6, color: "red", radius: 32 },
+    //   { x: 336.6, y: 271.1, color: "green", radius: 32 },
+    //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
+    //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
+    // ];
+    points = [
+      { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
+      { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
+      { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
+    ];
+
+    // Static points for round_dance
+    // points = [
+    //   {
+    //     x: 301,
+    //     y: 227,
+    //     color: "red",
+    //     radius: 18.0,
+    //   },
+    //   {
+    //     x: 283.7142857142857,
+    //     y: 237.66294642857144,
+    //     color: "green",
+    //     radius: 20.0,
+    //   },
+    //   {
+    //     x: 251,
+    //     y: 260,
+    //     color: "blue",
+    //     radius: 18.0,
+    //   },
+    // ];
+
+    // Static points for round_dance_cropped
+    // points = [
+    //   { x: 456, y: 293, color: "red", radius: 18 },
+    //   { x: 442, y: 265, color: "green", radius: 20.0 },
+    //   { x: 418, y: 236, color: "blue", radius: 18 },
+    // ];
+
+    // Generate Plotly HTML using Plotly.js
+    // Note: We'll create a client-side solution instead of server-side rendering
+      
+    const data = {
+      filename: req.params.filename,
+      session_id: session_id,
+      imageData: frameData.image,
+      width: frameData.width,
+      height: frameData.height,
+      points: JSON.stringify(points),
+      plot_html: "", // We'll generate this on client-side
+    };
+
+    res.render("frame_analysis", data);
   } catch (error) {
       console.error("Error in analysis route:", error);
       res.status(500).send(`Error processing frame: ${error.message}`);

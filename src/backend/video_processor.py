@@ -9,6 +9,7 @@ import cv2
 import base64
 import copy
 
+from threading import Event
 from typing import List
 
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
@@ -60,7 +61,6 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-NUM_SLICES = 1
 CONFIDENCE_THRESHOLD = 0.7
 
 
@@ -73,7 +73,8 @@ class VideoProcessor():
         frontend_communicator: FrontendCommunicator,
         video,
         job_id,
-        processing_configuration: ProcessingConfiguration
+        processing_configuration: ProcessingConfiguration, 
+        stop_event: Event
     ):
         self.session_id = session_id
         self.point_cloud_estimator = point_cloud_estimator
@@ -84,6 +85,8 @@ class VideoProcessor():
         self.point_data_store = point_data_store
         self.smoothing_alpha = processing_configuration.smoothing_alpha
         self.deformity_delta = processing_configuration.deformity_delta
+        self.num_slices = processing_configuration.processing_seconds
+        self.stop_event = stop_event
 
         # Shape of initial point clouds
         self.point_cloud_generator = CircularPointCloudGenerator()
@@ -315,6 +318,10 @@ class VideoProcessor():
         
         return current_query_points, current_point_clouds
 
+
+    def should_stop(self):
+        """Check if processing should stop."""
+        return self.stop_event is not None and self.stop_event.is_set()
 
     def generate_segment_tracks(
             self, 
@@ -595,8 +602,8 @@ class VideoProcessor():
                 segments_to_process = min(total_segments, max_segments)
             else:
                 segments_to_process = total_segments
-            # TODO: Remove
-            segments_to_process = NUM_SLICES
+
+            segments_to_process = self.num_slices
 
             self.log(f"Video will be processed in {segments_to_process} segments")
 
@@ -627,6 +634,10 @@ class VideoProcessor():
             self.add_validation()
             # Process each segment
             for i in range(segments_to_process):
+                if self.should_stop():
+                    self.log("Processing stopped by user request")
+                    return {"success": False, "stopped": True, "message": "Processing stopped by user"}
+
                 start_frame = i * fps
                 end_frame = min((i + 1) * fps, total_frames)
 
@@ -635,6 +646,10 @@ class VideoProcessor():
 
                 # Process the slice
                 try:
+                    if self.should_stop():
+                        self.log("Processing stopped by user request")
+                        return {"success": False, "stopped": True, "message": "Processing stopped by user"}
+
                     start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     for pc_i, pc in enumerate(point_clouds):
                         self.log(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
@@ -653,12 +668,18 @@ class VideoProcessor():
                         width,
                         height,
                         resized_points,
+                        stop_event=self.stop_event,
                         resize_width=resize_width,
                         resize_height=resize_height,
                     )
                     # slice_result: EstimationSlice = self.point_cloud_estimator.process_cached_dance_15(
                     #     orig_frames_slice
                     # )
+
+                    if self.should_stop():
+                        self.log("Processing stopped by user request")
+                        return {"success": False, "stopped": True, "message": "Processing stopped by user"}
+                    
 
                     final_positions = slice_result.get_points_for_frame(
                         frame=-1, 
@@ -763,8 +784,13 @@ class VideoProcessor():
 
                     self.log(traceback.format_exc())
 
+            if self.should_stop():
+                self.log("Processing stopped by user request")
+                return {"success": False, "stopped": True, "message": "Processing stopped by user"}
+
             # Prepare final video
-            final_video_output_path = OUTPUT_DIR + "POINT_CLOUD_" + filename
+            filename_output_path = "POINT_CLOUD_" + filename
+            final_video_output_path = OUTPUT_DIR + filename_output_path
             name, _ = filename.split(".")
             final_tracks_output_path = OUTPUT_DIR + "TRACKS_" + name + ".txt"
             final_errors_output_path = OUTPUT_DIR + "ERRORS_" + name + ".json"
@@ -791,7 +817,7 @@ class VideoProcessor():
 
             self.log(f"Processing completed successfully for {filename}")
 
-            return {"success": True, "output_filename": final_video_output_path, "fps": fps}
+            return {"success": True, "output_filename": filename_output_path, "fps": fps}
 
         except Exception as e:
             import traceback

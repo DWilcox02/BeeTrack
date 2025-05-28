@@ -95,6 +95,9 @@ to start the frontend server, at `http://localhost:3000`
     - Frame-by-frame update
     - Saved inputs
     - Saved outputs
+18. Workflow Smoothing:
+    - Fix refresh error (frontend render)
+    - Ability to stop and restart processing (without shutting down backend server)
 
 ### Next Steps
 (Not necessarily in order of priority)
@@ -103,7 +106,7 @@ to start the frontend server, at `http://localhost:3000`
     - Video output
     - Normalize user interface to 15fps
     - Arbitrary number of points
-- Explore MST possibility
+- Explore Geometric Alignment Possibilities
 
 
 - Normalize video FPS to 15. Any higher results in unnecessarly heavy computation
