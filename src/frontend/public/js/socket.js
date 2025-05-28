@@ -197,13 +197,7 @@ socket.on("update_points_with_frame", (result) => {
 
 
 socket.on("validation_request", (data, callback) => {
-  console.log("Validation requested by server:", data);
-
-  // Store the request ID
-  window.pendingValidationRequestId = data.request_id;
-
-  // Show the validation button
-  document.getElementById("validationContinue").style.display = "block";
+  requestValidation(data);
 });
 
 
@@ -249,6 +243,15 @@ socket.on("add_validation", (data) => {
 socket.on("stop_job_success", (data) => {
   console.log("Stop job success:", data);
   showStatus(`Stop signal sent successfully for job ${data.job_id}`, "processing");
+
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+
+  // Update status to success
+  statusElement.className = "processing-status status-success";
+  statusMessageElement.innerHTML = `Process Stopped`;
+
+
   resetProcessingButtons();
 });
 
@@ -262,6 +265,30 @@ socket.on("stop_job_error", (data) => {
   if (stopButton) {
     stopButton.disabled = false;
     stopButton.textContent = "Stop Processing";
+  }
+});
+
+
+socket.on("process_complete", (result) => {
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+
+  // Update status to success
+  statusElement.className = "processing-status status-success";
+  statusMessageElement.innerHTML = `<strong>Success!</strong> Point cloud processing complete. View output video at <a href="/output/${result.output_filename}" target="_blank">${result.output_filename}</a>`;
+
+  resetProcessingButtons();
+
+  // Re-enable the process button
+  const processButton = document.getElementById("processPointCloud");
+  if (processButton) {
+    processButton.disabled = false;
+  }
+
+  // Show validation button if appropriate
+  const validationButton = document.getElementById("validationContinue");
+  if (validationButton) {
+    validationButton.style.display = "block";
   }
 });
 

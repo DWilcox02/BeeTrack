@@ -789,7 +789,8 @@ class VideoProcessor():
                 return {"success": False, "stopped": True, "message": "Processing stopped by user"}
 
             # Prepare final video
-            final_video_output_path = OUTPUT_DIR + "POINT_CLOUD_" + filename
+            filename_output_path = "POINT_CLOUD_" + filename
+            final_video_output_path = OUTPUT_DIR + filename_output_path
             name, _ = filename.split(".")
             final_tracks_output_path = OUTPUT_DIR + "TRACKS_" + name + ".txt"
             final_errors_output_path = OUTPUT_DIR + "ERRORS_" + name + ".json"
@@ -816,7 +817,7 @@ class VideoProcessor():
 
             self.log(f"Processing completed successfully for {filename}")
 
-            return {"success": True, "output_filename": final_video_output_path, "fps": fps}
+            return {"success": True, "output_filename": filename_output_path, "fps": fps}
 
         except Exception as e:
             import traceback

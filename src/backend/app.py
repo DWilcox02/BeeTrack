@@ -314,7 +314,7 @@ def handle_process_video_with_points(data):
             video_processor.set_log_message_function(log_message)
             # Process the video
             init_query_points = point_data_store[session_id]["points"]
-            result = video_processor.process_video(init_query_points)
+            result: dict = video_processor.process_video(init_query_points)  # {"success": True, "output_filename": final_video_output_path, "fps": fps}
 
             if stop_event.is_set():
                 log_message(job_id, "STOPPED: Processing was stopped by user")
@@ -322,9 +322,6 @@ def handle_process_video_with_points(data):
                 return
 
             if result.get("success", False):
-                # Create URL for the processed video
-                output_url = f"/output/{result['output_filename']}"
-                result["output_url"] = output_url
 
                 # Signal completion
                 log_message(job_id, "DONE: Processing completed successfully.")
@@ -332,8 +329,10 @@ def handle_process_video_with_points(data):
                 # Store result for later retrieval
                 log_message(job_id, f"RESULT:{json.dumps(result)}")
 
+                result["job_id"] = job_id
+
                 # Emit the completion event
-                socketio.emit(f"process_complete_{job_id}", result)
+                socketio.emit("process_complete", result)
             else:
                 error_msg = result.get("error", "Unknown error during processing")
                 log_message(job_id, f"ERROR: {error_msg}")

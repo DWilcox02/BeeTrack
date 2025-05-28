@@ -203,7 +203,7 @@
             <!-- <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button> -->
             <button id="processPointCloud" class="btn btn-action" onclick="processVideoWithPoints()">Process Point Cloud</button>
             <button id="stopProcessing" class="btn btn-secondary" onclick="stopProcessing()" style="display: none; background-color: #dc3545; color: white;">Stop Processing</button>
-            <button id="validationContinue" style="display: none;" class="btn btn-action" onclick="sendValidationContinue()">Validate and Continue</button>
+            <button id="validationContinue" style="display: none;" class="btn btn-validation" onclick="sendValidationContinue()">Validate and Continue</button>        
         </div>
 
         <div class="timeline">
@@ -224,16 +224,17 @@
         </div>
     </div>
 
+    <div id="processingStatus" class="processing-status">
+        <span id="statusMessage"></span>
+    </div>
+
     <div id="processingLogs" class="processing-logs" style="display: none;">
         <h3>Processing Logs</h3>
         <div class="log-container">
             <pre id="logContent" class="log-content"></pre>
         </div>
     </div>
-    
-    <div id="processingStatus" class="processing-status">
-        <span id="statusMessage"></span>
-    </div>    
+     
 
     <div id="tracksData" style="display: flex;">
         <div id="validationData">

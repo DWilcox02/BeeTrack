@@ -87,28 +87,7 @@ window.handleJobLog = function (jobId, message) {
   });
 
   // Check for completion or error
-  if (message.startsWith("DONE:")) {
-    const statusElement = document.getElementById("processingStatus");
-    const statusMessageElement = document.getElementById("statusMessage");
-
-    // Update status to success
-    statusElement.className = "processing-status status-success";
-    statusMessageElement.innerHTML = "<strong>Success!</strong> Point cloud processing complete.";
-
-    resetProcessingButtons();
-
-    // Re-enable the process button
-    const processButton = document.getElementById("processPointCloud");
-    if (processButton) {
-      processButton.disabled = false;
-    }
-
-    // Show validation button if appropriate
-    const validationButton = document.getElementById("validationContinue");
-    if (validationButton) {
-      validationButton.style.display = "block";
-    }
-  } else if (message.startsWith("ERROR:")) {
+  if (message.startsWith("ERROR:")) {
     const statusElement = document.getElementById("processingStatus");
     const statusMessageElement = document.getElementById("statusMessage");
 
@@ -782,6 +761,13 @@ async function sendValidationContinue() {
 
   // Get the request ID
   const requestId = window.pendingValidationRequestId;
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+  
+  statusElement.className = "processing-status status-processing";
+  statusElement.style.display = "block";
+  statusMessageElement.innerHTML =
+    '<div class="loading-spinner"></div> Processing video with TAPIR (this may take several minutes)...';
 
   if (requestId) {
     // Send the response back as a new event
@@ -955,4 +941,20 @@ async function stopProcessing() {
     stopButton.disabled = false;
     stopButton.textContent = "Stop Processing";
   }
+}
+
+function requestValidation(data) {
+  console.log("Validation requested by server:", data);
+
+  // Store the request ID
+  window.pendingValidationRequestId = data.request_id;
+
+  // Show the validation button
+  document.getElementById("validationContinue").style.display = "block";
+
+  const statusElement = document.getElementById("processingStatus");
+  const statusMessageElement = document.getElementById("statusMessage");
+
+  statusElement.className = "processing-status status-validation";
+  statusMessageElement.textContent = "Please Validate";
 }
