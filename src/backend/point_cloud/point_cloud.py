@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.spatial.distance import pdist
+
 
 class PointCloud():
     def __init__(
@@ -112,14 +114,12 @@ class PointCloud():
             self, 
             mean: np.ndarray = None,
             points: np.ndarray = None
-        ):
+        ) -> float:
 
         if mean is None: 
             mean = self.query_point_array()
         if points is None:
             points = self.query_point_predictions()
 
-        
 
-
-        return np.sum(np.linalg.norm(mean - points, axis=1))
+        return np.mean(pdist(points))

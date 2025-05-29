@@ -61,7 +61,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-CONFIDENCE_THRESHOLD = 0.7
+CONFIDENCE_THRESHOLD = 1.0
 
 
 class VideoProcessor():
@@ -395,7 +395,7 @@ class VideoProcessor():
             cloud_point_distances = np.linalg.norm(c_v - c_p, axis=1)
             
             # 4. Deformity: Sum of all cloud point distances
-            deformity = np.sum(cloud_point_distances)
+            deformity = pred.deformity()
             
             # 5. Deformity Median
             deformity_median = np.median(cloud_point_distances)
