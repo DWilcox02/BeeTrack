@@ -196,9 +196,9 @@ checkpoints/tapir/*
 # VSCode
 .vscode
 
-# References
+# Test data
 **/*.mp4
 **/references
-
-# Annotations
 **/annotations
+**/errors
+**/charts

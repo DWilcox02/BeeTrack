@@ -96,6 +96,8 @@ class VideoProcessor():
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
         self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
         self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
+        # self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliers()
+        # self.point_cloud_validated_reconstructor = PointCloudRedrawOutliers()
         # num_points = len(point_data_store[session_id]["points"])
         # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
         # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
