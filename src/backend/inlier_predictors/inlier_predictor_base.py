@@ -16,9 +16,8 @@ class InlierPredictorBase():
     def log(self, message):
         self.log_fn(message)
 
-
     def predict_inliers_rotations(self, old_point_clouds: List[PointCloud], final_positions: np.ndarray):
-        return np.array([
-            ([True] * len(pc.cloud_points), 0) 
+        return [
+            (np.array([True] * len(pc.cloud_points), dtype=bool), 0)
             for pc in old_point_clouds
-        ], dtype=bool)
+        ]
