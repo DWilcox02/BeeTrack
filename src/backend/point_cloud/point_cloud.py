@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 from scipy.spatial.distance import pdist
 
@@ -15,7 +16,7 @@ class PointCloud():
             orig_vectors=None,
             log_fn=None
         ):
-        self.query_point: dict = query_point
+        self.query_point: dict = copy.deepcopy(query_point)
         self.cloud_points: np.ndarray = cloud_points
         self.radius = radius
         self.rotation: np.ndarray = rotation
@@ -29,7 +30,7 @@ class PointCloud():
         else:
             self.vectors_qp_to_cp = vectors_qp_to_cp
         if inliers is None:
-            self.inliers = [True] * len(cloud_points)
+            self.inliers = np.array([True] * len(cloud_points), dtype=bool)
         else:
             self.inliers = inliers
         if orig_vectors is None:

@@ -276,7 +276,7 @@ class VideoProcessor():
         initial_positions = [cloud.cloud_points for cloud in current_point_clouds]
 
         confidence = min([p.confidence(inliers, self.deformity_delta) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
-        request_validation = confidence < CONFIDENCE_THRESHOLD
+        request_validation = confidence <= CONFIDENCE_THRESHOLD
 
         self.export_to_point_data_store(predicted_query_points)
         self.send_current_frame_data(
@@ -325,6 +325,7 @@ class VideoProcessor():
     def should_stop(self):
         """Check if processing should stop."""
         return self.stop_event is not None and self.stop_event.is_set()
+
 
     def generate_segment_tracks(
             self, 
@@ -642,8 +643,6 @@ class VideoProcessor():
                         return {"success": False, "stopped": True, "message": "Processing stopped by user"}
 
                     start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
-                    for pc_i, pc in enumerate(point_clouds):
-                        self.log(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
@@ -704,8 +703,6 @@ class VideoProcessor():
                         query_point_reconstructions=aligned_query_point_reconstructions,
                         weights=weights
                     )
-                    for pc_i, pc in enumerate(predicted_point_clouds):
-                        self.log(f"Predicted cloud {pc_i} deformity pre-validation: {pc.deformity()}")
 
                     # Update weights and potentially request validation
                     query_points, point_clouds = self.validate_and_update_weights(

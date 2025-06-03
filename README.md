@@ -107,6 +107,7 @@ to start the frontend server, at `http://localhost:3000`
     - Arbitrary number of points
 - Explore Geometric Alignment Possibilities
 - Ensure linux compatibility
+- Fix stop processing parameter change error
 
 ### DoC GPU Cluster Guide
 https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
