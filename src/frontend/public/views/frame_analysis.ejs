@@ -109,7 +109,7 @@
                         <li><b>&#x03B1; &gt; 1</b> will give more weight to the <b>raw mean</b> than to the interpolation.</li>
                         <li><b>&#x03B1; &lt; 1</b> will give more weight to <b>interpolation</b> than the raw mean.</li>
                     </ul>
-                    (<b>Note</b>: This is not the final output. All tracks and annotations (raw TAPIR mean, interpolations, and smoothed tracks) will be available in the CSV file.)    
+                    (<b>Note</b>: This is not the final output. All tracks and annotations (raw cloud prediction, interpolations, and smoothed tracks) will be available in the CSV file.)    
                     </p>
                 </div>
             </div>
@@ -135,14 +135,14 @@
             <div>
                 <div style="display: flex;">
                     <h4 style="margin-inline: 10px;">Deformity Delta &#x03B4; = </h4>
-                    <input type="number" value="2.5" id="deformity-delta">
+                    <input type="number" value="10" id="deformity-delta">
                 </div>
                 <div style="margin-left: 20px;">
                     <p>
                         Used to calculate deformity ratio. Because deformity has no upper bound, a manual input is required.
                         <br>
-                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 2.5.
-                        Deformity Ratio = &#x03B4; / Deformity.
+                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 10.
+                        Deformity Ratio = Deformity / (r * r * &#x03B4;).
                     <br>
                     <ul>
                         <li><b>Higher &#x03B4;</b> will result in lower deformity ratio (more confident) and will be <b>less likely</b> to trigger validations.</li> 

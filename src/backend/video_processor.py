@@ -61,7 +61,7 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
 
 
-CONFIDENCE_THRESHOLD = 0.7
+CONFIDENCE_THRESHOLD = 1.0
 
 
 class VideoProcessor():
@@ -92,10 +92,13 @@ class VideoProcessor():
         self.point_cloud_generator = CircularPointCloudGenerator()
 
         # Choices for experimentation
+        # self.inlier_predictor = InlierPredictorBase()
         self.inlier_predictor = DBSCANInlierPredictor(processing_configuration.dbscan_epsilon)
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
-        self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
-        self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
+        self.point_cloud_non_validated_reconstructor = PointCloudReconstructorBase()
+        self.point_cloud_validated_reconstructor = PointCloudReconstructorBase()
+        # self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
+        # self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
         # num_points = len(point_data_store[session_id]["points"])
         # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
         # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
@@ -259,6 +262,7 @@ class VideoProcessor():
 
     def validate_and_update_weights(
             self, 
+            deformities: List[float],
             predicted_point_clouds: List[PointCloud], 
             current_point_clouds: List[PointCloud], 
             inliers_rotations: List[tuple[np.ndarray, float]],
@@ -272,8 +276,8 @@ class VideoProcessor():
         current_query_points = [cloud.query_point for cloud in current_point_clouds]
         initial_positions = [cloud.cloud_points for cloud in current_point_clouds]
 
-        confidence = min([p.confidence(inliers, self.deformity_delta) for p, (inliers, _) in zip(predicted_point_clouds, inliers_rotations)])
-        request_validation = confidence < CONFIDENCE_THRESHOLD
+        confidence = min([p.confidence(inliers, d, self.deformity_delta) for p, (inliers, _), d in zip(predicted_point_clouds, inliers_rotations, deformities)])
+        request_validation = confidence <= CONFIDENCE_THRESHOLD
 
         self.export_to_point_data_store(predicted_query_points)
         self.send_current_frame_data(
@@ -322,6 +326,7 @@ class VideoProcessor():
     def should_stop(self):
         """Check if processing should stop."""
         return self.stop_event is not None and self.stop_event.is_set()
+
 
     def generate_segment_tracks(
             self, 
@@ -395,7 +400,7 @@ class VideoProcessor():
             cloud_point_distances = np.linalg.norm(c_v - c_p, axis=1)
             
             # 4. Deformity: Sum of all cloud point distances
-            deformity = np.sum(cloud_point_distances)
+            deformity = pred.deformity()
             
             # 5. Deformity Median
             deformity_median = np.median(cloud_point_distances)
@@ -638,9 +643,11 @@ class VideoProcessor():
                         self.log("Processing stopped by user request")
                         return {"success": False, "stopped": True, "message": "Processing stopped by user"}
 
+                    print("Initial deformities:")
+                    for pc in point_clouds:
+                        print(pc.deformity())
+
                     start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
-                    for pc_i, pc in enumerate(point_clouds):
-                        self.log(f"Cloud {pc_i} deformity at beginning: {pc.deformity()}")
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
                     resized_points = self.resize_points_add_frame(
@@ -676,9 +683,12 @@ class VideoProcessor():
                     )
                     
                     # Experimental Predictions
-                    inliers_rotations: List[tuple[np.ndarray, float]] = self.inlier_predictor.predict_inliers_rotations(
-                        old_point_clouds=point_clouds, 
-                        final_positions=final_positions)
+                    inliers_rotations_deformities: List[tuple[np.ndarray, float, float]] = (
+                        self.inlier_predictor.predict_inliers_rotations(
+                            old_point_clouds=point_clouds, final_positions=final_positions
+                        )
+                    )
+                    inliers_rotations = [(ils, r) for ils, r, _ in inliers_rotations_deformities]
                     query_point_reconstructions: List[np.ndarray] = self.query_point_reconstructor.reconstruct_query_points(
                         old_point_clouds=point_clouds,
                         final_positions=final_positions,
@@ -701,11 +711,11 @@ class VideoProcessor():
                         query_point_reconstructions=aligned_query_point_reconstructions,
                         weights=weights
                     )
-                    for pc_i, pc in enumerate(predicted_point_clouds):
-                        self.log(f"Predicted cloud {pc_i} deformity pre-validation: {pc.deformity()}")
 
                     # Update weights and potentially request validation
+                    deformities = [d for _, _, d in inliers_rotations_deformities]
                     query_points, point_clouds = self.validate_and_update_weights(
+                        deformities=deformities,
                         predicted_point_clouds=predicted_point_clouds, 
                         current_point_clouds=point_clouds,
                         inliers_rotations=inliers_rotations,

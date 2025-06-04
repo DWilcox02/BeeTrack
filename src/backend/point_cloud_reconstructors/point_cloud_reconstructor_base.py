@@ -39,9 +39,6 @@ class PointCloudReconstructorBase():
             point_clouds: List[PointCloud],
             weights: List[np.ndarray]
         ) -> List[PointCloud]:
-        # TODO: Redraw all OUTLIERS and use weights to lerp between reconstructed point and final position
-        # Therefore good weights mean the point is doing well so we keep it,
-        # bad weights mean the point is not doing well so we reconstruct
         return [
             self.reconstruct_with_center_rotation(qp, r, pc, w)
             for qp, r, pc, w in zip(query_points, rotations, point_clouds, weights)

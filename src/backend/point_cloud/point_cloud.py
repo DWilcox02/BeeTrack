@@ -1,4 +1,7 @@
+import copy
 import numpy as np
+from scipy.spatial.distance import pdist
+
 
 class PointCloud():
     def __init__(
@@ -11,9 +14,10 @@ class PointCloud():
             vectors_qp_to_cp=None, 
             inliers=None,
             orig_vectors=None,
-            log_fn=None
+            log_fn=None,
+            pdist=None
         ):
-        self.query_point: dict = query_point
+        self.query_point: dict = copy.deepcopy(query_point)
         self.cloud_points: np.ndarray = cloud_points
         self.radius = radius
         self.rotation: np.ndarray = rotation
@@ -27,7 +31,7 @@ class PointCloud():
         else:
             self.vectors_qp_to_cp = vectors_qp_to_cp
         if inliers is None:
-            self.inliers = [True] * len(cloud_points)
+            self.inliers = np.array([True] * len(cloud_points), dtype=bool)
         else:
             self.inliers = inliers
         if orig_vectors is None:
@@ -38,6 +42,8 @@ class PointCloud():
             self.log_fn = print
         else:
             self.log_fn = log_fn
+        # if pdist is None:
+        #     self.pdist = pdist(self.cloud_points)
 
     def set_logger(self, log_fn):
         self.log_fn = log_fn
@@ -60,22 +66,18 @@ class PointCloud():
     def confidence(
             self,
             inliers: np.ndarray, 
+            deformity: float,
             deformity_delta: float
         ):
-        deformity = self.deformity()
-        if deformity == 0:
-            deformity_ratio = 1.0
-        else:
-            deformity_ratio = min((self.radius * deformity_delta) / deformity, 1.0)
+        deformity_ratio = min(deformity / (self.radius * self.radius * deformity_delta), 1.0)
+        deformity_confidence = 1.0 - deformity_ratio
 
-        inlier_ratio = np.sum(inliers) / len(self.cloud_points)
+        inlier_confidence = np.sum(inliers) / len(self.cloud_points)
 
         label = self.query_point["color"]
-        # self.log(f"{label} Deformity Ratio: {deformity_ratio}")
-        # self.log(f"{label} Inlier Ratio: {inlier_ratio}")
-        self.log(f"{label} Confidence: {(inlier_ratio + deformity_ratio) / 2}")
+        self.log(f"{label} Confidence: {(inlier_confidence + deformity_confidence) / 2}")
 
-        return (inlier_ratio + deformity_ratio) / 2
+        return (inlier_confidence + deformity_ratio) / 2
     
     def query_point_predictions(
             self, 
@@ -97,6 +99,8 @@ class PointCloud():
             final_predictions.append(pos - rotated_vec)
 
         final_predictions = np.array(final_predictions, dtype=np.float32)
+        print("Final Predictions: ")
+        print(final_predictions)
         return final_predictions
 
     def rotate_vector(self, vector: np.ndarray, angle_degrees: int) -> np.ndarray:
@@ -110,16 +114,23 @@ class PointCloud():
     
     def deformity(
             self, 
-            mean: np.ndarray = None,
             points: np.ndarray = None
-        ):
+        ) -> float:
 
-        if mean is None: 
-            mean = self.query_point_array()
         if points is None:
             points = self.query_point_predictions()
 
-        
+        # print(f"Mean (query point array): {mean}")
 
+        points_mean = np.mean(points, axis=0)
+        # print(f"Mean of points: {points_mean}")
 
-        return np.sum(np.linalg.norm(mean - points, axis=1))
+        centered_points = points - points_mean
+
+        cov_matrix = np.cov(centered_points.T)
+        # print(f"Covariance matrix: {cov_matrix}")
+
+        variance = np.linalg.det(cov_matrix)
+        # print(f"Variance (determinant of covariance matrix): {variance}")
+
+        return variance
