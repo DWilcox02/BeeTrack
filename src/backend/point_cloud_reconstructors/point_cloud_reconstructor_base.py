@@ -52,8 +52,9 @@ class PointCloudReconstructorBase():
             weights: np.ndarray
         ) -> PointCloud:
         # Create rotation matrix
-        cos_theta = np.cos(rotation)
-        sin_theta = np.sin(rotation)
+        angle_rad = np.radians(rotation)
+        cos_theta = np.cos(angle_rad)
+        sin_theta = np.sin(angle_rad)
 
         rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
 

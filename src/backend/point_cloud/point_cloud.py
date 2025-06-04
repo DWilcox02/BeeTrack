@@ -15,7 +15,6 @@ class PointCloud():
             inliers=None,
             orig_vectors=None,
             log_fn=None,
-            pdist=None
         ):
         self.query_point: dict = copy.deepcopy(query_point)
         self.cloud_points: np.ndarray = cloud_points
@@ -42,8 +41,6 @@ class PointCloud():
             self.log_fn = print
         else:
             self.log_fn = log_fn
-        # if pdist is None:
-        #     self.pdist = pdist(self.cloud_points)
 
     def set_logger(self, log_fn):
         self.log_fn = log_fn
@@ -99,8 +96,6 @@ class PointCloud():
             final_predictions.append(pos - rotated_vec)
 
         final_predictions = np.array(final_predictions, dtype=np.float32)
-        print("Final Predictions: ")
-        print(final_predictions)
         return final_predictions
 
     def rotate_vector(self, vector: np.ndarray, angle_degrees: int) -> np.ndarray:
@@ -117,20 +112,9 @@ class PointCloud():
             points: np.ndarray = None
         ) -> float:
 
-        if points is None:
-            points = self.query_point_predictions()
-
-        # print(f"Mean (query point array): {mean}")
-
         points_mean = np.mean(points, axis=0)
-        # print(f"Mean of points: {points_mean}")
-
         centered_points = points - points_mean
-
         cov_matrix = np.cov(centered_points.T)
-        # print(f"Covariance matrix: {cov_matrix}")
-
         variance = np.linalg.det(cov_matrix)
-        # print(f"Variance (determinant of covariance matrix): {variance}")
 
         return variance

@@ -643,10 +643,6 @@ class VideoProcessor():
                         self.log("Processing stopped by user request")
                         return {"success": False, "stopped": True, "message": "Processing stopped by user"}
 
-                    print("Initial deformities:")
-                    for pc in point_clouds:
-                        print(pc.deformity())
-
                     start_query_points = np.array([pc.query_point_array() for pc in point_clouds], dtype=np.float32)
                     # Flatten point cloud for processing
                     flattened_points = self.flatten_point_clouds(point_clouds)
@@ -702,8 +698,6 @@ class VideoProcessor():
                         old_point_clouds=point_clouds,
                         inliers_rotations=inliers_rotations
                     )
-                    # self.log("Weights after updating with outliers:")
-                    # self.log(weights)
                     predicted_point_clouds: List[PointCloud] = self.point_cloud_non_validated_reconstructor.reconstruct_point_clouds(
                         old_point_clouds=point_clouds,
                         final_positions=final_positions,
@@ -808,10 +802,10 @@ class VideoProcessor():
                 final_tracks_output_path=final_tracks_output_path
             )
 
-            self.write_errors(
-                errors=all_errors, 
-                final_errors_output_path=final_errors_output_path
-            )
+            # self.write_errors(
+            #     errors=all_errors, 
+            #     final_errors_output_path=final_errors_output_path
+            # )
 
             self.log(f"Processing completed successfully for {filename}")
 

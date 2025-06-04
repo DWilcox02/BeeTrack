@@ -109,7 +109,8 @@ to start the frontend server, at `http://localhost:3000`
 - Ensure linux compatibility
 - Fix stop processing parameter change error
 - Fix clustering 0 inliers error
-- Fix 0 deformity error (for low epsilon)
+- Refactor after inliers and deformities and splitting rotation
+- Fix calc_errors function after changes
 
 ### DoC GPU Cluster Guide
 https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
