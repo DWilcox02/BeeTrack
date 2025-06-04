@@ -74,4 +74,5 @@ class PointCloudReconstructorBase():
             weights=point_cloud.weights,
             vectors_qp_to_cp=point_cloud.vectors_qp_to_cp,
             orig_vectors=point_cloud.orig_vectors,
+            log_fn=point_cloud.log_fn
         )

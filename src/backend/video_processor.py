@@ -95,10 +95,10 @@ class VideoProcessor():
         # self.inlier_predictor = InlierPredictorBase()
         self.inlier_predictor = DBSCANInlierPredictor(processing_configuration.dbscan_epsilon)
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
-        self.point_cloud_non_validated_reconstructor = PointCloudReconstructorBase()
-        self.point_cloud_validated_reconstructor = PointCloudReconstructorBase()
-        # self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
-        # self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
+        # self.point_cloud_non_validated_reconstructor = PointCloudReconstructorBase()
+        # self.point_cloud_validated_reconstructor = PointCloudReconstructorBase()
+        self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
+        self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
         # num_points = len(point_data_store[session_id]["points"])
         # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
         # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
@@ -732,12 +732,12 @@ class VideoProcessor():
                         point_clouds=point_clouds
                     )
 
-                    slice_errors = self.calc_errors(
-                        predicted_point_clouds=predicted_point_clouds, 
-                        true_point_clouds=point_clouds, 
-                        frame=end_frame
-                    )
-                    all_errors.append(slice_errors)                    
+                    # slice_errors = self.calc_errors(
+                    #     predicted_point_clouds=predicted_point_clouds, 
+                    #     true_point_clouds=point_clouds, 
+                    #     frame=end_frame
+                    # )
+                    # all_errors.append(slice_errors)                    
 
                     video_segment = slice_result.get_video()
                     # inliers_masks = [b for mask, _ in inliers_rotations for b in mask]
