@@ -116,13 +116,13 @@
             <div>
                 <div style="display: flex;">
                     <h4 style="margin-inline: 10px;">DBScan (Clustering) Epsilon &#x03B5; = </h4>
-                    <input type="number" value="1.5" id="dbscan-epsilon">
+                    <input type="number" value="1" id="dbscan-epsilon">
                 </div>
                 <div style="margin-left: 20px;">
                     <p>
-                        Clustering helps determine confidence in the TAPIR predictions by predicting outliers. &#x03B5; is used to decribe how dense a cluster should be.
+                        Clustering helps determine confidence in the TAPIR predictions by predicting outliers. &#x03B5; represents how "close" predictions should be to each other before they are considered outliers.
                         <br>
-                        &#x03B5; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud during clustering. The default is &#x03B5; = 1.5.
+                        &#x03B5; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud during clustering. The default is &#x03B5; = 1.
                     <br>
                     <ul>
                         <li><b>Higher &#x03B5;</b> will result in larger (more confident) clusters and <b>fewer outliers</b>.</li> 
