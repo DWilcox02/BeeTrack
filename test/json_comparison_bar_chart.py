@@ -3,7 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 
-_, csv_path = sys.argv
+plt.rc("font", **{"family": "serif", "serif": ["Times New Roman", "DejaVu Serif", "Liberation Serif"]})
+# plt.rc("text", usetex=True)
+
+_, csv_path, video_name = sys.argv
 
 # Load the CSV data
 df = pd.read_csv(csv_path)
@@ -94,7 +97,7 @@ for i, frame in enumerate(frames):
                     cluster_pos,
                     cluster_data["euclidean_distance"].iloc[0],
                     bar_width,
-                    label=cluster_filename if i == 0 and j == 0 else "",
+                    label="With Clustering" if i == 0 and j == 0 else "",
                     color="skyblue",
                     alpha=0.8,
                 )
@@ -103,7 +106,7 @@ for i, frame in enumerate(frames):
                     no_cluster_pos,
                     no_cluster_data["euclidean_distance"].iloc[0],
                     bar_width,
-                    label=no_cluster_filename if i == 0 and j == 0 else "",
+                    label="Without Clustering" if i == 0 and j == 0 else "",
                     color="lightcoral",
                     alpha=0.8,
                 )
@@ -115,10 +118,10 @@ for i, frame in enumerate(frames):
                     labels.append(f"Frame {frame}")
 
 # Customize the bar chart
-ax1.set_xlabel("Frame", fontsize=12, fontweight="bold")
-ax1.set_ylabel("Euclidean Distance", fontsize=12, fontweight="bold")
+ax1.set_xlabel("Frame", fontsize=16, fontweight="bold")
+ax1.set_ylabel("Euclidean Distance (pixels)", fontsize=16, fontweight="bold")
 ax1.set_title(
-    "Euclidean Distance Comparison: Cluster vs No-Cluster Reconstructions\nby Frame and Cloud Index",
+    f"Clustering vs No-Clustering Euclidean Distance Comparisons \nby Frame and Cloud Index For First 5 Seconds of {video_name}",
     fontsize=14,
     fontweight="bold",
     pad=20,
@@ -134,26 +137,28 @@ ax1.legend(loc="upper right")
 # Add grid for better readability
 ax1.grid(True, alpha=0.3, axis="y")
 
-# Add cloud index labels
+# Add cloud index labels ABOVE the bars instead of below
+max_distance = max(df["euclidean_distance"])
 for i, frame in enumerate(frames):
     frame_start = i * frame_width
     for j, cloud_idx in enumerate(cloud_indices):
         group_center = frame_start + j * group_width + bar_width / 2
         ax1.text(
             group_center,
-            -max(df["euclidean_distance"]) * 0.08,
+            max_distance * 1.05,  # Position above the highest bar
             f"Cloud {cloud_idx}",
             ha="center",
-            va="top",
+            va="bottom",  # Changed from "top" to "bottom"
             fontsize=9,
             rotation=0,
         )
 
-# Adjust layout to prevent label cutoff
+# Adjust layout to prevent label cutoff and add extra space at top for cloud labels
+ax1.set_ylim(0, max_distance * 1.15)  # Add extra space at the top
 plt.tight_layout()
 
 # Show the bar chart
-plt.show()
+# plt.show()
 
 # ============================================================================
 # SECOND PLOT: Box and Whisker Plot
@@ -168,7 +173,7 @@ no_cluster_distances = df[df["filename"] == no_cluster_filename]["euclidean_dist
 
 # Create box plot
 box_data = [cluster_distances, no_cluster_distances]
-box_labels = [cluster_filename, no_cluster_filename]
+box_labels = ["With Clustering", "Without Clustering"]
 
 bp = ax2.boxplot(
     box_data,
@@ -189,8 +194,13 @@ bp["boxes"][1].set_alpha(0.8)
 
 # Customize the box plot
 ax2.set_xlabel("Reconstruction Type", fontsize=12, fontweight="bold")
-ax2.set_ylabel("Euclidean Distance", fontsize=12, fontweight="bold")
-ax2.set_title("Box and Whisker Plot:\nEuclidean Distance Distribution", fontsize=14, fontweight="bold", pad=20)
+ax2.set_ylabel("Euclidean Distance (pixels)", fontsize=12, fontweight="bold")
+ax2.set_title(
+    f"Clustering vs No-Clustering Euclidean Distance Box and Whisker Plot\n For First 5 Seconds of {video_name}",
+    fontsize=14,
+    fontweight="bold",
+    pad=20,
+)
 ax2.grid(True, alpha=0.3, axis="y")
 
 # Rotate x-axis labels for better readability
@@ -200,13 +210,13 @@ ax2.tick_params(axis="x", rotation=45)
 plt.tight_layout()
 
 # Show the box plot
-plt.show()
+# plt.show()
 
 # Optional: Save the plots
-# plt.figure(fig1)
-# plt.savefig('euclidean_distance_bar_chart.png', dpi=300, bbox_inches='tight')
-# plt.figure(fig2)
-# plt.savefig('euclidean_distance_boxplot.png', dpi=300, bbox_inches='tight')
+plt.figure(fig1)
+plt.savefig('euclidean_distance_bar_chart.svg', dpi=300, bbox_inches='tight')
+plt.figure(fig2)
+plt.savefig('euclidean_distance_boxplot.svg', dpi=300, bbox_inches='tight')
 
 # Calculate and print statistical summary
 print("\nStatistical Summary:")
