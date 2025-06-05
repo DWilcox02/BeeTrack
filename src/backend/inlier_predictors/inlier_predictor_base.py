@@ -18,6 +18,6 @@ class InlierPredictorBase():
 
     def predict_inliers_rotations(self, old_point_clouds: List[PointCloud], final_positions: np.ndarray):
         return [
-            (np.array([True] * len(pc.cloud_points), dtype=bool), 0)
+            (np.array([True] * len(pc.cloud_points), dtype=bool), 0.0, 0.0)
             for pc in old_point_clouds
         ]

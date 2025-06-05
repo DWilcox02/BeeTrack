@@ -112,9 +112,12 @@ class PointCloud():
             points: np.ndarray = None
         ) -> float:
 
-        points_mean = np.mean(points, axis=0)
-        centered_points = points - points_mean
-        cov_matrix = np.cov(centered_points.T)
-        variance = np.linalg.det(cov_matrix)
+        if len(points) > 1:
+            points_mean = np.mean(points, axis=0)
+            centered_points = points - points_mean
+            cov_matrix = np.cov(centered_points.T)
+            variance = np.linalg.det(cov_matrix)
+        else:
+            variance = 0.0
 
         return variance

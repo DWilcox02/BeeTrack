@@ -14,13 +14,16 @@ from typing import List
 
 from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from .server.utils.video_utils import extract_frame
-from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenerator
+
 from .point_cloud.estimation.estimation_slice import EstimationSlice
 from .point_cloud.point_cloud import PointCloud
 from src.backend.models.circle_movement_result import CircleMovementResult
-
 from src.backend.frontend_communicator import FrontendCommunicator
 from src.backend.processing_configuration import ProcessingConfiguration
+
+# Point Cloud Generators
+from .point_cloud.singlular_point_cloud_generator import SingularPointCloudGenerator
+from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenerator
 
 # Import Inlier Predictors
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
@@ -95,14 +98,17 @@ class VideoProcessor():
         # self.inlier_predictor = InlierPredictorBase()
         self.inlier_predictor = DBSCANInlierPredictor(processing_configuration.dbscan_epsilon)
         self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
+
         # self.point_cloud_non_validated_reconstructor = PointCloudReconstructorBase()
         # self.point_cloud_validated_reconstructor = PointCloudReconstructorBase()
         self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
         self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
+        
         # num_points = len(point_data_store[session_id]["points"])
         # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
-        # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
         self.query_point_reconstructor = InlierWeightedAvgReconstructor()
+        
+        # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
         self.weight_distance_calculator = WeightCalculatorDistance()
         self.weight_outlier_calculator = WeightCalculatorOutliers()
 
@@ -351,7 +357,7 @@ class VideoProcessor():
                 interpolated_points[k].append((1 - a) * start_qp + a * end_qp)
             
             points_at_frame = slice_result.get_points_for_frame(
-                frame=f, num_qp=num_point_clouds, num_cp_per_qp=len(point_clouds[0].cloud_points)
+                frame=f, lengths=[len(pc.cloud_points) for pc in point_clouds]
             )
             for k, points in enumerate(points_at_frame):
                 mean_points[k].append(np.mean(points, axis=0))
@@ -671,13 +677,22 @@ class VideoProcessor():
                         self.log("Processing stopped by user request")
                         return {"success": False, "stopped": True, "message": "Processing stopped by user"}
                     
-
-                    final_positions = slice_result.get_points_for_frame(
-                        frame=-1, 
-                        num_qp=len(point_clouds), 
-                        num_cp_per_qp=len(point_clouds[0].cloud_points)
+                    initial_positions = slice_result.get_points_for_frame(
+                        frame=0, lengths=[len(pc.cloud_points) for pc in point_clouds]
                     )
+                    print(f"INITIAL POSITIONS OF SEGMENT {i}")
+                    print(initial_positions)
                     
+                    final_positions = slice_result.get_points_for_frame(
+                        frame=-1, lengths=[len(pc.cloud_points) for pc in point_clouds]
+                    )
+                    print(f"FINAL POSITIONS OF SEGMENT {i}")
+                    print(final_positions)
+
+                    print(f"DISPLACEMENT VECTORS OF SEGMENT {i}")
+                    for pc in point_clouds:
+                        print(pc.vectors_qp_to_cp)
+
                     # Experimental Predictions
                     inliers_rotations_deformities: List[tuple[np.ndarray, float, float]] = (
                         self.inlier_predictor.predict_inliers_rotations(

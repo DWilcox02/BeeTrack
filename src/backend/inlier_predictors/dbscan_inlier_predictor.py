@@ -23,6 +23,9 @@ class DBSCANInlierPredictor(InlierPredictorBase):
     def predict_for_point_cloud(self, old_point_cloud: PointCloud, final_positions: np.ndarray):
         best_deformity = np.inf
         best_rotation = None
+        best_final_predictions = None
+
+        # print(f"Len final positions: {len(final_positions)}")
 
         # Determine rotation
         for r in range(0, 360, 10):
@@ -31,28 +34,20 @@ class DBSCANInlierPredictor(InlierPredictorBase):
             if rotation_deformity < best_deformity:
                 best_deformity = rotation_deformity
                 best_rotation = r
+                best_final_predictions = final_predictions
 
         inliers = None
         # self.log(f"Old inliers: {len([x for x in old_point_cloud.inliers if x])}")
 
-        final_predictions = old_point_cloud.query_point_predictions(
-            final_positions=final_positions, 
-            rotation=best_rotation
-        )
-        j = 0
-        mapping = {}
-        for i in range(len(final_predictions)):
-            if old_point_cloud.inliers[i]:
-                mapping[j] = i
-                j += 1
-
         # self.log(f"Mapping: {mapping}")
-        final_predictions_masked = final_predictions[old_point_cloud.inliers]
-        # self.log(f"Len final predictions masked: {len(final_predictions_masked)}")
+        # print(f"Len best final predictions: {len(best_final_predictions)}")
+        # print(f"Len old point cloud inliers: {len(old_point_cloud.inliers)}")
+        best_final_predictions_masked = best_final_predictions[old_point_cloud.inliers]
+        # self.log(f"Len final predictions masked: {len(best_final_predictions_masked)}")
         eps = old_point_cloud.radius * self.dbscan_epsilon
 
-        min_samples = len(final_predictions_masked) // 2
-        clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(final_predictions_masked)
+        min_samples = len(best_final_predictions_masked) // 2
+        clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(best_final_predictions_masked)
         inlier_idxs = clustering.core_sample_indices_
         # self.log(f"Inlier idxs: {len(inlier_idxs)}")
 
@@ -61,11 +56,7 @@ class DBSCANInlierPredictor(InlierPredictorBase):
             inlier_mask[inlier_idxs] = True
 
             # self.log(f"Inlier mask: {len(inlier_mask)}")
-            combined_mask = copy.deepcopy(old_point_cloud.inliers)
-            for j in range(len(inlier_mask)):
-                i = mapping[j]
-                combined_mask[i] = combined_mask[i] and inlier_mask[j]
-            inliers = combined_mask
+            inliers = inlier_mask
 
         inliers = np.array(inliers, dtype=bool)
         num_inliers = np.sum(inliers)
