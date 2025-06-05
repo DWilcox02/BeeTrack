@@ -135,14 +135,14 @@
             <div>
                 <div style="display: flex;">
                     <h4 style="margin-inline: 10px;">Deformity Delta &#x03B4; = </h4>
-                    <input type="number" value="10" id="deformity-delta">
+                    <input type="number" value="0.01" id="deformity-delta">
                 </div>
                 <div style="margin-left: 20px;">
                     <p>
                         Used to calculate deformity ratio. Because deformity has no upper bound, a manual input is required.
                         <br>
-                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 10.
-                        Deformity Ratio = Deformity / (r * r * &#x03B4;).
+                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 0.01.
+                        Deformity Ratio = Deformity / (r^4 * &#x03B4;).
                     <br>
                     <ul>
                         <li><b>Higher &#x03B4;</b> will result in lower deformity ratio (more confident) and will be <b>less likely</b> to trigger validations.</li> 

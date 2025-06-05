@@ -66,7 +66,7 @@ class PointCloud():
             deformity: float,
             deformity_delta: float
         ):
-        deformity_ratio = min(deformity / (self.radius * self.radius * deformity_delta), 1.0)
+        deformity_ratio = min(deformity / (np.pow(self.radius, 4) * deformity_delta), 1.0)
         deformity_confidence = 1.0 - deformity_ratio
 
         inlier_confidence = np.sum(inliers) / len(self.cloud_points)

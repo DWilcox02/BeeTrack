@@ -26,13 +26,17 @@ class WeightCalculatorOutliers(WeightCalculatorBase):
     ):
         new_weights = []
         for old_weight, inlier in zip(predicted_point_cloud.weights, inliers_rotation[0]):
+            # Penalize outliers
             if inlier:
                 new_weights.append(old_weight)
             else:
                 new_weights.append(old_weight * WEIGHT_PENALTY)
+
+        # Re-normalize weights
         new_weights = np.array(new_weights)
         new_weight_sum = np.sum(new_weights)
         new_weights /= new_weight_sum
 
+        # Threshold in case of floating point errors
         assert np.sum(new_weights) - 1 < 0.001
         return new_weights
