@@ -283,32 +283,63 @@ class VideoProcessor():
 
 
     def generate_segment_tracks(
-            self, 
-            start_frame, 
-            end_frame, 
-            start_query_points, 
-            end_query_points, 
-            slice_result, 
-            point_clouds
-        ):
-
+        self,
+        start_frame: int,
+        end_frame: int,
+        start_cloud_points: np.ndarray[np.float32],  # query points, not cloud points
+        end_cloud_points: np.ndarray[np.float32],  # query points, not cloud points
+        slice_result: EstimationSlice,
+        point_clouds: List[PointCloud],
+        inliers: List[np.ndarray[bool]],
+    ):
         diff = end_frame - start_frame
-        num_point_clouds = len(start_query_points)
+        num_point_clouds = len(start_cloud_points)
 
         interpolated_points = [[] for _ in range(num_point_clouds)]
         mean_points = [[] for _ in range(num_point_clouds)]
 
         for f in range(diff):
             a = f / diff
-            
-            for k, (start_qp, end_qp) in enumerate(zip(start_query_points, end_query_points)):
+
+            for k, (start_qp, end_qp) in enumerate(zip(start_cloud_points, end_cloud_points)):
                 interpolated_points[k].append((1 - a) * start_qp + a * end_qp)
-            
+
             points_at_frame = slice_result.get_points_for_frame(
                 frame=f, lengths=[len(pc.cloud_points) for pc in point_clouds]
             )
+
+            # Calculate weighted mean using inliers and weights
             for k, points in enumerate(points_at_frame):
-                mean_points[k].append(np.mean(points, axis=0))
+                # Ensure points is a numpy array
+                points = np.array(points)
+                current_inliers = inliers[k]
+                current_weights = point_clouds[k].weights
+
+                # Make sure we have matching lengths
+                if len(current_inliers) > len(points):
+                    current_inliers = current_inliers[: len(points)]
+                elif len(current_inliers) < len(points):
+                    # Pad with False if needed
+                    current_inliers = np.concatenate(
+                        [current_inliers, np.array([False] * (len(points) - len(current_inliers)))]
+                    )
+
+                # Filter to only include inliers
+                if len([x for x in current_inliers if x]) < 2:
+                    # If very few inliers, just take weighted average of all
+                    current_inliers = np.array([True] * len(points), dtype=bool)
+
+                inlier_points = points[current_inliers]
+                inlier_weights = current_weights[current_inliers]
+
+                weight_sum = np.sum(inlier_weights)
+                normalized_weights = inlier_weights / weight_sum
+
+                weighted_avg = np.array([0.0, 0.0])
+                for point, weight in zip(inlier_points, normalized_weights):
+                    weighted_avg += weight * point
+
+                mean_points[k].append(weighted_avg)
 
         interpolated_points = np.array(interpolated_points)
         mean_points = np.array(mean_points)
@@ -318,13 +349,13 @@ class VideoProcessor():
         for j, (interpolated_tracks, raw_mean_tracks) in enumerate(zip(interpolated_points, mean_points)):
             half = diff // 2
             smoothed_tracks = []
-            
+
             for k in range(diff):
                 if k < half:
-                    interpolated_weight = (-2/(diff - 1)*k + 1)**self.smoothing_alpha
+                    interpolated_weight = (-2 / (diff - 1) * k + 1) ** self.smoothing_alpha
                 else:
-                    interpolated_weight =  (2/(diff - 1)*k - 1)**self.smoothing_alpha
-                
+                    interpolated_weight = (2 / (diff - 1) * k - 1) ** self.smoothing_alpha
+
                 raw_weight = 1 - interpolated_weight
                 smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])
             smoothed_points.append(smoothed_tracks)
@@ -592,10 +623,11 @@ class VideoProcessor():
                     interpolated_tracks, raw_mean_tracks, smoothed_tracks = self.generate_segment_tracks(
                         start_frame=start_frame,
                         end_frame=end_frame,
-                        start_query_points=start_query_points,
-                        end_query_points=end_query_points,
+                        start_cloud_points=start_query_points,
+                        end_cloud_points=end_query_points,
                         slice_result=slice_result,
-                        point_clouds=point_clouds
+                        point_clouds=point_clouds,
+                        inliers=inliers
                     )
 
                     slice_errors = self.calc_errors(
