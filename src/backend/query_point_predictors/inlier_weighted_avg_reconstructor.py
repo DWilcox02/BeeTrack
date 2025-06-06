@@ -12,6 +12,11 @@ class InlierWeightedAvgReconstructor(QueryPointReconstructorBase):
         final_predictions: np.ndarray[np.float32], 
         inliers: np.ndarray[bool]
     ) -> np.ndarray:
+        if len([x for x in inliers if x]) < 2:
+            # If very few outliers, just take weighted average of all
+            inliers = np.array([True] * len(inliers), dtype=bool)
+            # Important to do this here since the true number of inliers (< 2) is influential for confidence calculation
+
         weights = point_cloud.weights
 
         inlier_predictions = final_predictions[inliers]

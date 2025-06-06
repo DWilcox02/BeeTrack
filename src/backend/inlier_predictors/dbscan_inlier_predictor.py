@@ -20,7 +20,7 @@ class DBSCANInlierPredictor(InlierPredictorBase):
             min_samples = len(best_final_predictions_masked) // 2
             clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(best_final_predictions_masked)
             inlier_idxs = clustering.core_sample_indices_
-        
+
             inlier_mask = np.zeros_like(clustering.labels_, dtype=bool)
             inlier_mask[inlier_idxs] = True
             inliers = inlier_mask
