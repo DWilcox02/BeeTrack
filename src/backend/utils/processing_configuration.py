@@ -12,6 +12,7 @@ from src.backend.weight_calculators.weight_calculator_outliers_base import Weigh
 
 @dataclass(frozen=True)
 class ProcessingConfiguration:
+    confidence_threshold: float
     smoothing_alpha: float
     dbscan_epsilon: float
     deformity_delta: float

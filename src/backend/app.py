@@ -275,6 +275,7 @@ def handle_process_video_with_points(data):
 
     session_id = data.get("session_id")
     job_id = data.get("job_id")
+    confidence_threshold = float(data.get("confidence_threshold"))
     smoothing_alpha = float(data.get("smoothing_alpha"))
     dbscan_epsilon = float(data.get("dbscan_epsilon"))
     deformity_delta = float(data.get("deformity_delta"))
@@ -333,6 +334,7 @@ def handle_process_video_with_points(data):
     def run_processing():
         try:
             processing_configuration = ProcessingConfiguration(
+                confidence_threshold=confidence_threshold,
                 smoothing_alpha=smoothing_alpha,
                 dbscan_epsilon=dbscan_epsilon,
                 deformity_delta=deformity_delta,

@@ -53,8 +53,6 @@
                             Process full video
                         </label>
                     </div>
-                    
-                    
                 </div>
                 
                 <div style="margin-left: 20px; margin-top: 15px;">
@@ -85,7 +83,17 @@
                     updateInputState();
                 </script>
             </div>
-
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Confidence Threshold = </h4>
+                    <input type="number" value="0.7" id="confidence-threshold">
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Confidence Threshold. Recommended not to change, but rather to change the below parameters instead.
+                    </p>
+                </div>
+            </div>
             <div>
                 <div style="display: flex;">
                     <h4 style="margin-inline: 10px;">Smoothing Alpha &#x03B1; = </h4>

@@ -63,6 +63,7 @@ class VideoProcessor():
         self.job_id = job_id
         self.log_message = None
         self.point_data_store = point_data_store
+        self.confidence_threshold = processing_configuration.confidence_threshold
         self.smoothing_alpha = processing_configuration.smoothing_alpha
         self.deformity_delta = processing_configuration.deformity_delta
         self.num_slices = processing_configuration.processing_seconds
@@ -271,7 +272,7 @@ class VideoProcessor():
         for ppc, c in zip(predicted_point_clouds, confidences):
             self.log(f"{ppc.get_cloud_label()} confidence: {round(c, 2)}")
 
-        request_validation = confidence <= CONFIDENCE_THRESHOLD
+        request_validation = confidence <= self.confidence_threshold
 
         self.export_to_point_data_store(predicted_query_points)
         self.send_current_frame_data(

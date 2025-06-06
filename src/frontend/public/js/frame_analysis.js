@@ -681,6 +681,7 @@ async function processVideoWithPoints() {
   const logsContainer = document.getElementById("processingLogs");
   const logContent = document.getElementById("logContent");
 
+  const confidenceThreshold = document.getElementById("confidence-threshold").value;
   const smoothingAlpha = document.getElementById("smoothing-alpha").value;
   const dbscanEpsilon = document.getElementById("dbscan-epsilon").value;
   const deformityDelta = document.getElementById("deformity-delta").value;
@@ -736,7 +737,8 @@ async function processVideoWithPoints() {
 
     socket.emit("process_video_with_points", {
       session_id: sessionId,
-      job_id: currentJobId, // Pass the job ID to the server
+      job_id: currentJobId,
+      confidence_threshold: confidenceThreshold,
       smoothing_alpha: smoothingAlpha,
       dbscan_epsilon: dbscanEpsilon,
       deformity_delta: deformityDelta,
