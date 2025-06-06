@@ -1,4 +1,5 @@
 import numpy as np
+from typing import List
 from abc import ABC, abstractmethod
 
 
@@ -30,7 +31,7 @@ class EstimationSlice(ABC):
         normalized_trajectory = mean_trajectory / np.linalg.norm(mean_trajectory)  # Normalize the trajectory
         return normalized_trajectory
 
-    def get_points_for_frame(self, frame, lengths):
+    def get_points_for_frame(self, frame, lengths) -> List[np.ndarray]:
         slice_i = 0
 
         new_query_points = []

@@ -192,6 +192,12 @@ class VideoProcessor():
     def convert_to_serializable(self, obj):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif hasattr(obj, 'to_pylist'):  # Handle ArrayImpl objects
+            return obj.to_pylist()
+        elif hasattr(obj, 'tolist'):  # Handle other array-like objects
+            return obj.tolist()
+        elif isinstance(obj, (np.integer, np.floating)):
+            return float(obj) if isinstance(obj, np.floating) else int(obj)
         elif isinstance(obj, list):
             return [self.convert_to_serializable(item) for item in obj]
         elif isinstance(obj, tuple):
@@ -200,7 +206,7 @@ class VideoProcessor():
             return {key: self.convert_to_serializable(value) for key, value in obj.items()}
         else:
             return obj
-
+        
 
     def combine_and_write_tracks(self, tracks, final_tracks_output_path):
         try:
@@ -366,148 +372,66 @@ class VideoProcessor():
         return interpolated_points, mean_points, smoothed_points
 
 
-    def calc_errors(self, predicted_point_clouds: List[PointCloud], true_point_clouds: List[PointCloud], frame: int):
+    def calc_errors(
+            self, 
+            predicted_point_clouds: List[PointCloud], 
+            true_point_clouds: List[PointCloud], 
+            frame: int,
+            inliers: List[np.ndarray[bool]],
+            deformities: List[float],
+            initial_positions: List[np.ndarray[np.float32]],
+            final_positions: List[np.ndarray[np.float32]],
+            vectors_qp_to_cp: List[np.ndarray[np.float32]]
+    ):
         intra_cloud_metrics = []
         
-        cloud_index = 0
-        # Intra-Cloud Metrics
-        for pred, cloud in zip(predicted_point_clouds, true_point_clouds):
+        for cloud_index in range(len(predicted_point_clouds)):
+            pred = predicted_point_clouds[cloud_index]
+            cloud = true_point_clouds[cloud_index]
+            ils = inliers[cloud_index]
+            d = deformities[cloud_index]
+            init_pos = initial_positions[cloud_index]
+            final_pos = final_positions[cloud_index]
+            vec_qp_to_cp = vectors_qp_to_cp[cloud_index]
+            recons_pos = cloud.cloud_points
+
             p = pred.query_point_array()  # Predicted query point
             v = cloud.query_point_array()   # Validated query point
-            
-            c_p = np.array(pred.cloud_points)  # Predicted cloud points
-            c_v = np.array(cloud.cloud_points)      # Validated cloud points
-            
-            # 1. Query Point Distance: Euclidean distance between prediction and validation
+                        
+            # Euclidean Distance
             euclidean_distance = np.linalg.norm(p - v)
             
-            # 2. Query Point Vector: Direction of prediction error
+            # Query Point Vector: Direction of prediction error
             vector = v - p
-            
-            # 3. Cloud Point Distances: Distance for each predicted vs validated cloud point
-            cloud_point_distances = np.linalg.norm(c_v - c_p, axis=1)
-            
-            # 4. Deformity: Sum of all cloud point distances
-            deformity = pred.deformity()
-            
-            # 5. Deformity Median
-            deformity_median = np.median(cloud_point_distances)
-            
-            # 6. Inliers and Outliers (using a radius parameter)
-            radius = cloud.radius  # This can be made configurable
-            distances_from_validated = np.linalg.norm(c_p - v, axis=1)
-            inliers = np.sum(distances_from_validated < radius)
-            outliers = len(distances_from_validated) - inliers
-            
+                                                            
             # Store individual cloud results
             intra_cloud_metrics.append(
                 {
                     "cloud_index": cloud_index,
+                    "predicted_query_point": p,
+                    "validated_query_point": v,
                     "euclidean_distance": euclidean_distance,
                     "vector_true_to_pred": vector.tolist(),
-                    "cloud_point_distances": cloud_point_distances.tolist(),
-                    "deformity": deformity,
-                    "deformity_median": deformity_median,
-                    "inliers": inliers,
-                    "outliers": outliers,
-                    "inlier_ratio": inliers / len(distances_from_validated) if len(distances_from_validated) > 0 else 0,
+                    "initial_positions": init_pos,
+                    "final_positions": final_pos,
+                    "reconstructed_positions": recons_pos,
+                    "vectors_qp_to_cp": vec_qp_to_cp,
+                    "deformity": d,
+                    "inliers": ils,
+                    "inlier_ratio": len([x for x in ils if x]) / len(init_pos),
                 }
             )
-            cloud_index += 1
-        
-        # Inter-Cloud Metrics
-        inter_cloud_metrics = {}
-        if len(predicted_point_clouds) > 1:
-            p_points = np.array([pred.query_point_array() for pred in predicted_point_clouds])
-            v_points = np.array([cloud.query_point_array() for cloud in true_point_clouds])
-            
-            d_p = np.zeros((len(p_points), len(p_points)))
-            d_v = np.zeros((len(v_points), len(v_points)))
-            
-            # Calc normalized direction vectors
-            e_p = {}
-            e_v = {}
-            
-            for i in range(len(p_points)):
-                for j in range(i+1, len(p_points)):
-                    # Distances
-                    d_p[i, j] = d_p[j, i] = np.linalg.norm(p_points[i] - p_points[j])
-                    d_v[i, j] = d_v[j, i] = np.linalg.norm(v_points[i] - v_points[j])
-                    
-                    # Direction vectors (normalized)
-                    p_dir = p_points[i] - p_points[j]
-                    p_norm = np.linalg.norm(p_dir)
-                    e_p[(i, j)] = p_dir / p_norm if p_norm > 0 else np.zeros(2)
-                    
-                    v_dir = v_points[i] - v_points[j]
-                    v_norm = np.linalg.norm(v_dir)
-                    e_v[(i, j)] = v_dir / v_norm if v_norm > 0 else np.zeros(2)
-            
-            # 1. Change in distances
-            delta_distances = {}
-            for i in range(len(p_points)):
-                for j in range(i+1, len(p_points)):
-                    delta_distances[f"{i}-{j}"] = float(abs(d_v[i, j] - d_p[i, j]))
-            
-            # 2. Changes in directions (angle between vectors)
-            theta_changes = {}
-            for (i, j) in e_p.keys():
-                # Calculate dot product for angle
-                dot_product = np.dot(e_v[(i, j)], e_p[(i, j)])
-                # Clip to handle floating point errors
-                dot_product = np.clip(dot_product, -1.0, 1.0)
-                angle = float(np.arccos(dot_product))
-                theta_changes[f"{i}-{j}"] = angle
-                
-            inter_cloud_metrics = {
-                "delta_distances": delta_distances,
-                "theta_changes": theta_changes,
-                "mean_delta_distance": float(np.mean(list(delta_distances.values()))) if delta_distances else 0,
-                "mean_theta_change": float(np.mean(list(theta_changes.values()))) if theta_changes else 0
-            }
         
         return {
             "frame": frame,
             "intra_cloud_metrics": intra_cloud_metrics,
-            "inter_cloud_metrics": inter_cloud_metrics
         }
 
 
     def write_errors(self, errors, final_errors_output_path):
         os.makedirs(os.path.dirname(os.path.abspath(final_errors_output_path)), exist_ok=True)
         
-        def serialize_error(error):
-            result = {}
-            
-            result["frame"] = int(error["frame"]) if isinstance(error["frame"], np.integer) else error["frame"]
-            
-            result["intra_cloud_metrics"] = []
-            for metric in error["intra_cloud_metrics"]:
-                processed_metric = {}
-                for key, value in metric.items():
-                    if isinstance(value, np.ndarray):
-                        processed_metric[key] = value.tolist()
-                    elif isinstance(value, (np.integer, np.floating)):
-                        processed_metric[key] = float(value) if isinstance(value, np.floating) else int(value)
-                    else:
-                        processed_metric[key] = value
-                result["intra_cloud_metrics"].append(processed_metric)
-            
-            result["inter_cloud_metrics"] = {}
-            for key, value in error["inter_cloud_metrics"].items():
-                if isinstance(value, dict):
-                    processed_dict = {}
-                    for k, v in value.items():
-                        processed_dict[k] = float(v) if isinstance(v, np.floating) else v
-                    result["inter_cloud_metrics"][key] = processed_dict
-                elif isinstance(value, (np.integer, np.floating)):
-                    result["inter_cloud_metrics"][key] = float(value) if isinstance(value, np.floating) else int(value)
-                else:
-                    result["inter_cloud_metrics"][key] = value
-            
-            return result
-        
-        serializable_errors = [serialize_error(error) for error in errors]
+        serializable_errors = self.convert_to_serializable(errors)
         
         with open(final_errors_output_path, 'w') as f:
             json.dump(serializable_errors, f, indent=2)
@@ -650,9 +574,6 @@ class VideoProcessor():
                         resize_width=resize_width,
                         resize_height=resize_height,
                     )
-                    # slice_result: EstimationSlice = self.point_cloud_estimator.process_cached_dance_15(
-                    #     orig_frames_slice
-                    # )
 
                     if self.should_stop():
                         self.log("Processing stopped by user request")
@@ -701,6 +622,12 @@ class VideoProcessor():
                         deformities.append(deformity)
                         inliers.append(cloud_inliers)
 
+                    # Save info for errors
+                    all_initial_positions = slice_result.get_points_for_frame(
+                        frame=0, lengths=[len(pc.cloud_points) for pc in point_clouds]
+                    )
+                    all_vectors_qp_to_cp = [ppc.vectors_qp_to_cp for ppc in predicted_point_clouds]
+
                     # Update weights and potentially request validation
                     query_points, point_clouds = self.validate_and_update_weights(
                         current_point_clouds=point_clouds,
@@ -724,12 +651,17 @@ class VideoProcessor():
                         point_clouds=point_clouds
                     )
 
-                    # slice_errors = self.calc_errors(
-                    #     predicted_point_clouds=predicted_point_clouds, 
-                    #     true_point_clouds=point_clouds, 
-                    #     frame=end_frame
-                    # )
-                    # all_errors.append(slice_errors)                    
+                    slice_errors = self.calc_errors(
+                        predicted_point_clouds=predicted_point_clouds,
+                        true_point_clouds=point_clouds,
+                        frame=end_frame,
+                        inliers=inliers,
+                        deformities=deformities,
+                        initial_positions=all_initial_positions,
+                        final_positions=final_positions,
+                        vectors_qp_to_cp=all_vectors_qp_to_cp,
+                    )
+                    all_errors.append(slice_errors)                    
 
                     video_segment = slice_result.get_video()
                     # inliers_masks = [b for mask, _ in inliers_rotations for b in mask]
@@ -794,10 +726,10 @@ class VideoProcessor():
                 final_tracks_output_path=final_tracks_output_path
             )
 
-            # self.write_errors(
-            #     errors=all_errors, 
-            #     final_errors_output_path=final_errors_output_path
-            # )
+            self.write_errors(
+                errors=all_errors, 
+                final_errors_output_path=final_errors_output_path
+            )
 
             self.log(f"Processing completed successfully for {filename}")
 
