@@ -3,7 +3,7 @@ from abc import abstractmethod
 from src.backend.point_cloud.point_cloud import PointCloud
 
 
-class WeightCalculatorDistanceBase:
+class WeightCalculatorDistancesBase:
     def __init__(self):
         self.log_fn = print
 

@@ -1,12 +1,12 @@
 import numpy as np
 from src.backend.point_cloud.point_cloud import PointCloud
-from .weight_calculator_distance_base import WeightCalculatorDistanceBase
+from .weight_calculator_distances_base import WeightCalculatorDistancesBase
 
 
 ERROR_SIGMA = 0.5
 OUTLIER_PENALTY = 0.5
 
-class WeightCalculatorDistanceEWMA(WeightCalculatorDistanceBase):
+class WeightCalculatorDistancesEWMA(WeightCalculatorDistancesBase):
 
     def calculate_distance_weights(
         self,

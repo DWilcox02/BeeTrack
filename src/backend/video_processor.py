@@ -12,43 +12,23 @@ import copy
 from threading import Event
 from typing import List
 
-from .point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from .server.utils.video_utils import extract_frame
 
 from .point_cloud.estimation.estimation_slice import EstimationSlice
 from .point_cloud.point_cloud import PointCloud
-from src.backend.models.circle_movement_result import CircleMovementResult
-from src.backend.frontend_communicator import FrontendCommunicator
-from src.backend.processing_configuration import ProcessingConfiguration
+from src.backend.utils.frontend_communicator import FrontendCommunicator
+from src.backend.utils.processing_configuration import ProcessingConfiguration
 from src.backend.utils.rotation_calculator import calculate_rotation_deformity_predictions
 from src.backend.utils.confidence_helper import cloud_confidence
 
-
-# Point Cloud Generators
-from .point_cloud.singlular_point_cloud_generator import SingularPointCloudGenerator
-from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenerator
-
-# Import Inlier Predictors
+# Component Abstractions
+from src.backend.point_cloud.point_cloud_generator import PointCloudGenerator
+from src.backend.point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
-from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPredictor
-from src.backend.inlier_predictors.hdbscan_inlier_predictor import HDBSCANInlierPredictor
-
-# Import Point Cloud Reconstructors
-from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
-from src.backend.point_cloud_reconstructors.point_cloud_recons_inliers import PointCloudReconsInliers
-from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers import PointCloudRedrawOutliers
-from src.backend.point_cloud_reconstructors.point_cloud_redraw_outliers_random import PointCloudRedrawOutliersRandom
-from src.backend.point_cloud_reconstructors.point_cloud_cluster_recovery import PointCloudClusterRecovery
-
-# Import Query Point Predictors
 from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
-from src.backend.query_point_predictors.inlier_weighted_avg_reconstructor import InlierWeightedAvgReconstructor
-from src.backend.query_point_predictors.incremental_nn_reconstructor import IncrementalNNReconstructor
-
-# Import Weight Calculators
-from src.backend.weight_calculators.weight_calculator_distance_ewma import WeightCalculatorDistanceEWMA
-from src.backend.weight_calculators.weight_calculator_outliers_penalty import WeightCalculatorOutliersPenalty
-from src.backend.weight_calculators.incremental_nn_weight_updater import IncrementalNNWeightUpdater
+from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
+from src.backend.weight_calculators.weight_calculator_outliers_base import WeightCalculatorOutliersBase
+from src.backend.weight_calculators.weight_calculator_distances_base import WeightCalculatorDistancesBase
 
 
 # Get paths
@@ -71,15 +51,13 @@ class VideoProcessor():
         self,
         session_id,
         point_data_store,
-        point_cloud_estimator: PointCloudEstimatorInterface,
         frontend_communicator: FrontendCommunicator,
+        processing_configuration: ProcessingConfiguration, 
         video,
         job_id,
-        processing_configuration: ProcessingConfiguration, 
         stop_event: Event
     ):
         self.session_id = session_id
-        self.point_cloud_estimator = point_cloud_estimator
         self.frontend_communicator = frontend_communicator
         self.video = video
         self.job_id = job_id
@@ -90,30 +68,22 @@ class VideoProcessor():
         self.num_slices = processing_configuration.processing_seconds
         self.stop_event = stop_event
 
-        # Shape of initial point clouds
-        self.point_cloud_generator = CircularPointCloudGenerator()
-
-        # Clustering Method
-        # self.inlier_predictor = InlierPredictorBase()
-        self.inlier_predictor = DBSCANInlierPredictor(processing_configuration.dbscan_epsilon)
-
-        # Query Point Prediction
-        # num_points = len(point_data_store[session_id]["points"])
-        # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
-        self.query_point_reconstructor = InlierWeightedAvgReconstructor()
-        
-        # Outlier Weight Updates
-        self.weight_calculator_outliers = WeightCalculatorOutliersPenalty()
-
-        # Point Cloud Reconstruction
-        # self.point_cloud_non_validated_reconstructor = PointCloudReconstructorBase()
-        # self.point_cloud_validated_reconstructor = PointCloudReconstructorBase()
-        self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
-        self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
-        
-        # Distance Weight Updates
-        # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
-        self.weight_calculator_distance = WeightCalculatorDistanceEWMA()
+        self.point_cloud_estimator: PointCloudEstimatorInterface = processing_configuration.point_cloud_estimator
+        self.point_cloud_generator: PointCloudGenerator = processing_configuration.point_cloud_generator
+        self.inlier_predictor: InlierPredictorBase = processing_configuration.inlier_predictor
+        self.query_point_reconstructor: QueryPointReconstructorBase = processing_configuration.query_point_reconstructor
+        self.weight_calculator_outliers: WeightCalculatorOutliersBase = (
+            processing_configuration.weight_calculator_outliers
+        )
+        self.point_cloud_non_validated_reconstructor: PointCloudReconstructorBase = (
+            processing_configuration.point_cloud_non_validated_reconstructor
+        )
+        self.point_cloud_validated_reconstructor: PointCloudReconstructorBase = (
+            processing_configuration.point_cloud_validated_reconstructor
+        )        
+        self.weight_calculator_distance: WeightCalculatorDistancesBase = (
+            processing_configuration.weight_calculator_distances
+        )
 
 
     def set_log_message_function(self, fn):
@@ -638,7 +608,6 @@ class VideoProcessor():
             width_ratio = resize_width / width
             
             point_clouds: List[PointCloud] = self.point_cloud_generator.generate_initial_point_clouds(query_points) # N x 2 (for N points)
-            inter_point_cloud_matrix = np.array([])
             all_tracks = [[] for _ in range(len(point_clouds))]
             all_errors = []
             # inliers = [True] * (len(point_clouds) * len(point_clouds[0].cloud_points))
@@ -698,13 +667,13 @@ class VideoProcessor():
                     deformities: List[float] = []
                     inliers: List[np.ndarray[bool]] = []
                     for old_point_cloud, final_cloud_points in zip(point_clouds, final_positions):
-                        rdfps: tuple[float, float, np.ndarray] = calculate_rotation_deformity_predictions(
+                        r_d_fps: tuple[float, float, np.ndarray] = calculate_rotation_deformity_predictions(
                             old_point_cloud=old_point_cloud,
                             final_positions=final_cloud_points
                         )
-                        rotation: float = rdfps[0]
-                        deformity: float = rdfps[1]
-                        final_predictions: np.ndarray = rdfps[2]
+                        rotation: float = r_d_fps[0]
+                        deformity: float = r_d_fps[1]
+                        final_predictions: np.ndarray = r_d_fps[2]
                         cloud_inliers = self.inlier_predictor.predict_inliers(
                             old_point_cloud=old_point_cloud,
                             final_predictions=final_predictions

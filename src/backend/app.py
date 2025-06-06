@@ -10,9 +10,26 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from .server.utils.video_utils import extract_frame
 from .video_processor import VideoProcessor
-from .point_cloud.estimation.TAPIR_point_cloud_estimator.tapir_estimator import TapirEstimator
-from .frontend_communicator import FrontendCommunicator
-from .processing_configuration import ProcessingConfiguration
+from .utils.frontend_communicator import FrontendCommunicator
+from .utils.processing_configuration import ProcessingConfiguration
+from .utils.component_selector import (
+    PointCloudEstimatorSelector,
+    PointCloudGeneratorSelector,
+    InlierPredictorSelector,
+    QueryPointReconstructorSelector,
+    PointCloudReconstructorSelector,
+    WeightCalculatorDistancesSelector,
+    WeightCalculatorOutliersSelector,
+    create_component
+)
+from src.backend.point_cloud.point_cloud_generator import PointCloudGenerator
+from src.backend.point_cloud.estimation.point_cloud_estimator_interface import PointCloudEstimatorInterface
+from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
+from src.backend.query_point_predictors.query_point_reconstructor_base import QueryPointReconstructorBase
+from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
+from src.backend.weight_calculators.weight_calculator_distances_base import WeightCalculatorDistancesBase
+from src.backend.weight_calculators.weight_calculator_outliers_base import WeightCalculatorOutliersBase
+
 
 POINT_CLOUD_AVAILABLE = True
 POINT_CLOUD_TYPE = "TAPIR"
@@ -281,9 +298,26 @@ def handle_process_video_with_points(data):
     video = get_video_info(video_path)
 
     # Choose point cloud estimator
-    point_cloud_estimator = None
-    if POINT_CLOUD_TYPE == "TAPIR":
-        point_cloud_estimator = TapirEstimator()
+    point_cloud_estimator: PointCloudEstimatorInterface = create_component(PointCloudEstimatorSelector["tapir_estimator"])
+    point_cloud_generator: PointCloudGenerator = create_component(
+        PointCloudGeneratorSelector["circular_point_cloud_generator"]
+    )
+    inlier_predictor: InlierPredictorBase = create_component(
+        InlierPredictorSelector["dbscan_inlier_predictor"], dbscan_epsilon
+    )
+    query_point_reconstructor: QueryPointReconstructorBase = create_component(QueryPointReconstructorSelector["inlier_weighted_avg_reconstructor"])
+    point_cloud_non_validated_reconstructor: PointCloudReconstructorBase = create_component(
+        PointCloudReconstructorSelector["point_cloud_redraw_outliers_random"]
+    )
+    point_cloud_validated_reconstructor: PointCloudReconstructorBase = create_component(
+        PointCloudReconstructorSelector["point_cloud_cluster_recovery"]
+    )
+    weight_calculator_outliers: WeightCalculatorOutliersBase = create_component(
+        WeightCalculatorOutliersSelector["weight_calculator_outliers_penalty"]
+    )
+    weight_calculator_distances: WeightCalculatorDistancesBase = create_component(
+        WeightCalculatorDistancesSelector["weight_calculator_distances_ewma"]
+    )
 
     # Function to run the processing in a background thread
     def run_processing():
@@ -292,7 +326,15 @@ def handle_process_video_with_points(data):
                 smoothing_alpha=smoothing_alpha,
                 dbscan_epsilon=dbscan_epsilon,
                 deformity_delta=deformity_delta,
-                processing_seconds=processing_seconds
+                processing_seconds=processing_seconds,
+                point_cloud_generator=point_cloud_generator,
+                point_cloud_estimator=point_cloud_estimator,
+                inlier_predictor=inlier_predictor,
+                query_point_reconstructor=query_point_reconstructor,
+                point_cloud_non_validated_reconstructor=point_cloud_non_validated_reconstructor,
+                point_cloud_validated_reconstructor=point_cloud_validated_reconstructor,
+                weight_calculator_outliers=weight_calculator_outliers,
+                weight_calculator_distances=weight_calculator_distances,
             )
             frontend_communicator = FrontendCommunicator(
                 socketio=socketio,
@@ -303,11 +345,10 @@ def handle_process_video_with_points(data):
             video_processor = VideoProcessor(
                 session_id=session_id, 
                 point_data_store=point_data_store,
-                point_cloud_estimator=point_cloud_estimator,
                 frontend_communicator=frontend_communicator,
+                processing_configuration=processing_configuration,
                 video=video,
                 job_id=job_id,
-                processing_configuration=processing_configuration,
                 stop_event=stop_event
             )
 
