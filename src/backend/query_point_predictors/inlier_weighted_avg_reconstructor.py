@@ -7,18 +7,13 @@ from .query_point_reconstructor_base import QueryPointReconstructorBase
 class InlierWeightedAvgReconstructor(QueryPointReconstructorBase):
     
     def reconstruct_query_point(
-        self, point_cloud: PointCloud, final_positions: np.ndarray, inliers_rotation: tuple[np.ndarray, float]
-    ):
-        inliers, rotation = inliers_rotation
+        self, 
+        point_cloud: PointCloud, 
+        final_predictions: np.ndarray[np.float32], 
+        inliers: np.ndarray[bool]
+    ) -> np.ndarray:
         weights = point_cloud.weights
 
-        final_predictions = []
-        for vec_qp_to_cp, pos in zip(point_cloud.vectors_qp_to_cp, final_positions):
-            rotated_vec = self.rotate_vector(vec_qp_to_cp, rotation)
-            final_predictions.append(pos - rotated_vec)
-
-        final_predictions = np.array(final_predictions)
-        inliers = np.array(inliers)
         inlier_predictions = final_predictions[inliers]
         inlier_weights = weights[inliers]
 

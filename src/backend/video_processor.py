@@ -20,6 +20,9 @@ from .point_cloud.point_cloud import PointCloud
 from src.backend.models.circle_movement_result import CircleMovementResult
 from src.backend.frontend_communicator import FrontendCommunicator
 from src.backend.processing_configuration import ProcessingConfiguration
+from src.backend.utils.rotation_calculator import calculate_rotation_deformity_predictions
+from src.backend.utils.confidence_helper import cloud_confidence
+
 
 # Point Cloud Generators
 from .point_cloud.singlular_point_cloud_generator import SingularPointCloudGenerator
@@ -29,9 +32,6 @@ from .point_cloud.circular_point_cloud_generator import CircularPointCloudGenera
 from src.backend.inlier_predictors.inlier_predictor_base import InlierPredictorBase
 from src.backend.inlier_predictors.dbscan_inlier_predictor import DBSCANInlierPredictor
 from src.backend.inlier_predictors.hdbscan_inlier_predictor import HDBSCANInlierPredictor
-
-# Import Inter-Cloud Alignments
-from src.backend.inter_cloud_alignment_predictors.inter_cloud_alignment_base import InterCloudAlignmentBase
 
 # Import Point Cloud Reconstructors
 from src.backend.point_cloud_reconstructors.point_cloud_reconstructor_base import PointCloudReconstructorBase
@@ -46,9 +46,8 @@ from src.backend.query_point_predictors.inlier_weighted_avg_reconstructor import
 from src.backend.query_point_predictors.incremental_nn_reconstructor import IncrementalNNReconstructor
 
 # Import Weight Calculators
-from src.backend.weight_calculators.weight_calculator_base import WeightCalculatorBase
-from src.backend.weight_calculators.weight_calculator_distance import WeightCalculatorDistance
-from src.backend.weight_calculators.weight_calculator_outliers import WeightCalculatorOutliers
+from src.backend.weight_calculators.weight_calculator_distance_ewma import WeightCalculatorDistanceEWMA
+from src.backend.weight_calculators.weight_calculator_outliers_penalty import WeightCalculatorOutliersPenalty
 from src.backend.weight_calculators.incremental_nn_weight_updater import IncrementalNNWeightUpdater
 
 
@@ -94,23 +93,27 @@ class VideoProcessor():
         # Shape of initial point clouds
         self.point_cloud_generator = CircularPointCloudGenerator()
 
-        # Choices for experimentation
+        # Clustering Method
         # self.inlier_predictor = InlierPredictorBase()
         self.inlier_predictor = DBSCANInlierPredictor(processing_configuration.dbscan_epsilon)
-        self.inter_cloud_alignment_predictor = InterCloudAlignmentBase()
 
+        # Query Point Prediction
+        # num_points = len(point_data_store[session_id]["points"])
+        # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
+        self.query_point_reconstructor = InlierWeightedAvgReconstructor()
+        
+        # Outlier Weight Updates
+        self.weight_calculator_outliers = WeightCalculatorOutliersPenalty()
+
+        # Point Cloud Reconstruction
         # self.point_cloud_non_validated_reconstructor = PointCloudReconstructorBase()
         # self.point_cloud_validated_reconstructor = PointCloudReconstructorBase()
         self.point_cloud_non_validated_reconstructor = PointCloudRedrawOutliersRandom()
         self.point_cloud_validated_reconstructor = PointCloudClusterRecovery()
         
-        # num_points = len(point_data_store[session_id]["points"])
-        # self.query_point_reconstructor = IncrementalNNReconstructor(num_point_clouds=num_points)
-        self.query_point_reconstructor = InlierWeightedAvgReconstructor()
-        
+        # Distance Weight Updates
         # self.weight_distance_calculator = IncrementalNNWeightUpdater(self.query_point_reconstructor.get_prediction_models())
-        self.weight_distance_calculator = WeightCalculatorDistance()
-        self.weight_outlier_calculator = WeightCalculatorOutliers()
+        self.weight_calculator_distance = WeightCalculatorDistanceEWMA()
 
 
     def set_log_message_function(self, fn):
@@ -118,11 +121,10 @@ class VideoProcessor():
         self.point_cloud_estimator.set_logger(self.log)
         self.point_cloud_generator.set_logger(self.log)
         self.inlier_predictor.set_logger(self.log)
-        self.inter_cloud_alignment_predictor.set_logger(self.log)
         self.point_cloud_non_validated_reconstructor.set_logger(self.log)
         self.query_point_reconstructor.set_logger(self.log)
-        self.weight_distance_calculator.set_logger(self.log)
-        self.weight_outlier_calculator.set_logger(self.log)
+        self.weight_calculator_distance.set_logger(self.log)
+        self.weight_calculator_outliers.set_logger(self.log)
 
 
     def log(self, message):
@@ -268,21 +270,31 @@ class VideoProcessor():
 
     def validate_and_update_weights(
             self, 
-            deformities: List[float],
-            predicted_point_clouds: List[PointCloud], 
             current_point_clouds: List[PointCloud], 
-            inliers_rotations: List[tuple[np.ndarray, float]],
+            predicted_point_clouds: List[PointCloud], 
+            inliers: List[np.ndarray[bool]],
+            deformities: List[float],
             path, 
             filename, 
             end_frame, 
-            i, 
-            segments_to_process
         ):
         predicted_query_points = [copy.deepcopy(p.query_point) for p in predicted_point_clouds]
         current_query_points = [cloud.query_point for cloud in current_point_clouds]
-        initial_positions = [cloud.cloud_points for cloud in current_point_clouds]
 
-        confidence = min([p.confidence(inliers, d, self.deformity_delta) for p, (inliers, _), d in zip(predicted_point_clouds, inliers_rotations, deformities)])
+        confidences = [
+            cloud_confidence(
+                inliers=ils,
+                deformity=d,
+                deformity_delta=self.deformity_delta,
+                radius=ppc.radius,
+                num_cloud_points=len(ppc.cloud_points),
+            )
+            for ppc, ils, d in zip(predicted_point_clouds, inliers, deformities)
+        ]
+        confidence = min(confidences)
+        for ppc, c in zip(predicted_point_clouds, confidences):
+            self.log(f"{ppc.get_cloud_label()} confidence: {round(c, 2)}")
+
         request_validation = confidence <= CONFIDENCE_THRESHOLD
 
         self.export_to_point_data_store(predicted_query_points)
@@ -294,37 +306,37 @@ class VideoProcessor():
             request_validation=request_validation
         )
 
-        weights = [ppc.weights for ppc in predicted_point_clouds]
-
+        # User validation
         if request_validation:
-            self.request_validation()  # Query points will have been updateds
+            # Threshold reached, re-construct based on validation
+            self.request_validation()  # Query points will have been updated
             current_query_points = self.point_data_store[self.session_id]["points"]
             current_query_points_xy = np.array([[p["x"], p["y"]] for p in current_query_points], dtype=np.float32)
-
-            weights = self.weight_distance_calculator.calculate_distance_weights(
-                predicted_point_clouds=predicted_point_clouds,
-                inliers_rotations=inliers_rotations,
-                true_query_points=current_query_points_xy,
-                initial_positions=initial_positions
-            )
-            # print("Weights after validation")
-            # print(weights)
-            final_positions = [ pc.cloud_points for pc in predicted_point_clouds]
-            current_point_clouds = self.point_cloud_validated_reconstructor.reconstruct_point_clouds(
-                old_point_clouds=predicted_point_clouds,
-                final_positions=final_positions,
-                inliers_rotations=inliers_rotations,
-                query_point_reconstructions=current_query_points_xy,
-                weights=weights,
-            )
+            
+            new_point_clouds: List[PointCloud] = []
+            for predicted_point_cloud, true_query_point in zip(predicted_point_clouds, current_query_points_xy):
+                updated_weights_distances = self.weight_calculator_distance.calculate_distance_weights(
+                    predicted_point_cloud=predicted_point_cloud,
+                    true_query_point=true_query_point
+                )
+                cloud_inliers = np.array([True] * len(predicted_point_cloud.cloud_points), dtype=bool)
+                new_point_cloud = self.point_cloud_validated_reconstructor.reconstruct_point_cloud(
+                    old_point_cloud=predicted_point_cloud,
+                    final_positions=predicted_point_cloud.cloud_points,
+                    inliers=cloud_inliers,
+                    rotation=predicted_point_cloud.rotation,
+                    query_point_reconstruction=true_query_point,
+                    weights=updated_weights_distances,
+                )
+                new_point_clouds.append(new_point_cloud)
+            current_point_clouds = new_point_clouds
         else:
+            # Sufficiently confidence, accept current predictions
             current_query_points = predicted_query_points
             current_point_clouds = predicted_point_clouds
 
         self.export_to_point_data_store(current_query_points)
         self.add_validation()
-
-        # Reconstruct after new query points calculated (retains weights)
         
         return current_query_points, current_point_clouds
 
@@ -677,62 +689,58 @@ class VideoProcessor():
                         self.log("Processing stopped by user request")
                         return {"success": False, "stopped": True, "message": "Processing stopped by user"}
                     
-                    initial_positions = slice_result.get_points_for_frame(
-                        frame=0, lengths=[len(pc.cloud_points) for pc in point_clouds]
-                    )
-                    print(f"INITIAL POSITIONS OF SEGMENT {i}")
-                    print(initial_positions)
-                    
                     final_positions = slice_result.get_points_for_frame(
                         frame=-1, lengths=[len(pc.cloud_points) for pc in point_clouds]
                     )
-                    print(f"FINAL POSITIONS OF SEGMENT {i}")
-                    print(final_positions)
 
-                    print(f"DISPLACEMENT VECTORS OF SEGMENT {i}")
-                    for pc in point_clouds:
-                        print(pc.vectors_qp_to_cp)
-
-                    # Experimental Predictions
-                    inliers_rotations_deformities: List[tuple[np.ndarray, float, float]] = (
-                        self.inlier_predictor.predict_inliers_rotations(
-                            old_point_clouds=point_clouds, final_positions=final_positions
+                    # Perform predictions and calculations
+                    predicted_point_clouds: List[PointCloud] = []
+                    deformities: List[float] = []
+                    inliers: List[np.ndarray[bool]] = []
+                    for old_point_cloud, final_cloud_points in zip(point_clouds, final_positions):
+                        rdfps: tuple[float, float, np.ndarray] = calculate_rotation_deformity_predictions(
+                            old_point_cloud=old_point_cloud,
+                            final_positions=final_cloud_points
                         )
-                    )
-                    inliers_rotations = [(ils, r) for ils, r, _ in inliers_rotations_deformities]
-                    query_point_reconstructions: List[np.ndarray] = self.query_point_reconstructor.reconstruct_query_points(
-                        old_point_clouds=point_clouds,
-                        final_positions=final_positions,
-                        inliers_rotations=inliers_rotations
-                    )
-                    aligned_query_point_reconstructions: List[np.ndarray] = self.inter_cloud_alignment_predictor.align_query_points(
-                        query_point_reconstructions=query_point_reconstructions,
-                        inter_point_cloud_matrix=inter_point_cloud_matrix
-                    )
-                    weights = self.weight_outlier_calculator.calculate_outlier_weights(
-                        old_point_clouds=point_clouds,
-                        inliers_rotations=inliers_rotations
-                    )
-                    predicted_point_clouds: List[PointCloud] = self.point_cloud_non_validated_reconstructor.reconstruct_point_clouds(
-                        old_point_clouds=point_clouds,
-                        final_positions=final_positions,
-                        inliers_rotations=inliers_rotations,
-                        query_point_reconstructions=aligned_query_point_reconstructions,
-                        weights=weights
-                    )
+                        rotation: float = rdfps[0]
+                        deformity: float = rdfps[1]
+                        final_predictions: np.ndarray = rdfps[2]
+                        cloud_inliers = self.inlier_predictor.predict_inliers(
+                            old_point_cloud=old_point_cloud,
+                            final_predictions=final_predictions
+                        )
+                        query_point_reconstruction: np.ndarray = self.query_point_reconstructor.reconstruct_query_point(
+                            point_cloud=old_point_cloud,
+                            final_predictions=final_predictions,
+                            inliers=cloud_inliers
+                        )
+                        updated_weights_outliers = self.weight_calculator_outliers.calculate_outlier_weights(
+                            old_point_cloud=old_point_cloud,
+                            inliers=cloud_inliers
+                        )
+                        predicted_point_cloud: PointCloud = (
+                            self.point_cloud_non_validated_reconstructor.reconstruct_point_cloud(
+                                old_point_cloud=old_point_cloud,
+                                final_positions=final_cloud_points,
+                                inliers=cloud_inliers,
+                                rotation=rotation,
+                                query_point_reconstruction=query_point_reconstruction,
+                                weights=updated_weights_outliers,
+                            )
+                        )
+                        predicted_point_clouds.append(predicted_point_cloud)
+                        deformities.append(deformity)
+                        inliers.append(cloud_inliers)
 
                     # Update weights and potentially request validation
-                    deformities = [d for _, _, d in inliers_rotations_deformities]
                     query_points, point_clouds = self.validate_and_update_weights(
-                        deformities=deformities,
-                        predicted_point_clouds=predicted_point_clouds, 
                         current_point_clouds=point_clouds,
-                        inliers_rotations=inliers_rotations,
+                        predicted_point_clouds=predicted_point_clouds, 
+                        inliers=inliers,
+                        deformities=deformities,
                         path=path, 
                         filename=filename,
                         end_frame=end_frame,
-                        i=i,
-                        segments_to_process=segments_to_process
                     )
 
                     # Get query points for interpolation

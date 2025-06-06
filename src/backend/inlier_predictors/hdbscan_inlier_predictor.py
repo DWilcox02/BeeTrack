@@ -9,7 +9,7 @@ from .inlier_predictor_base import InlierPredictorBase
 
 class HDBSCANInlierPredictor(InlierPredictorBase):
 
-    def predict_inliers_rotations(
+    def predict_inliers(
         self, old_point_clouds: List[PointCloud], final_positions: np.ndarray
     ) -> List[tuple[np.ndarray, float]]:
         return [self.predict_for_point_cloud(opc, fps) for opc, fps in zip(old_point_clouds, final_positions)]

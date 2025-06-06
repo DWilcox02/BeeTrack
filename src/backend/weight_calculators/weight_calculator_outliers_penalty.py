@@ -1,31 +1,19 @@
 import numpy as np
 
-from typing import List
-
 from src.backend.point_cloud.point_cloud import PointCloud
-from .weight_calculator_base import WeightCalculatorBase
+from .weight_calculator_outliers_base import WeightCalculatorOutliersBase
 
 WEIGHT_PENALTY = 0.5
 
-class WeightCalculatorOutliers(WeightCalculatorBase):
+class WeightCalculatorOutliersPenalty(WeightCalculatorOutliersBase):
 
     def calculate_outlier_weights(
         self,
-        old_point_clouds: List[PointCloud],
-        inliers_rotations: List[tuple[np.ndarray, float]],
-    ):
-        return [
-            self.calculate_outlier_weights_for_point(opc, ir)
-            for opc, ir in zip(old_point_clouds, inliers_rotations)
-        ]
-
-    def calculate_outlier_weights_for_point(
-        self,
-        predicted_point_cloud: PointCloud,
-        inliers_rotation: tuple[np.ndarray, float],
+        old_point_cloud: PointCloud,
+        inliers: np.ndarray[bool],
     ):
         new_weights = []
-        for old_weight, inlier in zip(predicted_point_cloud.weights, inliers_rotation[0]):
+        for old_weight, inlier in zip(old_point_cloud.weights, inliers):
             # Penalize outliers
             if inlier:
                 new_weights.append(old_weight)

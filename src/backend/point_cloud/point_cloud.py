@@ -60,22 +60,6 @@ class PointCloud():
             "radius": self.query_point["radius"],
         }
     
-    def confidence(
-            self,
-            inliers: np.ndarray, 
-            deformity: float,
-            deformity_delta: float
-        ):
-        deformity_ratio = min(deformity / (np.pow(self.radius, 4) * deformity_delta), 1.0)
-        deformity_confidence = 1.0 - deformity_ratio
-
-        inlier_confidence = np.sum(inliers) / len(self.cloud_points)
-
-        label = self.query_point["color"]
-        self.log(f"{label} Confidence: {(inlier_confidence + deformity_confidence) / 2}")
-
-        return (inlier_confidence + deformity_ratio) / 2
-    
     def query_point_predictions(
             self, 
             vectors_qp_to_cp: np.ndarray = None,  
@@ -109,7 +93,7 @@ class PointCloud():
     
     def deformity(
             self, 
-            points: np.ndarray = None
+            points: np.ndarray
         ) -> float:
 
         if len(points) > 1:
@@ -121,3 +105,6 @@ class PointCloud():
             variance = 0.0
 
         return variance
+    
+    def get_cloud_label(self) -> str:
+        return self.query_point["color"].capitalize()

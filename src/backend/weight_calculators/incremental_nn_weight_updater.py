@@ -4,12 +4,12 @@ from typing import List
 
 from src.backend.models.query_point_prediction_model import QueryPointPredictionModel
 from src.backend.point_cloud.point_cloud import PointCloud
-from .weight_calculator_base import WeightCalculatorBase
+from .weight_calculator_distance_base import WeightCalculatorDistanceBase
 
 
 
 
-class IncrementalNNWeightUpdater(WeightCalculatorBase):
+class IncrementalNNWeightUpdater(WeightCalculatorDistanceBase):
 
     def __init__(self, prediction_models: List[QueryPointPredictionModel]):
         self.prediction_models = prediction_models

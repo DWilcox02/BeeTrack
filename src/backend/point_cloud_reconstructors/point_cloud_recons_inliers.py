@@ -9,7 +9,7 @@ from .point_cloud_reconstructor_base import PointCloudReconstructorBase
 
 class PointCloudReconsInliers(PointCloudReconstructorBase):
 
-    def reconstruct_point_clouds(
+    def reconstruct_point_cloud(
         self,
         old_point_clouds: List[PointCloud],
         final_positions: np.ndarray,
