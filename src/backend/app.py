@@ -279,6 +279,14 @@ def handle_process_video_with_points(data):
     dbscan_epsilon = float(data.get("dbscan_epsilon"))
     deformity_delta = float(data.get("deformity_delta"))
     processing_seconds = int(data.get("processing_seconds"))
+    point_cloud_estimator_label = str(data.get("point_cloud_estimator"))
+    point_cloud_generator_label = str(data.get("point_cloud_generator"))
+    inlier_predictor_label = str(data.get("inlier_predictor"))
+    query_point_reconstructor_label = str(data.get("query_point_reconstructor"))
+    point_cloud_non_validated_reconstructor_label = str(data.get("point_cloud_non_validated_reconstructor"))
+    point_cloud_validated_reconstructor_label = str(data.get("point_cloud_validated_reconstructor"))
+    weight_calculator_outliers_label = str(data.get("weight_calculator_outliers"))
+    weight_calculator_distances_label = str(data.get("weight_calculator_distances"))
 
     if session_id not in point_data_store:
         print(f"Session ID {session_id} not found in point_data_store")
@@ -298,25 +306,27 @@ def handle_process_video_with_points(data):
     video = get_video_info(video_path)
 
     # Choose point cloud estimator
-    point_cloud_estimator: PointCloudEstimatorInterface = create_component(PointCloudEstimatorSelector["tapir_estimator"])
+    point_cloud_estimator: PointCloudEstimatorInterface = create_component(PointCloudEstimatorSelector[point_cloud_estimator_label])
     point_cloud_generator: PointCloudGenerator = create_component(
-        PointCloudGeneratorSelector["circular_point_cloud_generator"]
+        PointCloudGeneratorSelector[point_cloud_generator_label]
     )
     inlier_predictor: InlierPredictorBase = create_component(
-        InlierPredictorSelector["dbscan_inlier_predictor"], dbscan_epsilon
+        InlierPredictorSelector[inlier_predictor_label], dbscan_epsilon
     )
-    query_point_reconstructor: QueryPointReconstructorBase = create_component(QueryPointReconstructorSelector["inlier_weighted_avg_reconstructor"])
+    query_point_reconstructor: QueryPointReconstructorBase = create_component(
+        QueryPointReconstructorSelector[query_point_reconstructor_label]
+    )
     point_cloud_non_validated_reconstructor: PointCloudReconstructorBase = create_component(
-        PointCloudReconstructorSelector["point_cloud_redraw_outliers_random"]
+        PointCloudReconstructorSelector[point_cloud_non_validated_reconstructor_label]
     )
     point_cloud_validated_reconstructor: PointCloudReconstructorBase = create_component(
-        PointCloudReconstructorSelector["point_cloud_cluster_recovery"]
+        PointCloudReconstructorSelector[point_cloud_validated_reconstructor_label]
     )
     weight_calculator_outliers: WeightCalculatorOutliersBase = create_component(
-        WeightCalculatorOutliersSelector["weight_calculator_outliers_penalty"]
+        WeightCalculatorOutliersSelector[weight_calculator_outliers_label]
     )
     weight_calculator_distances: WeightCalculatorDistancesBase = create_component(
-        WeightCalculatorDistancesSelector["weight_calculator_distances_ewma"]
+        WeightCalculatorDistancesSelector[weight_calculator_distances_label]
     )
 
     # Function to run the processing in a background thread

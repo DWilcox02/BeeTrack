@@ -31,15 +31,6 @@
             <p>3. Once all points are placed, click "Save Point Positions".</p>
         </div>
         <div class="point-controls">
-            <h3>Select Point Cloud Estimator:</h3>
-            <form>
-                <input type="radio" id="TAPIR" name="point_cloud_type" value="TAPIR" checked>
-                <label for="TAPIR">TAPIR</label> <br>
-                <input type="radio" id="Other" name="point_cloud_type" value="Other" disabled>
-                <label for="Other">Other</label>
-            </form>
-        </div>
-        <div class="point-controls">
             <h2>Parameter Adjustment</h2>
             <div>
                 <h4 style="margin-inline: 10px;">Video Processing Duration</h4>
@@ -52,7 +43,7 @@
                     </div>
 
                     <div style="margin-left: 20px; margin-top: 10px;">
-                        <input type="number" value="5" id="processing-time" disabled>
+                        <input type="number" value="2" id="processing-time" disabled>
                         <span style="margin-left: 5px;">seconds</span>
                     </div>
 
@@ -150,7 +141,170 @@
                     </ul>
                     </p>
                 </div>            
-            </div>            
+            </div> 
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Point Cloud Estimator:</h4>
+                    <select id="point-cloud-estimator">
+                        <option value="tapir_estimator" selected>TAPIR Estimator</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Selects the point cloud estimation algorithm to use for tracking points across frames.
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Point Cloud Generator:</h4>
+                    <select id="point-cloud-generator">
+                        <option value="singular_point_cloud_generator">Singular Point Cloud Generator</option>
+                        <option value="circular_point_cloud_generator" selected>Circular Point Cloud Generator</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Determines how point clouds are generated around the initial tracking points.
+                        <br>
+                        <ul>
+                            <li><b>Singular:</b> Creates single-point clouds for precise tracking</li>
+                            <li><b>Circular:</b> Creates circular point clouds around each tracking point</li>
+                        </ul>
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Inlier Predictor:</h4>
+                    <select id="inlier-predictor">
+                        <option value="inlier_predictor_base">Base Inlier Predictor</option>
+                        <option value="dbscan_inlier_predictor" selected>DBSCAN Inlier Predictor</option>
+                        <option value="hdbscan_inlier_predictor">HDBSCAN Inlier Predictor</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Determines which algorithm is used to identify inliers vs outliers in the point cloud predictions.
+                        <br>
+                        <ul>
+                            <li><b>Base:</b> Simple baseline inlier detection</li>
+                            <li><b>DBSCAN:</b> Density-based clustering for inlier detection</li>
+                            <li><b>HDBSCAN:</b> Hierarchical density-based clustering</li>
+                        </ul>
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Query Point Reconstructor:</h4>
+                    <select id="query-point-reconstructor">
+                        <option value="query_point_reconstructor_base">Base Query Point Reconstructor</option>
+                        <option value="inlier_weighted_avg_reconstructor" selected>Inlier Weighted Average Reconstructor</option>
+                        <option value="incremental_nn_reconstructor">Incremental NN Reconstructor</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Determines how query points are reconstructed from the point cloud data.
+                        <br>
+                        <ul>
+                            <li><b>Base:</b> Simple baseline reconstruction method</li>
+                            <li><b>Inlier Weighted Average:</b> Uses weighted average of inlier points</li>
+                            <li><b>Incremental NN:</b> Uses incremental nearest neighbor approach</li>
+                        </ul>
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Point Cloud Non-Validated Reconstructor:</h4>
+                    <select id="point-cloud-non-validated-reconstructor">
+                        <option value="point_cloud_reconstructor_base">Base Point Cloud Reconstructor</option>
+                        <option value="point_cloud_recons_inliers">Point Cloud Recons Inliers</option>
+                        <option value="point_cloud_redraw_outliers">Point Cloud Redraw Outliers</option>
+                        <option value="point_cloud_redraw_outliers_random" selected>Point Cloud Redraw Outliers Random</option>
+                        <option value="point_cloud_cluster_recovery">Point Cloud Cluster Recovery</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Handles reconstruction of point clouds that haven't been validated by the user.
+                        <br>
+                        <ul>
+                            <li><b>Base:</b> Simple baseline reconstruction</li>
+                            <li><b>Recons Inliers:</b> Reconstructs using only inlier points</li>
+                            <li><b>Redraw Outliers:</b> Redraws outlier points systematically</li>
+                            <li><b>Redraw Outliers Random:</b> Randomly redraws outlier points</li>
+                            <li><b>Cluster Recovery:</b> Uses clustering to recover lost points</li>
+                        </ul>
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Point Cloud Validated Reconstructor:</h4>
+                    <select id="point-cloud-validated-reconstructor">
+                        <option value="point_cloud_reconstructor_base">Base Point Cloud Reconstructor</option>
+                        <option value="point_cloud_recons_inliers">Point Cloud Recons Inliers</option>
+                        <option value="point_cloud_redraw_outliers">Point Cloud Redraw Outliers</option>
+                        <option value="point_cloud_redraw_outliers_random">Point Cloud Redraw Outliers Random</option>
+                        <option value="point_cloud_cluster_recovery" selected>Point Cloud Cluster Recovery</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Handles reconstruction of point clouds that have been validated by the user.
+                        <br>
+                        <ul>
+                            <li><b>Base:</b> Simple baseline reconstruction</li>
+                            <li><b>Recons Inliers:</b> Reconstructs using only inlier points</li>
+                            <li><b>Redraw Outliers:</b> Redraws outlier points systematically</li>
+                            <li><b>Redraw Outliers Random:</b> Randomly redraws outlier points</li>
+                            <li><b>Cluster Recovery:</b> Uses clustering to recover lost points</li>
+                        </ul>
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Weight Calculator (Outliers):</h4>
+                    <select id="weight-calculator-outliers">
+                        <option value="weight_calculator_outliers_penalty" selected>Weight Calculator Outliers Penalty</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Calculates weights for outlier points to determine their influence on the final tracking result.
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <div style="display: flex;">
+                    <h4 style="margin-inline: 10px;">Weight Calculator (Distances):</h4>
+                    <select id="weight-calculator-distances">
+                        <option value="weight_calculator_distances_ewma" selected>Weight Calculator Distances EWMA</option>
+                        <option value="incremental_nn_weight_updater">Incremental NN Weight Updater</option>
+                    </select>
+                </div>
+                <div style="margin-left: 20px;">
+                    <p>
+                        Calculates weights based on distances between points for tracking accuracy.
+                        <br>
+                        <ul>
+                            <li><b>Distances EWMA:</b> Uses exponentially weighted moving average of distances</li>
+                            <li><b>Incremental NN Weight Updater:</b> Updates weights incrementally using nearest neighbor</li>
+                        </ul>
+                    </p>
+                </div>
+            </div>           
         </div>        <div class="point-controls">
             <h3>Select point to place:</h3>
             <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>

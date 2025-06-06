@@ -684,6 +684,14 @@ async function processVideoWithPoints() {
   const smoothingAlpha = document.getElementById("smoothing-alpha").value;
   const dbscanEpsilon = document.getElementById("dbscan-epsilon").value;
   const deformityDelta = document.getElementById("deformity-delta").value;
+  const pointCloudEstimator = document.getElementById("point-cloud-estimator").value;
+  const pointCloudGenerator = document.getElementById("point-cloud-generator").value;
+  const inlierPredictor = document.getElementById("inlier-predictor").value;
+  const queryPointReconstructor = document.getElementById("query-point-reconstructor").value;
+  const pointCloudNonValidatedReconstructor = document.getElementById("point-cloud-non-validated-reconstructor").value;
+  const pointCloudValidatedReconstructor = document.getElementById("point-cloud-validated-reconstructor").value;
+  const weightCalculatorOutliers = document.getElementById("weight-calculator-outliers").value;
+  const weightCalculatorDistances = document.getElementById("weight-calculator-distances").value;
 
   const fullVideoRadio = document.getElementById("full-video");
   const specificSecondsRadio = document.getElementById("specific-seconds");
@@ -702,7 +710,7 @@ async function processVideoWithPoints() {
 
   const processPointCloudButton = document.getElementById("processPointCloud");
   const stopButton = document.getElementById("stopProcessing");
-  
+
   if (stopButton) {
     stopButton.style.display = "inline-block";
     stopButton.disabled = false;
@@ -732,7 +740,15 @@ async function processVideoWithPoints() {
       smoothing_alpha: smoothingAlpha,
       dbscan_epsilon: dbscanEpsilon,
       deformity_delta: deformityDelta,
-      processing_seconds: processingSeconds
+      processing_seconds: processingSeconds,
+      point_cloud_estimator: pointCloudEstimator,
+      point_cloud_generator: pointCloudGenerator,
+      inlier_predictor: inlierPredictor,
+      query_point_reconstructor: queryPointReconstructor,
+      point_cloud_non_validated_reconstructor: pointCloudNonValidatedReconstructor,
+      point_cloud_validated_reconstructor: pointCloudValidatedReconstructor,
+      weight_calculator_outliers: weightCalculatorOutliers,
+      weight_calculator_distances: weightCalculatorDistances,
     });
   } catch (error) {
     statusElement.className = "processing-status status-error";

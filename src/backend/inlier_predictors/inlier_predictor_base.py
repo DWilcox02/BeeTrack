@@ -5,7 +5,8 @@ from src.backend.point_cloud.point_cloud import PointCloud
 
 class InlierPredictorBase():
     
-    def __init__(self):
+    def __init__(self, dbscan_epsilon: float):
+        self.dbscan_epsilon = dbscan_epsilon
         self.log_fn = print
 
     def set_logger(self, log_fn):

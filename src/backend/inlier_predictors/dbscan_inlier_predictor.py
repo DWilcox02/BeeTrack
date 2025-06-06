@@ -7,16 +7,13 @@ from .inlier_predictor_base import InlierPredictorBase
 
 class DBSCANInlierPredictor(InlierPredictorBase):
 
-    def __init__(self, dbscan_epsilon: float):
-        self.dbscan_epsilon = dbscan_epsilon
-
     def predict_inliers(
         self,
         old_point_cloud: PointCloud,
         final_predictions: np.ndarray,
     ) -> np.ndarray[bool]:
         
-        if len(final_predictions) > 0:
+        if len(final_predictions) > 1:
             best_final_predictions_masked = final_predictions[old_point_cloud.inliers]
             eps = old_point_cloud.radius * self.dbscan_epsilon
 
