@@ -20,6 +20,7 @@ from src.backend.utils.frontend_communicator import FrontendCommunicator
 from src.backend.utils.processing_configuration import ProcessingConfiguration
 from src.backend.utils.rotation_calculator import calculate_rotation_deformity_predictions
 from src.backend.utils.confidence_helper import cloud_confidence
+from src.backend.utils.json_writer import JSONWriter
 
 # Component Abstractions
 from src.backend.point_cloud.point_cloud_generator import PointCloudGenerator
@@ -41,9 +42,6 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output/")
 
 # Video FPS lookup dictionary based on your existing data
 videos = json.load(open(os.path.join(DATA_DIR, "video_meta.json")))
-
-
-CONFIDENCE_THRESHOLD = 1.0
 
 
 class VideoProcessor():
@@ -86,6 +84,8 @@ class VideoProcessor():
             processing_configuration.weight_calculator_distances
         )
 
+        self.json_writer = JSONWriter()
+
 
     def set_log_message_function(self, fn):
         self.log_message = fn
@@ -96,6 +96,7 @@ class VideoProcessor():
         self.query_point_reconstructor.set_logger(self.log)
         self.weight_calculator_distance.set_logger(self.log)
         self.weight_calculator_outliers.set_logger(self.log)
+        self.json_writer.set_logger(self.log)
 
 
     def log(self, message):
@@ -188,48 +189,6 @@ class VideoProcessor():
             if temp_dir and os.path.exists(temp_dir):
                 os.rmdir(temp_dir)
             return None, fps
-
-
-    def convert_to_serializable(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif hasattr(obj, 'to_pylist'):  # Handle ArrayImpl objects
-            return obj.to_pylist()
-        elif hasattr(obj, 'tolist'):  # Handle other array-like objects
-            return obj.tolist()
-        elif isinstance(obj, (np.integer, np.floating)):
-            return float(obj) if isinstance(obj, np.floating) else int(obj)
-        elif isinstance(obj, list):
-            return [self.convert_to_serializable(item) for item in obj]
-        elif isinstance(obj, tuple):
-            return tuple(self.convert_to_serializable(item) for item in obj)
-        elif isinstance(obj, dict):
-            return {key: self.convert_to_serializable(value) for key, value in obj.items()}
-        else:
-            return obj
-        
-
-    def combine_and_write_tracks(self, tracks, final_tracks_output_path):
-        try:
-            tracks_list = self.convert_to_serializable(tracks)
-            
-            os.makedirs(os.path.dirname(final_tracks_output_path), exist_ok=True)
-            
-            tracks_data = {
-                "num_points": len(tracks_list),
-                "num_frames": len(tracks_list[0]) if tracks_list else 0,
-                "tracks": tracks_list
-            }
-            
-            # Write to JSON file
-            with open(final_tracks_output_path, 'w') as f:
-                json.dump(tracks_data, f, indent=2)
-                
-            self.log(f"Tracks successfully written to {final_tracks_output_path}")
-            
-        except Exception as e:
-            self.log(f"Error writing tracks to file: {e}")
-            raise
 
 
     def resize_points_add_frame(self, cloud_points, query_frame, height_ratio, width_ratio):
@@ -429,17 +388,6 @@ class VideoProcessor():
         }
 
 
-    def write_errors(self, errors, final_errors_output_path):
-        os.makedirs(os.path.dirname(os.path.abspath(final_errors_output_path)), exist_ok=True)
-        
-        serializable_errors = self.convert_to_serializable(errors)
-        
-        with open(final_errors_output_path, 'w') as f:
-            json.dump(serializable_errors, f, indent=2)
-
-        self.log(f"Errors successfully written to {final_errors_output_path}")
-
-
     def add_tracks(
         self, 
         start_frame: int,
@@ -479,7 +427,6 @@ class VideoProcessor():
 
 
     def process_video(self, query_points):
-        # Determine FPS from our lookup, default to 30 if not found
         filename = self.video["filename"]
         path = self.video["path"]
         fps = self.video.get("fps", 30)
@@ -502,8 +449,8 @@ class VideoProcessor():
                         
             self.log(f"Video loaded: {total_frames} frames at {fps} FPS, resolution: {width}x{height}")
 
-            # Calculate how many segments we need to process
-            total_segments = (total_frames + fps - 1) // fps  # Ceiling division
+            # Calculate how many segments to process
+            total_segments = (total_frames + fps - 1) // fps 
             if max_segments is not None:
                 segments_to_process = min(total_segments, max_segments)
             else:
@@ -527,7 +474,6 @@ class VideoProcessor():
             resize_height = 256
             resize_width = 256
             query_frame = 0
-            # stride = 8
 
             height_ratio = resize_height / height
             width_ratio = resize_width / width
@@ -535,8 +481,8 @@ class VideoProcessor():
             point_clouds: List[PointCloud] = self.point_cloud_generator.generate_initial_point_clouds(query_points) # N x 2 (for N points)
             all_tracks = [[] for _ in range(len(point_clouds))]
             all_errors = []
-            # inliers = [True] * (len(point_clouds) * len(point_clouds[0].cloud_points))
             self.add_validation()
+
             # Process each segment
             for i in range(segments_to_process):
                 if self.should_stop():
@@ -722,12 +668,11 @@ class VideoProcessor():
                 start_time=start_time
             )
 
-            self.combine_and_write_tracks(
-                tracks=all_tracks,
-                final_tracks_output_path=final_tracks_output_path
+            self.json_writer.combine_and_write_tracks(
+                tracks=all_tracks, final_tracks_output_path=final_tracks_output_path
             )
 
-            self.write_errors(
+            self.json_writer.write_errors(
                 errors=all_errors, 
                 final_errors_output_path=final_errors_output_path
             )
