@@ -277,6 +277,8 @@ def handle_process_video_with_points(data):
     job_id = data.get("job_id")
     confidence_threshold = float(data.get("confidence_threshold"))
     smoothing_alpha = float(data.get("smoothing_alpha"))
+    if smoothing_alpha < 0:
+        smoothing_alpha = 0.0
     dbscan_epsilon = float(data.get("dbscan_epsilon"))
     deformity_delta = float(data.get("deformity_delta"))
     processing_seconds = int(data.get("processing_seconds"))

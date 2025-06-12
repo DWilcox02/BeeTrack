@@ -97,7 +97,7 @@
             <div>
                 <div style="display: flex;">
                     <h4 style="margin-inline: 10px;">Smoothing Alpha &#x03B1; = </h4>
-                    <input type="number" value="1" id="smoothing-alpha">
+                    <input type="number" value="3" id="smoothing-alpha">
                 </div>
                 <div style="margin-left: 20px;">
                     <p>
@@ -105,6 +105,7 @@
                     <br>
                     <ul>
                         <li><b>&#x03B1; = 1</b> will result in a roughly <b>50-50 split</b> between raw mean tracks and interpolation.</li> 
+                        <li><b>&#x03B1; = 0</b> will give 100% of the weight to interpolated tracks.</li> 
                         <li><b>&#x03B1; &gt; 1</b> will give more weight to the <b>raw mean</b> than to the interpolation.</li>
                         <li><b>&#x03B1; &lt; 1</b> will give more weight to <b>interpolation</b> than the raw mean.</li>
                     </ul>

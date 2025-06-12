@@ -352,9 +352,9 @@ class VideoProcessor():
 
             for k in range(diff):
                 if k < half:
-                    interpolated_weight = (-2 / (diff - 1) * k + 1) ** self.smoothing_alpha
+                    interpolated_weight = (-1 / (diff - 1) * k + 1) ** self.smoothing_alpha
                 else:
-                    interpolated_weight = (2 / (diff - 1) * k - 1) ** self.smoothing_alpha
+                    interpolated_weight = (1 / (diff - 1) * k) ** self.smoothing_alpha
 
                 raw_weight = 1 - interpolated_weight
                 smoothed_tracks.append(interpolated_weight * interpolated_tracks[k] + raw_weight * raw_mean_tracks[k])

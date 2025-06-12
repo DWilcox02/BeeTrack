@@ -16,7 +16,7 @@ def reconstruct_with_center_rotation(
     cos_theta = np.cos(angle_rad)
     sin_theta = np.sin(angle_rad)
     rotation_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
-    rotated_vectors = np.matmul(old_point_cloud.vectors_qp_to_cp, rotation_matrix.T)
+    rotated_vectors = np.matmul(old_point_cloud.orig_vectors, rotation_matrix.T)
     reconstructed_points = rotated_vectors + query_point_reconstruction
 
     # Formatting
@@ -30,7 +30,7 @@ def reconstruct_with_center_rotation(
         radius=old_point_cloud.radius,
         rotation=rotation,
         weights=weights,
-        vectors_qp_to_cp=old_point_cloud.vectors_qp_to_cp,
+        vectors_qp_to_cp=rotated_vectors,
         orig_vectors=old_point_cloud.orig_vectors,
         log_fn=old_point_cloud.log_fn,
     )

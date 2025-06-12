@@ -28,7 +28,7 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
                 weights=weights
             )
         else:
-            return self.reconstruct_inliers(
+            return self.reconstruct_outliers(
                 old_point_cloud=old_point_cloud,
                 final_positions=final_positions,
                 inliers=inliers,
@@ -37,7 +37,7 @@ class PointCloudClusterRecovery(PointCloudReconstructorBase):
                 weights=weights
             )
 
-    def reconstruct_inliers(
+    def reconstruct_outliers(
         self,
         old_point_cloud: PointCloud,
         final_positions: np.ndarray[np.float32],
