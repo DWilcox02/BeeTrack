@@ -1,6 +1,6 @@
-# Computer Vision Bee Tracking - Final Year Thesis / Project :bee:
+# ApiCV - Final Year Thesis / Project :bee:
 
-Computer Vision Bee Tracking - Imperial College London Final Year Thesis / Project. Detect and track honeybees performing their waggle dance for apiology researchers. Leverages TAPIR (Track Any Point library) for point cloud establishment, Kalman filtering and RANSAC for future position prediction. 
+ApiCV - Imperial College London Final Year Thesis / Project. Detect and track honeybees performing their waggle dance for apiology researchers. Uses ensemble-based statistical techniques to establish a consensus amongst point clouds for arbitrary point tracking.
 
 <p align="center">
     <img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="python"> <img src="https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E" alt="JavaScript">  <img src="https://img.shields.io/badge/GPL--3.0-red?style=for-the-badge" alt="GPL3">
@@ -108,7 +108,7 @@ to start the frontend server, at `http://localhost:3000`
 - User interface wrap-up
     - Arbitrary number of points
 - Ensure linux compatibility
-- Fix clustering 0 inliers error
+
 
 ### DoC GPU Cluster Guide
 https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
@@ -124,7 +124,7 @@ https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/
 2. Kongsilp, P., Taetragool, U. & Duangphakdee, O. Individual honey bee tracking in a beehive environment using deep learning and Kalman filter. Sci Rep 14, 1061 (2024). https://doi.org/10.1038/s41598-023-44718-y
 
 
-<!-- This project includes code licensed under GPL-3.0 from [Original Repository](https://github.com/username/repository). -->
+This project includes code licensed under GPL-3.0 from [Tapnet, Google DeepMind](https://github.com/google-deepmind/tapnet).
 
 
 
