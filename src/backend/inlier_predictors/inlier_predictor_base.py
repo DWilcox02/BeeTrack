@@ -1,13 +1,12 @@
 import numpy as np
 
-from typing import List
-
 from src.backend.point_cloud.point_cloud import PointCloud
 
 
 class InlierPredictorBase():
     
-    def __init__(self):
+    def __init__(self, dbscan_epsilon: float):
+        self.dbscan_epsilon = dbscan_epsilon
         self.log_fn = print
 
     def set_logger(self, log_fn):
@@ -16,8 +15,9 @@ class InlierPredictorBase():
     def log(self, message):
         self.log_fn(message)
 
-    def predict_inliers_rotations(self, old_point_clouds: List[PointCloud], final_positions: np.ndarray):
-        return [
-            (np.array([True] * len(pc.cloud_points), dtype=bool), 0)
-            for pc in old_point_clouds
-        ]
+    def predict_inliers(
+        self,
+        old_point_cloud: PointCloud,
+        final_predictions: np.ndarray,
+    ) -> np.ndarray[bool]:
+        return np.array([True] * len(old_point_cloud.cloud_points), dtype=bool)

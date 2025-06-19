@@ -7,18 +7,18 @@ from .query_point_reconstructor_base import QueryPointReconstructorBase
 class InlierWeightedAvgReconstructor(QueryPointReconstructorBase):
     
     def reconstruct_query_point(
-        self, point_cloud: PointCloud, final_positions: np.ndarray, inliers_rotation: tuple[np.ndarray, float]
-    ):
-        inliers, rotation = inliers_rotation
+        self, 
+        point_cloud: PointCloud, 
+        final_predictions: np.ndarray[np.float32], 
+        inliers: np.ndarray[bool]
+    ) -> np.ndarray:
+        if len([x for x in inliers if x]) < 2:
+            # If very few outliers, just take weighted average of all
+            inliers = np.array([True] * len(inliers), dtype=bool)
+            # Important to do this here since the true number of inliers (< 2) is influential for confidence calculation
+
         weights = point_cloud.weights
 
-        final_predictions = []
-        for vec_qp_to_cp, pos in zip(point_cloud.vectors_qp_to_cp, final_positions):
-            rotated_vec = self.rotate_vector(vec_qp_to_cp, rotation)
-            final_predictions.append(pos - rotated_vec)
-
-        final_predictions = np.array(final_predictions)
-        inliers = np.array(inliers)
         inlier_predictions = final_predictions[inliers]
         inlier_weights = weights[inliers]
 

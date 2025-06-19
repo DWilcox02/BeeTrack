@@ -22,7 +22,6 @@ class RANSAC():
     def square_error_loss(self, y_true, y_pred):
         return (y_true - y_pred) ** 2
 
-
     def mse_loss(self, y_true, y_pred):
         return torch.sum(self.square_error_loss(y_true, y_pred)) / y_true.shape[0]
 
@@ -44,41 +43,9 @@ class RANSAC():
                 this_error = self.mse_loss(y, maybe_model.predict(X))
 
                 if this_error < self.best_error:
-                    # print(f"Better error: {this_error}")
                     self.best_error = this_error
                     self.best_fit = maybe_model
                     self.inliers = maybe_inliers
-
-        # for _ in range(self.k):
-        #     ids = rng.permutation(X.shape[0])
-
-        #     maybe_inliers = ids[: num_samples]
-        #     maybe_model = copy(self.model).fit(X[maybe_inliers], y[maybe_inliers])
-
-        #     # Get the remaining indices (not used as maybe_inliers)
-        #     remaining_indices = ids[num_samples :]
-
-        #     # Calculate errors for remaining points
-        #     errors = self.square_error_loss(y[remaining_indices], maybe_model.predict(X[remaining_indices]))
-
-        #     # Find which remaining points are inliers
-        #     thresholded = errors < best_fit_mse
-
-        #     # Get the actual indices of inliers (not their position in the remaining_indices array)
-        #     inlier_indices = np.where(thresholded)[0]  # Get positions where thresholded is True
-        #     inlier_ids = remaining_indices[inlier_indices]  # Map to original indices
-
-        #     if inlier_ids.size > self.d:
-        #         inlier_points = np.hstack([maybe_inliers, inlier_ids])
-        #         better_model = copy(self.model).fit(X[inlier_points], y[inlier_points])
-
-        #         this_error = self.mse_loss(y[inlier_points], better_model.predict(X[inlier_points]))
-
-        #         if this_error < self.best_error:
-        #             self.best_error = this_error
-        #             self.best_fit = better_model
-        #             self.inliers = inlier_ids
-
         return self
 
     def predict(self, X):

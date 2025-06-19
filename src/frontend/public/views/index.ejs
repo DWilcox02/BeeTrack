@@ -9,100 +9,195 @@
     <script src="/js/socket.js"></script>
 </head>
 <body>
+    <!-- Main Header -->
     <div class="container">
-        <h1>Video Library</h1>
-        
-        <div class="tabs">
-            <div class="tab active" onclick="showTab('original')">
-                Original Videos <span class="badge badge-primary"><%= videos.length %></span>
+        <h1>🐝 ApiCV </h1>
+        <p class="library-description">
+            Select a video to annotate with ApiCV's tracking pipeline.
+        </p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="container">
+        <div class="video-tabs">
+            <div class="tab tab-original active" onclick="showTab('original')" id="original-tab">
+                <span class="tab-icon">📹</span>
+                <span class="tab-label">Original Videos</span>
+                <span class="badge badge-primary"><%= videos.length %></span>
             </div>
-            <div class="tab" onclick="showTab('processed')">
-                Processed Videos <span class="badge badge-success"><%= processed_videos.length %></span>
+            <div class="tab tab-processed" onclick="showTab('processed')" id="processed-tab">
+                <span class="tab-icon">⚡</span>
+                <span class="tab-label">Processed Videos</span>
+                <span class="badge badge-success"><%= processed_videos.length %></span>
             </div>
         </div>
-        
-        <div id="original-videos">
+    </div>
+    
+    <!-- Original Videos Section -->
+    <div id="original-videos" class="video-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>📹 Original Videos</h2>
+                <div class="section-stats">
+                    <span class="stats-item">
+                        <strong><%= videos.length %></strong> video<%= videos.length !== 1 ? 's' : '' %> available
+                    </span>
+                </div>
+            </div>
+            
             <div class="video-list">
-                <h2>Original Videos</h2>
                 <% if (videos && videos.length > 0) { %>
                     <% let current_folder = ''; %>
                     <% for (let video of videos) { %>
                         <% let video_folder = video.path || ''; %>
                         <% if (video_folder !== current_folder) { %>
                             <div class="folder-indicator">
-                                <% if (video_folder) { %>
-                                    📁 <%= video_folder %>
-                                <% } else { %>
-                                    📁 Root Directory
-                                <% } %>
+                                <div class="folder-icon">📁</div>
+                                <div class="folder-name">
+                                    <% if (video_folder) { %>
+                                        <%= video_folder %>
+                                    <% } else { %>
+                                        Root Directory
+                                    <% } %>
+                                </div>
                             </div>
                             <% current_folder = video_folder; %>
                         <% } %>
-                        <div class="video-item">
-                            <a href="/video/<%= encodeURIComponent(video.path + video.filename) %>">
-                                <%= video.filename %>
-                                <div class="video-path"><%= video.path + video.filename %></div>
+                        <div class="video-item video-item-original">
+                            <a href="/video/<%= encodeURIComponent(video.path + video.filename) %>" class="video-link">
+                                <div class="video-icon">🎥</div>
+                                <div class="video-info">
+                                    <div class="video-filename"><%= video.filename %></div>
+                                    <div class="video-path"><%= video.path + video.filename %></div>
+                                </div>
+                                <div class="video-actions">
+                                    <span class="action-hint">Click to analyze →</span>
+                                </div>
                             </a>
                         </div>
                     <% } %>
                 <% } else { %>
                     <div class="no-videos">
+                        <div class="no-videos-icon">📂</div>
+                        <h3>No Videos Found</h3>
                         <p>No video files found in the data directory.</p>
-                    </div>
-                <% } %>
-            </div>
-        </div>
-        
-        <div id="processed-videos" style="display: none;">
-            <div class="video-list">
-                <h2>Processed Videos</h2>
-                <% if (processed_videos && processed_videos.length > 0) { %>
-                    <% for (let video of processed_videos) { %>
-                        <div class="video-item processed-item">
-                            <a href="/output/<%= encodeURIComponent(video) %>" target="_blank">
-                                <%= video %>
-                                <div class="video-path">output/<%= video %></div>
-                            </a>
-                        </div>
-                    <% } %>
-                <% } else { %>
-                    <div class="no-videos">
-                        <p>No processed videos found. Use the "Process with TAPIR" button when viewing a video to create processed versions.</p>
+                        <p class="no-videos-hint">
+                            Add video files to your data directory and refresh the page.
+                        </p>
                     </div>
                 <% } %>
             </div>
         </div>
     </div>
     
+    <!-- Processed Videos Section -->
+    <div id="processed-videos" class="video-section" style="display: none;">
+        <div class="container">
+            <div class="section-header">
+                <h2>⚡ Processed Videos</h2>
+                <div class="section-stats">
+                    <span class="stats-item">
+                        <strong><%= processed_videos.length %></strong> processed video<%= processed_videos.length !== 1 ? 's' : '' %>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="video-list">
+                <% if (processed_videos && processed_videos.length > 0) { %>
+                    <% for (let video of processed_videos) { %>
+                        <div class="video-item video-item-processed">
+                            <a href="/output/<%= encodeURIComponent(video) %>" target="_blank" class="video-link">
+                                <div class="video-icon">✅</div>
+                                <div class="video-info">
+                                    <div class="video-filename"><%= video %></div>
+                                    <div class="video-path">output/<%= video %></div>
+                                </div>
+                                <div class="video-actions">
+                                    <span class="action-hint">View results →</span>
+                                </div>
+                            </a>
+                        </div>
+                    <% } %>
+                <% } else { %>
+                    <div class="no-videos">
+                        <div class="no-videos-icon">⚡</div>
+                        <h3>No Processed Videos</h3>
+                        <p>No processed videos found yet.</p>
+                        <p class="no-videos-hint">
+                            Use the "Process Point Cloud" button when viewing a video to create processed versions.
+                        </p>
+                        <div class="no-videos-action">
+                            <button onclick="showTab('original')" class="btn btn-primary">
+                                Browse Original Videos
+                            </button>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
     <script>
         function showTab(tabName) {
             // Hide all sections
             document.getElementById('original-videos').style.display = 'none';
             document.getElementById('processed-videos').style.display = 'none';
             
-            // Show selected section
-            document.getElementById(tabName + '-videos').style.display = 'block';
+            // Show selected section with animation
+            const targetSection = document.getElementById(tabName + '-videos');
+            targetSection.style.display = 'block';
+            targetSection.style.opacity = '0';
+            targetSection.style.transform = 'translateY(10px)';
+            
+            // Animate in
+            setTimeout(() => {
+                targetSection.style.transition = 'all 0.3s ease';
+                targetSection.style.opacity = '1';
+                targetSection.style.transform = 'translateY(0)';
+            }, 10);
             
             // Update tab styling
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach(tab => {
                 tab.classList.remove('active');
-                if (tab.textContent.toLowerCase().includes(tabName)) {
-                    tab.classList.add('active');
-                }
             });
+            
+            // Add active class to clicked tab
+            if (tabName === 'original') {
+                document.getElementById('original-tab').classList.add('active');
+            } else if (tabName === 'processed') {
+                document.getElementById('processed-tab').classList.add('active');
+            }
         }
         
-        // Initialize - fetch videos from backend
-        document.addEventListener('DOMContentLoaded', async () => {
+        // Add hover effects to video items
+        document.addEventListener('DOMContentLoaded', () => {
+            const videoItems = document.querySelectorAll('.video-item');
+            videoItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateX(5px)';
+                });
+                
+                item.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateX(0)';
+                });
+            });
+            
+            // Initialize - fetch videos from backend if needed
             try {
                 // Video data is already provided by the server when rendering the page
-                // This is just to demonstrate how you could update dynamically
-                const videoData = await api.getVideos();
-                // Update UI with fetched data if needed
-                console.log('Video data fetched:', videoData);
+                console.log(`Loaded ${<%= videos.length %>} original videos and ${<%= processed_videos.length %>} processed videos`);
             } catch (error) {
-                console.error('Error fetching videos:', error);
+                console.error('Error initializing video library:', error);
+            }
+        });
+
+        // Add keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') {
+                showTab('original');
+            } else if (e.key === '2') {
+                showTab('processed');
             }
         });
     </script>

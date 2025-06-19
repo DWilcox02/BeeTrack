@@ -10,7 +10,7 @@ import random
 
 
 class PointCloudRedrawOutliers(PointCloudReconstructorBase):
-    def reconstruct_point_clouds(
+    def reconstruct_point_cloud(
         self,
         old_point_clouds: List[PointCloud],
         final_positions: np.ndarray,

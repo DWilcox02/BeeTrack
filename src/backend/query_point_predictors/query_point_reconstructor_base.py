@@ -21,9 +21,11 @@ class QueryPointReconstructorBase():
             self.reconstruct_query_point(pc, fps, irs)
             for pc, fps, irs in zip(old_point_clouds, final_positions, inliers_rotations)
         ]
-    
-    def reconstruct_query_point(self, point_cloud: PointCloud, final_positions: np.ndarray, inliers_rotation: tuple[np.ndarray, float]):
-        return np.mean(final_positions, axis=0)
+
+    def reconstruct_query_point(
+        self, point_cloud: PointCloud, final_predictions: np.ndarray[np.float32], inliers: np.ndarray[bool]
+    ) -> np.ndarray:
+        return np.mean(final_predictions, axis=0)
     
     def rotate_vector(self, vector, angle_degrees):
         """Rotate a 2D vector by the given angle in degrees"""

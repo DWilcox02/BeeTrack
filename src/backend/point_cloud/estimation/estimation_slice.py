@@ -1,4 +1,5 @@
 import numpy as np
+from typing import List
 from abc import ABC, abstractmethod
 
 
@@ -30,13 +31,13 @@ class EstimationSlice(ABC):
         normalized_trajectory = mean_trajectory / np.linalg.norm(mean_trajectory)  # Normalize the trajectory
         return normalized_trajectory
 
-    def get_points_for_frame(self, frame, num_qp, num_cp_per_qp):
+    def get_points_for_frame(self, frame, lengths) -> List[np.ndarray]:
         slice_i = 0
 
         new_query_points = []
-        for _ in range(num_qp):
+        for num_cp_for_this_qp in lengths:
             qp_points = []
-            for _ in range(num_cp_per_qp):
+            for _ in range(num_cp_for_this_qp):
                 point = self.tracks[:, frame, :][slice_i]
                 qp_points.append(point)
                 slice_i += 1

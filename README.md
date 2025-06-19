@@ -100,17 +100,15 @@ to start the frontend server, at `http://localhost:3000`
     - Ability to stop and restart processing (without shutting down backend server)
     - Video output
 19. Confidence based on deformity + hyperparameter tuning
+20. Refactoring and bug fixes
+
 
 ### Next Steps
 (Not necessarily in order of priority)
 - User interface wrap-up
     - Arbitrary number of points
-- Explore Geometric Alignment Possibilities
 - Ensure linux compatibility
-- Fix stop processing parameter change error
 - Fix clustering 0 inliers error
-- Refactor after inliers and deformities and splitting rotation
-- Fix calc_errors function after changes
 
 ### DoC GPU Cluster Guide
 https://www.imperial.ac.uk/computing/people/csg/guides/hpcomputing/gpucluster/

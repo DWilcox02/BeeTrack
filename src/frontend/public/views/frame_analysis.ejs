@@ -19,176 +19,52 @@
         data-margin-bottom="50"
         data-video-title="<%= filename.split('/').pop() %>"
     ></div>
+
+    <!-- Main Header Section -->
     <div class="container">
-        <h1>First Frame Analysis</h1>
+        <h1>Frame Annotation</h1>
         <h2>Video: <%= filename.split('/').pop() %></h2>
-        
         
         <div class="instructions">
             <h3>Instructions:</h3>
             <p>1. Select a colored point from the buttons below.</p>
             <p>2. Click on the image where you want to place the point.</p>
-            <p>3. Once all points are placed, click "Save Point Positions".</p>
+            <p>3. Once all points are placed, click "Process Point Cloud".</p>
         </div>
+    </div>
+
+    <!-- Point Selection and Controls -->
+    <div class="container">
+        <h3>Point Selection</h3>
         <div class="point-controls">
-            <h3>Select Point Cloud Estimator:</h3>
-            <form>
-                <input type="radio" id="TAPIR" name="point_cloud_type" value="TAPIR" checked>
-                <label for="TAPIR">TAPIR</label> <br>
-                <input type="radio" id="Other" name="point_cloud_type" value="Other" disabled>
-                <label for="Other">Other</label>
-            </form>
-        </div>
-        <div class="point-controls">
-            <h2>Parameter Adjustment</h2>
-            <div>
-                <h4 style="margin-inline: 10px;">Video Processing Duration</h4>
-                <div style="margin-left: 20px;">
-                    <div style="margin-bottom: 10px;">
-                        <label>
-                            <input type="radio" name="processing-option" value="seconds" id="specific-seconds" checked>
-                            Process specific number of seconds
-                        </label>
-                    </div>
-
-                    <div style="margin-left: 20px; margin-top: 10px;">
-                        <input type="number" value="5" id="processing-time" disabled>
-                        <span style="margin-left: 5px;">seconds</span>
-                    </div>
-
-                    <div style="margin-bottom: 10px;">
-                        <label>
-                            <input type="radio" name="processing-option" value="full" id="full-video">
-                            Process full video
-                        </label>
-                    </div>
-                    
-                    
-                </div>
-                
-                <div style="margin-left: 20px; margin-top: 15px;">
-                    <p style="font-size: 14px; color: #666;">
-                        Choose to process the entire video or specify how many seconds to process at once
-                    </p>
-                </div>
-                <script>
-                    const fullVideoRadio = document.getElementById('full-video');
-                    const specificSecondsRadio = document.getElementById('specific-seconds');
-                    const processingTimeInput = document.getElementById('processing-time');
-
-                    function updateInputState() {
-                        if (fullVideoRadio.checked) {
-                            processingTimeInput.disabled = true;
-                            processingTimeInput.style.opacity = '0.5';
-                        } else {
-                            processingTimeInput.disabled = false;
-                            processingTimeInput.style.opacity = '1';
-                            processingTimeInput.focus();
-                        }
-                    }
-
-                    fullVideoRadio.addEventListener('change', updateInputState);
-                    specificSecondsRadio.addEventListener('change', updateInputState);
-
-                    // Initialize the state
-                    updateInputState();
-                </script>
-            </div>
-
-            <div>
-                <div style="display: flex;">
-                    <h4 style="margin-inline: 10px;">Smoothing Alpha &#x03B1; = </h4>
-                    <input type="number" value="1" id="smoothing-alpha">
-                </div>
-                <div style="margin-left: 20px;">
-                    <p>
-                        Smoothing is used to balance between raw TAPIR calculations and interpolation. 
-                    <br>
-                    <ul>
-                        <li><b>&#x03B1; = 1</b> will result in a roughly <b>50-50 split</b> between raw mean tracks and interpolation.</li> 
-                        <li><b>&#x03B1; &gt; 1</b> will give more weight to the <b>raw mean</b> than to the interpolation.</li>
-                        <li><b>&#x03B1; &lt; 1</b> will give more weight to <b>interpolation</b> than the raw mean.</li>
-                    </ul>
-                    (<b>Note</b>: This is not the final output. All tracks and annotations (raw cloud prediction, interpolations, and smoothed tracks) will be available in the CSV file.)    
-                    </p>
-                </div>
-            </div>
-            <div>
-                <div style="display: flex;">
-                    <h4 style="margin-inline: 10px;">DBScan (Clustering) Epsilon &#x03B5; = </h4>
-                    <input type="number" value="1" id="dbscan-epsilon">
-                </div>
-                <div style="margin-left: 20px;">
-                    <p>
-                        Clustering helps determine confidence in the TAPIR predictions by predicting outliers. &#x03B5; represents how "close" predictions should be to each other before they are considered outliers.
-                        <br>
-                        &#x03B5; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud during clustering. The default is &#x03B5; = 1.
-                    <br>
-                    <ul>
-                        <li><b>Higher &#x03B5;</b> will result in larger (more confident) clusters and <b>fewer outliers</b>.</li> 
-                        <li><b>Lower &#x03B5;</b> will result in smaller (less confident) clusters and <b>more outliers</b>.</li> 
-                    </ul>
-                    (Recommended to change in very small increments (e.g. by steps of 0.1 or 0.25))
-                    </p>
-                </div>            
-            </div>
-            <div>
-                <div style="display: flex;">
-                    <h4 style="margin-inline: 10px;">Deformity Delta &#x03B4; = </h4>
-                    <input type="number" value="10" id="deformity-delta">
-                </div>
-                <div style="margin-left: 20px;">
-                    <p>
-                        Used to calculate deformity ratio. Because deformity has no upper bound, a manual input is required.
-                        <br>
-                        &#x03B4; is just a coefficient, and is multiplied by the <b>radius</b> of a cloud when calculating deformity. The default is &#x03B4; = 10.
-                        Deformity Ratio = Deformity / (r * r * &#x03B4;).
-                    <br>
-                    <ul>
-                        <li><b>Higher &#x03B4;</b> will result in lower deformity ratio (more confident) and will be <b>less likely</b> to trigger validations.</li> 
-                        <li><b>Lower &#x03B4;</b> will result in higher deformity ratio (less confident) and will be <b>more likely</b> to trigger validations.</li> 
-                    </ul>
-                    </p>
-                </div>            
-            </div>            
-        </div>        <div class="point-controls">
-            <h3>Select point to place:</h3>
             <div id="pointRed" class="point-button point-red" data-index="0" data-color="red">Circle 1</div>
             <div id="pointGreen" class="point-button point-green" data-index="1" data-color="green">Circle 2</div>
             <div id="pointBlue" class="point-button point-blue" data-index="2" data-color="blue">Circle 3</div>
-            <!-- <div id="pointPurple" class="point-button point-purple" data-index="3" data-color="purple">Circle 4</div> -->
         </div>
+
         <div class="point-controls">
-            <h3>Import Points:</h3>
-            <textarea id="pointsDataInput" rows="5" style="width: 100%; font-family: monospace;" placeholder="Paste points data in JSON format here..."></textarea>
-            <div class="controls" style="margin-top: 10px;">
-                <button id="importPointsBtn" class="btn btn-action">Import Points</button>
-            </div>
-        </div>
-        <div>
-            Circle Radius
+            <h4>Circle Radius</h4>
             <div class="slider-container">
                 <input type="range" min="0" max="500" value="50" class="slider" id="radiusRange">
                 <button id="sendRadiusBtn" class="btn btn-action">Set Radius</button>
             </div>
             <div class="value-display">
-                Value: <span id="radiusValue"></span> pixels
+                Value: <span id="radiusValue">50</span> pixels
             </div>
+        </div>
 
-            <script>
-                var slider = document.getElementById("radiusRange")
-                var output = document.getElementById("radiusValue")
-                output.innerHTML = slider.value
+        <div class="point-controls">
+            <h4>Import Points</h4>
+            <textarea id="pointsDataInput" rows="5" placeholder="Paste points data in JSON format here..."></textarea>
+            <div class="controls">
+                <button id="importPointsBtn" class="btn btn-action">Import Points</button>
+            </div>
+        </div>
+    </div>
 
-                slider.oninput = function() {
-                    output.innerHTML = this.value
-                }
-            </script>
-        </div>        
-        
-        
+    <!-- Image Display -->
+    <div class="container">
         <div class="plotly-container" id="plotly-container">
-            <!-- Plotly plot will be generated here by JavaScript -->
             <div id="plotlyDiv" style="width: <%= Math.min(800, width + 100) %>px; height: <%= Math.min(600, height + 100) %>px;"></div>
             <div id="plot-overlay"></div>
         </div>
@@ -196,16 +72,34 @@
         <div id="pointStatus" class="processing-status status-processing" style="display: none;">
             Select a point and click on the image to place it.
         </div>
-        
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="container">
         <div class="controls">
             <a href="/video/<%= encodeURIComponent(filename) %>" class="btn btn-primary">Back to Video Player</a>
             <a href="/" class="btn btn-secondary">Back to Video Library</a>
-            <!-- <button id="savePlotlyPointsBtn" class="btn btn-action" onclick="savePoints()">Save Point Positions</button> -->
             <button id="processPointCloud" class="btn btn-action" onclick="processVideoWithPoints()">Process Point Cloud</button>
             <button id="stopProcessing" class="btn btn-secondary" onclick="stopProcessing()" style="display: none; background-color: #dc3545; color: white;">Stop Processing</button>
-            <button id="validationContinue" style="display: none;" class="btn btn-validation" onclick="sendValidationContinue()">Validate and Continue</button>        
+            <button id="validationContinue" style="display: none;" class="btn btn-validation" onclick="sendValidationContinue()">Validate and Continue</button>
         </div>
+    </div>
 
+
+    <!-- Status and Logs -->
+    <div id="processingStatus" class="processing-status">
+        <span id="statusMessage"></span>
+    </div>
+
+    <div id="processingLogs" class="processing-logs" style="display: none;">
+        <h3>Processing Logs</h3>
+        <div class="log-container">
+            <pre id="logContent" class="log-content"></pre>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="container">
         <div class="timeline">
             <h2>Tracking Timeline</h2>
             
@@ -220,65 +114,235 @@
             <div class="image-container">
                 <img id="displayedImage" src="" alt="Selected image" style="width: 800px; height: 100%;">
             </div>
-
         </div>
     </div>
 
-    <div id="processingStatus" class="processing-status">
-        <span id="statusMessage"></span>
-    </div>
-
-    <div id="processingLogs" class="processing-logs" style="display: none;">
-        <h3>Processing Logs</h3>
-        <div class="log-container">
-            <pre id="logContent" class="log-content"></pre>
-        </div>
-    </div>
-     
-
-    <div id="tracksData" style="display: flex;">
-        <div id="validationData">
-            <div style="display: flex;">
-                <h2>Validated Points</h2>
-                <button class="btn btn-primary" onclick="copyValidationsToClipboard()">Copy Validations to Clipboard</button>
+    <!-- Data Tables -->
+    <div class="container">
+        <div id="tracksData" style="display: flex;">
+            <div id="validationData">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Validated Points</h2>
+                    <button class="btn btn-primary" onclick="copyValidationsToClipboard()">Copy Validations to Clipboard</button>
+                </div>
+                <div id="table-scroll">
+                    <table id="validationTable">
+                        <thead>
+                            <tr>
+                                <th><span class="text">Validated Points JSON</span></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
-            <div id="table-scroll">
-                <table id="validationTable">
-                    <thead>
-                        <tr>
-                            <th><span class="text">Validated Points JSON</span></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- <tr><td>blah</td></tr> -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div id="tracksAnnotation">
-            <div style="display: flex;">
-                <h2>Annotation Tracks</h2>
-                <button class="btn btn-primary" onclick="downloadTracksCSV()">Download CSV</button>
-            </div>
-            <div id="table-scroll">
-                <table id="tracksTable">
-                    <thead>
-                        <tr>
-                            <th><span class="text">frame</span></th>
-                            <th><span class="text">x</span></th>
-                            <th><span class="text">y</span></th>
-                            <th><span class="text">bodypart</span></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- <tr> <td>blah</td> <td>blah</td> <td>blah</td> <td>blah</td> </tr> -->
-                    </tbody>
-                </table>
+            <div id="tracksAnnotation">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Annotation Tracks</h2>
+                    <button class="btn btn-primary" onclick="downloadTracksCSV()">Download CSV</button>
+                </div>
+                <div id="table-scroll">
+                    <table id="tracksTable">
+                        <thead>
+                            <tr>
+                                <th><span class="text">frame</span></th>
+                                <th><span class="text">x</span></th>
+                                <th><span class="text">y</span></th>
+                                <th><span class="text">bodypart</span></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Session data for JavaScript -->
+    <!-- Parameter Configuration -->
+    <div class="container">
+        <h2>Parameter Configuration</h2>
+        
+        <!-- Processing Duration -->
+        <div class="point-controls">
+            <h4>Video Processing Duration</h4>
+            <div style="margin-left: 20px;">
+                <div style="margin-bottom: 10px;">
+                    <label>
+                        <input type="radio" name="processing-option" value="seconds" id="specific-seconds" checked>
+                        Process specific number of seconds
+                    </label>
+                </div>
+                <div style="margin-left: 20px; margin-top: 10px;">
+                    <input type="number" value="2" id="processing-time" disabled>
+                    <span style="margin-left: 5px;">seconds</span>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label>
+                        <input type="radio" name="processing-option" value="full" id="full-video">
+                        Process full video
+                    </label>
+                </div>
+                <p style="font-size: 14px; color: #666; margin-top: 15px;">
+                    Choose to process the entire video or specify how many seconds to process at once
+                </p>
+            </div>
+        </div>
+
+        <!-- Core Parameters -->
+        <div class="point-controls">
+            <h4>Core Parameters</h4>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <strong>Confidence Threshold:</strong>
+                    <input type="number" value="0.7" id="confidence-threshold" style="width: 80px;">
+                </label>
+                <p style="margin-left: 20px; font-size: 14px; color: #666;">
+                    Recommended not to change, but rather adjust the parameters below instead.
+                </p>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <strong>Smoothing Alpha (α):</strong>
+                    <input type="number" value="3" id="smoothing-alpha" style="width: 80px;">
+                </label>
+                <div style="margin-left: 20px; font-size: 14px; color: #666;">
+                    <p>Balances raw TAPIR calculations and interpolation:</p>
+                    <ul style="margin: 5px 0;">
+                        <li><strong>α = 1:</strong> 50-50 split between raw tracks and interpolation</li>
+                        <li><strong>α = 0:</strong> 100% interpolated tracks</li>
+                        <li><strong>α > 1:</strong> More weight to raw mean</li>
+                        <li><strong>α < 1:</strong> More weight to interpolation</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <strong>DBScan Epsilon (ε):</strong>
+                    <input type="number" value="1" id="dbscan-epsilon" style="width: 80px;">
+                </label>
+                <div style="margin-left: 20px; font-size: 14px; color: #666;">
+                    <p>Clustering parameter for outlier detection:</p>
+                    <ul style="margin: 5px 0;">
+                        <li><strong>Higher ε:</strong> Larger clusters, fewer outliers</li>
+                        <li><strong>Lower ε:</strong> Smaller clusters, more outliers</li>
+                    </ul>
+                    <p><em>Change in small increments (0.1 or 0.25)</em></p>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <strong>Deformity Delta (δ):</strong>
+                    <input type="number" value="0.01" id="deformity-delta" style="width: 80px;">
+                </label>
+                <div style="margin-left: 20px; font-size: 14px; color: #666;">
+                    <p>Deformity ratio calculation: Deformity / (r⁴ × δ)</p>
+                    <ul style="margin: 5px 0;">
+                        <li><strong>Higher δ:</strong> Lower deformity ratio, less likely to trigger validations</li>
+                        <li><strong>Lower δ:</strong> Higher deformity ratio, more likely to trigger validations</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Algorithm Selection -->
+        <div class="point-controls">
+            <h4>Algorithm Selection</h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Point Cloud Estimator:</strong>
+                        <select id="point-cloud-estimator" style="flex: 1;">
+                            <option value="tapir_estimator" selected>TAPIR Estimator</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Point Cloud Generator:</strong>
+                        <select id="point-cloud-generator" style="flex: 1;">
+                            <option value="singular_point_cloud_generator">Singular</option>
+                            <option value="circular_point_cloud_generator" selected>Circular</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Inlier Predictor:</strong>
+                        <select id="inlier-predictor" style="flex: 1;">
+                            <option value="inlier_predictor_base">Base</option>
+                            <option value="dbscan_inlier_predictor" selected>DBSCAN</option>
+                            <option value="hdbscan_inlier_predictor">HDBSCAN</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Query Point Reconstructor:</strong>
+                        <select id="query-point-reconstructor" style="flex: 1;">
+                            <option value="query_point_reconstructor_base">Base</option>
+                            <option value="inlier_weighted_avg_reconstructor" selected>Inlier Weighted Avg</option>
+                            <option value="incremental_nn_reconstructor">Incremental NN</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Non-Validated Reconstructor:</strong>
+                        <select id="point-cloud-non-validated-reconstructor" style="flex: 1;">
+                            <option value="point_cloud_reconstructor_base">Base</option>
+                            <option value="point_cloud_recons_inliers">Recons Inliers</option>
+                            <option value="point_cloud_redraw_outliers">Redraw Outliers</option>
+                            <option value="point_cloud_redraw_outliers_random" selected>Redraw Random</option>
+                            <option value="point_cloud_cluster_recovery">Cluster Recovery</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Validated Reconstructor:</strong>
+                        <select id="point-cloud-validated-reconstructor" style="flex: 1;">
+                            <option value="point_cloud_reconstructor_base">Base</option>
+                            <option value="point_cloud_recons_inliers">Recons Inliers</option>
+                            <option value="point_cloud_redraw_outliers">Redraw Outliers</option>
+                            <option value="point_cloud_redraw_outliers_random">Redraw Random</option>
+                            <option value="point_cloud_cluster_recovery" selected>Cluster Recovery</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Weight Calc (Outliers):</strong>
+                        <select id="weight-calculator-outliers" style="flex: 1;">
+                            <option value="weight_calculator_outliers_penalty" selected>Outliers Penalty</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <strong>Weight Calc (Distances):</strong>
+                        <select id="weight-calculator-distances" style="flex: 1;">
+                            <option value="weight_calculator_distances_ewma" selected>Distances EWMA</option>
+                            <option value="incremental_nn_weight_updater">Incremental NN</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session data and scripts -->
     <script>
         const SESSION_ID = "<%= session_id %>";
         const VIDEO_PATH = "<%= filename %>";
@@ -298,6 +362,33 @@
             .replace(/&amp;/g, '&');
         const INITIAL_POINTS = JSON.parse(decoded_points) || [];
 
+        // Radio button functionality
+        const fullVideoRadio = document.getElementById('full-video');
+        const specificSecondsRadio = document.getElementById('specific-seconds');
+        const processingTimeInput = document.getElementById('processing-time');
+
+        function updateInputState() {
+            if (fullVideoRadio.checked) {
+                processingTimeInput.disabled = true;
+                processingTimeInput.style.opacity = '0.5';
+            } else {
+                processingTimeInput.disabled = false;
+                processingTimeInput.style.opacity = '1';
+                processingTimeInput.focus();
+            }
+        }
+
+        fullVideoRadio.addEventListener('change', updateInputState);
+        specificSecondsRadio.addEventListener('change', updateInputState);
+        updateInputState();
+
+        // Slider functionality
+        const slider = document.getElementById("radiusRange");
+        const output = document.getElementById("radiusValue");
+        output.innerHTML = slider.value;
+        slider.oninput = function() {
+            output.innerHTML = this.value;
+        }
         
         // Create the Plotly chart when the page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -313,7 +404,6 @@
         });
         
         function ensureDataUrlFormat(imageData) {
-            // If the image data doesn't start with the data URL prefix, add it
             if (!imageData.startsWith('data:image')) {
                 return `data:image/jpeg;base64,${imageData}`;
             }
@@ -336,27 +426,21 @@
         }
 
         function createPlotlyChart() {
-            const appContainer = document.getElementById("app-container")
+            const appContainer = document.getElementById("app-container");
             const marginTop = appContainer.dataset.marginTop;
             const marginLeft = appContainer.dataset.marginLeft;
             const marginRight = appContainer.dataset.marginRight;
             const marginBottom = appContainer.dataset.marginBottom;
 
-
             const plotlyDiv = document.getElementById('plotlyDiv');
-
-            // Set plot div size based on image aspect ratio
             const aspectRatio = IMAGE_WIDTH / IMAGE_HEIGHT;
-            let width = 800; // pick a base width
+            let width = 800;
             let height = width / aspectRatio;
-
 
             plotlyDiv.style.width = width + "px";
             plotlyDiv.style.height = height + "px";
             
-            // Create a figure with the image and points
             const figure = {
-                // data: [],
                 layout: {
                     xaxis: {
                         range: [0, IMAGE_WIDTH],
@@ -365,10 +449,8 @@
                         showgrid: false
                     },
                     yaxis: {
-                        range: [IMAGE_HEIGHT, 0], // Invert y-axis for image coordinates
+                        range: [IMAGE_HEIGHT, 0],
                         title: 'Y',
-                        // scaleanchor: 'x',
-                        // scaleratio: 1,
                         fixedrange: true,
                         showgrid: false
                     },
@@ -402,28 +484,7 @@
                 }
             };
             
-            // Add each point as a scatter trace
-            // if (Array.isArray(INITIAL_POINTS)) {
-            //     INITIAL_POINTS.forEach(point => {
-            //         figure.data.push({
-            //             x: [point.x],
-            //             y: [point.y],
-            //             mode: 'markers',
-            //             marker: {
-            //                 size: 10,
-            //                 color: point.color
-            //             },
-            //             name: `Point (${point.color})`
-            //         });
-            //     });
-            // } else {
-            //     console.error("INITIAL_POINTS is not an array:", INITIAL_POINTS);
-            // }
-            
-            // Create the plot
             Plotly.newPlot(plotlyDiv, figure.data, figure.layout, figure.config);
-            console.log(figure.layout.shapes)
-            // Store points globally for use in the rest of the app
             window.pointsData = INITIAL_POINTS;
         }
     </script>
