@@ -642,12 +642,13 @@ class VideoProcessor():
                     )
                     all_errors.append(slice_errors)                    
 
-                    video_segment = slice_result.get_video()
+                    # video_segment = slice_result.get_video()
                     # inliers_masks = [b for mask, _ in inliers_rotations for b in mask]
                     # inliers = [a and b for a, b in zip(inliers, inliers_masks)]
                     # video_segment = slice_result.get_video_for_points(interpolated_points)
                     # video_segment = slice_result.get_video_for_points(mean_points)
                     # video_segment = slice_result.get_video_for_points(mean_and_interpolated)
+                    video_segment = slice_result.get_video_for_points(smoothed_tracks)
                     smoothed_video_segment = slice_result.get_video_for_points(smoothed_tracks)
                     for j, sps in enumerate(smoothed_tracks):
                         all_tracks[j].extend(sps)

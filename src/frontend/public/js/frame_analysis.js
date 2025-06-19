@@ -728,7 +728,7 @@ async function processVideoWithPoints() {
   statusElement.className = "processing-status status-processing";
   statusElement.style.display = "block";
   statusMessageElement.innerHTML =
-    '<div class="loading-spinner"></div> Processing video with TAPIR (this may take several minutes)...';
+    '<div class="loading-spinner"></div> Processing video (this may take a while)...';
   logsContainer.style.display = "block";
 
   try {

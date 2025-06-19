@@ -15,7 +15,7 @@ class CircularPointCloudGenerator(PointCloudGenerator):
             return []
 
         # Number of points to generate around each circle
-        n_points_per_circle = 6
+        n_points_per_circle = 12
 
         # For each query point, generate a circle of points around it
         return [self._generate_point_cloud(point, n_points_per_circle) for point in query_points]

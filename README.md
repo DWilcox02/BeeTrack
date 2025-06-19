@@ -79,7 +79,7 @@ to start the frontend server, at `http://localhost:3000`
 5. Basic re-adjustment process, using "segment" midpoint and trajectory to recalculate points after each segment
 6. Server split into JS/HTML (frontend) + Python (backend) with socket for bidirectional communication
 7. User validation, allowing point updates after each "segment"
-8. Further level of abstraction from TAPIR
+8. Further abstraction from TAPIR
 9. Replace rhombus point initialization with circles
 10. Setup weight system for RANSAC to use
 11. CircleMovementModel for RANSAC Prediction and outliers

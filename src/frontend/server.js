@@ -68,9 +68,9 @@ app.get("/analysis/:filename", async (req, res) => {
     const height = frameData.height;
 
     let points = [
-      { x: width * 0.25, y: height * 0.25, color: "red", radius: 50 },
-      { x: width * 0.75, y: height * 0.25, color: "green", radius: 50 },
-      { x: width * 0.75, y: height * 0.75, color: "blue", radius: 50 },
+      { x: width * 0.25, y: height * 0.25, color: "red", radius: 24 },
+      { x: width * 0.75, y: height * 0.25, color: "green", radius: 24 },
+      { x: width * 0.75, y: height * 0.75, color: "blue", radius: 24 },
       // { x: width * 0.25, y: height * 0.75, color: "purple", radius: 50 },
     ];
 
@@ -88,11 +88,11 @@ app.get("/analysis/:filename", async (req, res) => {
     //   { x: 322.6, y: 305.6, color: "blue", radius: 32 },
     //   // { x: 297.9, y: 295.1, color: "purple", radius: 50 },
     // ];
-    points = [
-      { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
-      { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
-      { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
-    ];
+    // points = [
+    //   { x: 416.1, y: 299.0921875, color: "red", radius: 32.0 },
+    //   { x: 448.1, y: 345.0921875, color: "green", radius: 32.0 },
+    //   { x: 450.1, y: 393.0921875, color: "blue", radius: 32.0 },
+    // ];
 
     // Static points for round_dance
     // points = [

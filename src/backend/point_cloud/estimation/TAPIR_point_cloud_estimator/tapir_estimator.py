@@ -68,7 +68,7 @@ class TapirEstimator(PointCloudEstimatorInterface):
         """Process a slice of video frames and return the processed segment."""
 
         if stop_event is not None and stop_event.is_set():
-            self.log("TAPIR processing stopped by user request")
+            self.log("Processing stopped by user request")
             return None
 
         self.log("Preprocessing frames...")
@@ -80,7 +80,7 @@ class TapirEstimator(PointCloudEstimatorInterface):
 
         # Stop check after preprocessing
         if stop_event is not None and stop_event.is_set():
-            self.log("TAPIR processing stopped by user request")
+            self.log("Processing stopped by user request")
             return None
 
         def chunk_inference(query_points):
@@ -124,7 +124,7 @@ class TapirEstimator(PointCloudEstimatorInterface):
                 for item in self.iterable:
 
                     if stop_event is not None and stop_event.is_set():
-                        self.log_fn("TAPIR processing stopped by user request")
+                        self.log_fn("Processing stopped by user request")
                         return None
                     
                     self.current += 1
@@ -143,7 +143,7 @@ class TapirEstimator(PointCloudEstimatorInterface):
             self.log,
         ):
             if stop_event is not None and stop_event.is_set():
-                self.log("TAPIR processing stopped by user request")
+                self.log("Processing stopped by user request")
                 return None
             
             query_points_chunk = query_points[i : i + chunk_size]
@@ -158,7 +158,7 @@ class TapirEstimator(PointCloudEstimatorInterface):
             visibles.append(visibles2)
 
         if stop_event is not None and stop_event.is_set():
-            self.log("TAPIR processing stopped by user request")
+            self.log("Processing stopped by user request")
             return None
         
         self.log("Concatenating results...")
